@@ -55,13 +55,19 @@ export default function LivePitchRoom() {
   const location = useLocation();
   const navigate = useNavigate();
 
-  const pitchConfig = location.state?.pitchConfig;
+  const [pitchConfig, setPitchConfig] = useState(() => {
+    if (location.state?.pitchConfig) {
+      sessionStorage.setItem('pitchConfig', JSON.stringify(location.state.pitchConfig));
+      return location.state.pitchConfig;
+    }
+    const saved = sessionStorage.getItem('pitchConfig');
+    return saved ? JSON.parse(saved) : null;
+  });
 
   const { stream, startStream, stopStream } = useMediaRecorder();
   const { socket, isConnected } = useSocketContext();
   const { isCapturing, startCapture, stopCapture, screenStream } = useScreenCapture(() => {});
 
-  // 🔥 FIX: Added Room States to handle the User Click requirement
   const [roomState, setRoomState] = useState<'waiting' | 'countdown' | 'live'>('waiting');
   const [countdown, setCountdown] = useState(3);
   const [timeLeft, setTimeLeft] = useState(15 * 60); 
@@ -85,13 +91,6 @@ export default function LivePitchRoom() {
   const [confidenceScore, setConfidenceScore] = useState(15);
   const [marketFitScore, setMarketFitScore] = useState(5);
 
-  useEffect(() => {
-    const storedUser = localStorage.getItem("user");
-    if (storedUser) {
-      try { setUserData(JSON.parse(storedUser)); } catch (e) {}
-    }
-  }, []);
-
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<BlobPart[]>([]);
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -102,6 +101,16 @@ export default function LivePitchRoom() {
   const nextStartTimeRef = useRef(0);
   const fallbackTimerRef = useRef<NodeJS.Timeout | null>(null);
   const statusIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  
+  // 🔥 FIX: Added Pitch Start Timer to correctly log duration in the database
+  const pitchStartTimeRef = useRef<number>(0);
+
+  useEffect(() => {
+    const storedUser = localStorage.getItem("user");
+    if (storedUser) {
+      try { setUserData(JSON.parse(storedUser)); } catch (e) {}
+    }
+  }, []);
 
   useEffect(() => {
     if (!isPitching || isEvaluatingPitch) return;
@@ -129,7 +138,6 @@ export default function LivePitchRoom() {
     return `${m}:${s < 10 ? '0' : ''}${s}`;
   };
 
-  // 🔥 FIX: The crucial button click that unlocks the browser's audio security
   const handleStartClick = async () => {
     try {
       if (!audioContextRef.current) {
@@ -144,7 +152,6 @@ export default function LivePitchRoom() {
     setRoomState('countdown');
   };
 
-  // 🔥 FIX: Handles the countdown AFTER the click
   useEffect(() => {
     if (roomState === 'countdown') {
       if (countdown > 0) {
@@ -159,6 +166,8 @@ export default function LivePitchRoom() {
 
   const handleAutoStart = async () => {
     setIsPitching(true);
+    // 🔥 Start the clock!
+    pitchStartTimeRef.current = Date.now();
     if (pitchConfig?.screenShareEnabled && !isCapturing) { try { startCapture(); } catch(e) {} }
     if (!stream) { try { await startStream(); } catch(e) {} }
   };
@@ -188,7 +197,6 @@ export default function LivePitchRoom() {
   useEffect(() => {
     if (!isPitching || !stream || !socket || !isConnected) return;
 
-    // Uses a fresh 16kHz context specifically for Gemini's strict requirements
     const audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)({ sampleRate: 16000 });
     const source = audioCtx.createMediaStreamSource(stream);
     const processor = audioCtx.createScriptProcessor(4096, 1, 1);
@@ -276,8 +284,6 @@ export default function LivePitchRoom() {
         if (data.type === "report") {
           if (fallbackTimerRef.current) clearTimeout(fallbackTimerRef.current);
           if (statusIntervalRef.current) clearInterval(statusIntervalRef.current);
-          
-          // 🔥 FIX 1: Send the user to their specific new pitch report ID!
           navigate(`/report${data.sessionId ? `?session=${data.sessionId}` : ''}`); 
         }
       } catch (err) {}
@@ -290,6 +296,8 @@ export default function LivePitchRoom() {
   useEffect(() => {
     if (!isPitching || !isConnected || !socket) return;
     const visionInterval = setInterval(() => {
+      if (socket.readyState !== WebSocket.OPEN) return;
+
       const frames: any[] = [];
       const canvas = document.createElement('canvas');
       
@@ -341,7 +349,13 @@ export default function LivePitchRoom() {
     setIsEvaluatingPitch(true); 
     setLoadingStatus("Stopping recording...");
 
-    if (stream) stopStream();
+    if (stream) {
+      stream.getTracks().forEach(track => track.stop());
+      stopStream();
+    }
+    if (screenStream) {
+      screenStream.getTracks().forEach(track => track.stop());
+    }
     if (isCapturing) stopCapture();
 
     const statusMessages = ["Panel is grading your pitch...", "Analyzing delivery and clarity...", "Calculating investor readiness...", "Finalizing your report..."];
@@ -365,11 +379,21 @@ export default function LivePitchRoom() {
         try {
           const res = await fetch('/api/upload-video', { method: 'POST', body: formData });
           const data = await res.json();
-          if (data.videoUrl && socket) socket.send(JSON.stringify({ type: "set_video_url", url: data.videoUrl }));
+          if (data.videoUrl && socket && socket.readyState === WebSocket.OPEN) {
+            socket.send(JSON.stringify({ type: "set_video_url", url: data.videoUrl }));
+          }
         } catch (err) {}
       }
       setLoadingStatus("Panel is grading your pitch...");
-      socket?.send(JSON.stringify({ type: "end_session" }));
+      if (socket && socket.readyState === WebSocket.OPEN) {
+        // 🔥 Send real duration and the chat transcript to the backend
+        const finalDuration = Math.floor((Date.now() - pitchStartTimeRef.current) / 1000);
+        socket.send(JSON.stringify({ 
+          type: "end_session",
+          duration: finalDuration,
+          transcript: messages
+        }));
+      }
     };
 
     if (mediaRecorderRef.current && mediaRecorderRef.current.state !== "inactive") {
@@ -390,7 +414,6 @@ export default function LivePitchRoom() {
     );
   }
 
-  // 🔥 FIX 2: Safely checks if you are in cloud vs localhost so the Pitch Deck iframe never breaks!
   const getDeckUrl = (url: string) => {
     if (!url) return "";
     if (url.startsWith('/uploads')) {
@@ -403,7 +426,6 @@ export default function LivePitchRoom() {
   return (
     <div className="h-screen max-h-screen bg-slate-900 dark:bg-zinc-950 text-white font-sans flex flex-col relative overflow-hidden transition-colors">
       
-      {/* 🔥 NEW OVERLAY WITH START BUTTON */}
       <AnimatePresence>
         {roomState !== 'live' && (
           <motion.div exit={{ opacity: 0, scale: 1.1 }} className="absolute inset-0 z-[100] bg-slate-900/95 backdrop-blur-xl flex flex-col items-center justify-center">

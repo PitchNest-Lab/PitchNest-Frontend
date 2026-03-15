@@ -59,7 +59,6 @@ export default function LoginPage() {
     setIsSubmitting(true);
     setServerError("");
     try {
-      // 🛑 FIX: NUKE LOCAL STORAGE BEFORE LOGGING IN
       localStorage.clear();
 
       await login(data.email, data.password);
@@ -78,12 +77,13 @@ export default function LoginPage() {
         className="w-full max-w-[1000px] bg-white dark:bg-zinc-900 rounded-[40px] shadow-2xl shadow-slate-200 dark:shadow-black/20 overflow-hidden flex flex-col lg:flex-row transition-colors"
       >
         <div className="flex-1 p-8 md:p-16">
-          <div className="flex items-center gap-3 mb-12">
+          {/* 🔥 FIX 1: Wrapped Logo in a Link back to the Landing Page */}
+          <Link to="/" className="flex items-center gap-3 mb-12 w-fit hover:opacity-80 transition-opacity">
             <div className={cn("w-10 h-10 flex items-center justify-center overflow-hidden rounded-xl", logoError && "bg-sky-500 text-white shadow-lg shadow-sky-200")}>
               {!logoError ? <img src="/PitchNest Logo.png" alt="Logo" className="w-full h-full object-contain" onError={() => setLogoError(true)} /> : <Rocket size={24} fill="currentColor" />}
             </div>
             <span className="text-xl font-bold tracking-tight text-slate-900 dark:text-zinc-100">PitchNest</span>
-          </div>
+          </Link>
 
           <h2 className="text-4xl font-bold text-slate-900 dark:text-zinc-100 mb-2">Welcome Back</h2>
           <p className="text-slate-500 dark:text-zinc-500 mb-10">Log in to your AI-powered workspace</p>
@@ -103,12 +103,13 @@ export default function LoginPage() {
             <div className="space-y-2">
               <div className="flex justify-between items-center">
                 <label className="text-sm font-bold text-slate-700 dark:text-zinc-300">Password</label>
-                <a href="#" className="text-xs font-bold text-sky-500 hover:text-sky-600">Forgot password?</a>
+                {/* 🔥 FIX 2: Safely handles "Forgot Password" click without jumping the page */}
+                <button type="button" onClick={(e) => e.preventDefault()} className="text-xs font-bold text-sky-500 hover:text-sky-600 outline-none">Forgot password?</button>
               </div>
               <div className="relative">
                 <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 dark:text-zinc-500" size={18} />
                 <input {...register('password')} type={showPassword ? "text" : "password"} placeholder="••••••••" className={cn("w-full pl-12 pr-12 py-4 bg-slate-50 dark:bg-zinc-800 border rounded-2xl focus:outline-none focus:ring-2 transition-all dark:text-zinc-100", errors.password ? "border-rose-500 focus:ring-rose-500/20" : "border-slate-200 dark:border-zinc-700 focus:ring-sky-500/20")} />
-                <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors">{showPassword ? <EyeOff size={18} /> : <Eye size={18} />}</button>
+                <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors outline-none">{showPassword ? <EyeOff size={18} /> : <Eye size={18} />}</button>
               </div>
               {errors.password && <p className="text-xs font-bold text-rose-500">{errors.password.message}</p>}
             </div>
@@ -122,7 +123,8 @@ export default function LoginPage() {
             <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-slate-100 dark:border-zinc-800"></div></div>
             <div className="relative flex justify-center text-xs uppercase tracking-widest font-bold text-slate-400 dark:text-zinc-500"><span className="bg-white dark:bg-zinc-900 px-4">Or continue with</span></div>
           </div>
-          <button className="w-full py-4 bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 text-slate-700 dark:text-zinc-300 font-bold rounded-2xl hover:bg-slate-50 transition-all flex items-center justify-center gap-3">
+          {/* 🔥 FIX 3: Explicit button type added */}
+          <button type="button" onClick={(e) => e.preventDefault()} className="w-full py-4 bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 text-slate-700 dark:text-zinc-300 font-bold rounded-2xl hover:bg-slate-50 dark:hover:bg-zinc-800 transition-all flex items-center justify-center gap-3">
             <img src="https://www.google.com/favicon.ico" className="w-5 h-5" alt="Google" />
             Continue with Google
           </button>
@@ -149,12 +151,12 @@ export default function LoginPage() {
             </div>
             <div className="mt-8 flex justify-center gap-2">
               {SLIDES.map((_, i) => (
-                <button key={i} onClick={() => setCurrentSlide(i)} className={cn("h-2 rounded-full transition-all", i === currentSlide ? "w-6 bg-sky-500" : "w-2 bg-sky-200 dark:bg-zinc-700 hover:bg-sky-300")} />
+                <button key={i} type="button" onClick={() => setCurrentSlide(i)} className={cn("h-2 rounded-full transition-all outline-none", i === currentSlide ? "w-6 bg-sky-500" : "w-2 bg-sky-200 dark:bg-zinc-700 hover:bg-sky-300")} />
               ))}
             </div>
           </div>
-          <div className="absolute top-0 right-0 w-64 h-64 bg-sky-500/10 rounded-full blur-3xl -mr-32 -mt-32" />
-          <div className="absolute bottom-0 left-0 w-64 h-64 bg-indigo-500/10 rounded-full blur-3xl -ml-32 -mb-32" />
+          <div className="absolute top-0 right-0 w-64 h-64 bg-sky-500/10 rounded-full blur-3xl -mr-32 -mt-32 pointer-events-none" />
+          <div className="absolute bottom-0 left-0 w-64 h-64 bg-indigo-500/10 rounded-full blur-3xl -ml-32 -mb-32 pointer-events-none" />
         </div>
       </motion.div>
     </div>

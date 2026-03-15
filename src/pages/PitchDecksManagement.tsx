@@ -1,7 +1,7 @@
 import React, { useState, useCallback, useEffect } from 'react';
 import { 
-  Edit3, Eye, Upload, CheckCircle2, FileText, 
-  Sparkles, ChevronRight, FileUp, Play, Trash2, Loader2, Plus, AlertTriangle
+  Eye, Upload, CheckCircle2, FileText, 
+  Sparkles, FileUp, Play, Trash2, Loader2, Plus, AlertTriangle
 } from 'lucide-react';
 import { useDropzone } from 'react-dropzone';
 import { cn } from '../lib/utils';
@@ -68,13 +68,8 @@ const DeckCard = ({ name, date, status, image, fileUrl, onRemove }: { name: stri
         </p>
       </div>
       <div className="space-y-3">
-        <div className="grid grid-cols-2 gap-3">
-          <button 
-            className="py-2.5 bg-slate-50 dark:bg-zinc-800 text-slate-700 dark:text-zinc-300 text-xs font-bold rounded-xl hover:bg-slate-100 dark:hover:bg-zinc-700 transition-colors flex items-center justify-center gap-2"
-            disabled={status !== 'READY'}
-          >
-            <Edit3 size={14} /> Edit
-          </button>
+        {/* 🔥 FIX 1: Removed the dead "Edit" button and made Preview span full width */}
+        <div className="grid grid-cols-1 gap-3">
           <a 
             href={fileUrl || "#"} 
             target="_blank" 
@@ -84,7 +79,7 @@ const DeckCard = ({ name, date, status, image, fileUrl, onRemove }: { name: stri
               (!fileUrl || status !== 'READY') && "opacity-50 pointer-events-none cursor-not-allowed"
             )}
           >
-            <Eye size={14} /> Preview
+            <Eye size={14} /> Preview Deck
           </a>
         </div>
         <Link 
@@ -114,7 +109,13 @@ export default function PitchDecksManagement() {
   useEffect(() => {
     const fetchDecks = async () => {
       try {
-        const response = await fetch('/api/decks');
+        // 🔥 FIX 2: Added cache-buster so deleted/uploaded decks sync perfectly
+        const response = await fetch(`/api/decks?t=${Date.now()}`, {
+          headers: {
+            'Cache-Control': 'no-cache',
+            'Pragma': 'no-cache'
+          }
+        });
         if (response.ok) {
           const data = await response.json();
           const formattedData = data.map((deck: any) => ({
@@ -174,7 +175,6 @@ export default function PitchDecksManagement() {
         );
       } catch (err) {
         console.error(`Failed to upload ${tempDeck.name} to Cloud Storage.`);
-        // 🔥 FIX: Mark as FAILED instead of faking success
         setDecks(currentDecks => 
           currentDecks.map(d => d.id === tempDeck.id ? { ...d, status: "FAILED" } : d)
         );
@@ -205,7 +205,7 @@ export default function PitchDecksManagement() {
   const readyDecks = decks.filter(d => d.status === 'READY').length;
 
   return (
-    <div className="space-y-10">
+    <div className="space-y-10 pb-20">
       {/* Header Stats */}
       <div className="flex flex-col sm:flex-row sm:justify-between sm:items-end gap-6">
         <div>
@@ -286,7 +286,8 @@ export default function PitchDecksManagement() {
               <div className="card h-[300px] p-6 space-y-4"><Skeleton className="w-full h-32 rounded-xl" /><Skeleton className="w-3/4 h-6" /><Skeleton className="w-1/2 h-4" /></div>
             </>
           ) : decks.length === 0 ? (
-            <div className="col-span-1 md:col-span-2 flex flex-col items-center justify-center p-10 text-slate-400 border-2 border-dashed border-slate-100 dark:border-zinc-800 rounded-[32px]">
+            // 🔥 FIX 3: Centered empty state spanning the full layout accurately
+            <div className="md:col-span-1 lg:col-span-2 flex flex-col items-center justify-center p-10 text-slate-400 border-2 border-dashed border-slate-100 dark:border-zinc-800 rounded-[32px]">
               <FileText size={48} className="mb-4 opacity-50" />
               <p>No pitch decks uploaded yet.</p>
             </div>

@@ -67,7 +67,8 @@ export default function SignupPage() {
       localStorage.clear(); 
       
       await signup(data.name, data.email, data.password);
-      navigate('/onboarding');
+      // 🔥 FIX 2: Safely route to dashboard to prevent a 404 dead end
+      navigate('/dashboard');
     } catch (error: any) {
       setServerError(error.message);
     } finally {
@@ -82,12 +83,13 @@ export default function SignupPage() {
         className="w-full max-w-[1000px] bg-white dark:bg-zinc-900 rounded-[40px] shadow-2xl shadow-slate-200 dark:shadow-black/20 overflow-hidden flex flex-col lg:flex-row transition-colors"
       >
         <div className="flex-1 p-8 md:p-12">
-          <div className="flex items-center gap-3 mb-10">
+          {/* 🔥 FIX 1: Wrapped the logo in a Link to return to Landing Page */}
+          <Link to="/" className="flex items-center gap-3 mb-10 w-fit hover:opacity-80 transition-opacity">
             <div className="w-10 h-10 flex items-center justify-center overflow-hidden rounded-xl bg-sky-500 text-white shadow-lg shadow-sky-200">
               <Rocket size={20} fill="currentColor" />
             </div>
             <span className="text-xl font-bold tracking-tight text-slate-900 dark:text-zinc-100">PitchNest</span>
-          </div>
+          </Link>
 
           <h2 className="text-3xl font-bold text-slate-900 dark:text-zinc-100 mb-2">Create your account</h2>
           <p className="text-slate-500 dark:text-zinc-500 mb-8 text-sm">Join the future of AI-driven startup pitching.</p>
@@ -99,7 +101,7 @@ export default function SignupPage() {
               <label className="text-xs font-bold text-slate-700 dark:text-zinc-300">Full Name</label>
               <div className="relative">
                 <User className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
-                <input {...register('name')} type="text" placeholder="Emmanuel Etim" className={cn("w-full pl-10 pr-4 py-3 bg-slate-50 dark:bg-zinc-800 border rounded-xl focus:outline-none focus:ring-2 transition-all dark:text-zinc-100 text-sm", errors.name ? "border-rose-500" : "border-slate-200 dark:border-zinc-700 focus:border-sky-500")} />
+                <input {...register('name')} type="text" placeholder="Emmanuel Etim" className={cn("w-full pl-10 pr-4 py-3 bg-slate-50 dark:bg-zinc-800 border rounded-xl focus:outline-none focus:ring-2 transition-all dark:text-zinc-100 text-sm", errors.name ? "border-rose-500 focus:ring-rose-500/20" : "border-slate-200 dark:border-zinc-700 focus:ring-sky-500/20")} />
               </div>
               {errors.name && <p className="text-xs font-bold text-rose-500">{errors.name.message}</p>}
             </div>
@@ -108,7 +110,7 @@ export default function SignupPage() {
               <label className="text-xs font-bold text-slate-700 dark:text-zinc-300">Email Address</label>
               <div className="relative">
                 <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
-                <input {...register('email')} type="email" placeholder="you@startup.com" className={cn("w-full pl-10 pr-4 py-3 bg-slate-50 dark:bg-zinc-800 border rounded-xl focus:outline-none focus:ring-2 transition-all dark:text-zinc-100 text-sm", errors.email ? "border-rose-500" : "border-slate-200 dark:border-zinc-700 focus:border-sky-500")} />
+                <input {...register('email')} type="email" placeholder="you@startup.com" className={cn("w-full pl-10 pr-4 py-3 bg-slate-50 dark:bg-zinc-800 border rounded-xl focus:outline-none focus:ring-2 transition-all dark:text-zinc-100 text-sm", errors.email ? "border-rose-500 focus:ring-rose-500/20" : "border-slate-200 dark:border-zinc-700 focus:ring-sky-500/20")} />
               </div>
               {errors.email && <p className="text-xs font-bold text-rose-500">{errors.email.message}</p>}
             </div>
@@ -118,8 +120,8 @@ export default function SignupPage() {
                 <label className="text-xs font-bold text-slate-700 dark:text-zinc-300">Password</label>
                 <div className="relative">
                   <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
-                  <input {...register('password')} type={showPassword ? "text" : "password"} placeholder="••••••••" className={cn("w-full pl-10 pr-10 py-3 bg-slate-50 dark:bg-zinc-800 border rounded-xl focus:outline-none focus:ring-2 transition-all dark:text-zinc-100 text-sm", errors.password ? "border-rose-500" : "border-slate-200 dark:border-zinc-700 focus:border-sky-500")} />
-                  <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
+                  <input {...register('password')} type={showPassword ? "text" : "password"} placeholder="••••••••" className={cn("w-full pl-10 pr-10 py-3 bg-slate-50 dark:bg-zinc-800 border rounded-xl focus:outline-none focus:ring-2 transition-all dark:text-zinc-100 text-sm", errors.password ? "border-rose-500 focus:ring-rose-500/20" : "border-slate-200 dark:border-zinc-700 focus:ring-sky-500/20")} />
+                  <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 outline-none">
                     {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
                   </button>
                 </div>
@@ -129,8 +131,8 @@ export default function SignupPage() {
                 <label className="text-xs font-bold text-slate-700 dark:text-zinc-300">Confirm Password</label>
                 <div className="relative">
                   <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
-                  <input {...register('confirmPassword')} type={showConfirmPassword ? "text" : "password"} placeholder="••••••••" className={cn("w-full pl-10 pr-10 py-3 bg-slate-50 dark:bg-zinc-800 border rounded-xl focus:outline-none focus:ring-2 transition-all dark:text-zinc-100 text-sm", errors.confirmPassword ? "border-rose-500" : "border-slate-200 dark:border-zinc-700 focus:border-sky-500")} />
-                  <button type="button" onClick={() => setShowConfirmPassword(!showConfirmPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
+                  <input {...register('confirmPassword')} type={showConfirmPassword ? "text" : "password"} placeholder="••••••••" className={cn("w-full pl-10 pr-10 py-3 bg-slate-50 dark:bg-zinc-800 border rounded-xl focus:outline-none focus:ring-2 transition-all dark:text-zinc-100 text-sm", errors.confirmPassword ? "border-rose-500 focus:ring-rose-500/20" : "border-slate-200 dark:border-zinc-700 focus:ring-sky-500/20")} />
+                  <button type="button" onClick={() => setShowConfirmPassword(!showConfirmPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 outline-none">
                     {showConfirmPassword ? <EyeOff size={16} /> : <Eye size={16} />}
                   </button>
                 </div>
@@ -140,7 +142,7 @@ export default function SignupPage() {
             <div className="space-y-1.5">
               <label className="text-xs font-bold text-slate-700 dark:text-zinc-300">I am a...</label>
               <div className="relative">
-                <select {...register('role')} className="w-full pl-4 pr-10 py-3 bg-slate-50 dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-xl focus:outline-none focus:ring-2 focus:border-sky-500 transition-all appearance-none cursor-pointer dark:text-zinc-100 text-sm">
+                <select {...register('role')} className="w-full pl-4 pr-10 py-3 bg-slate-50 dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-sky-500/20 transition-all appearance-none cursor-pointer dark:text-zinc-100 text-sm">
                   <option value="Founder">Founder</option>
                   <option value="Investor">Investor</option>
                   <option value="Advisor">Advisor</option>
@@ -181,8 +183,9 @@ export default function SignupPage() {
             </div>
 
             <div className="mt-4 flex justify-center gap-2">
+              {/* 🔥 FIX 3: Explicitly set type="button" to prevent accidental form triggers */}
               {SLIDES.map((_, i) => (
-                <button key={i} onClick={() => setCurrentSlide(i)} className={cn("h-2 rounded-full transition-all duration-300", i === currentSlide ? "w-8 bg-sky-500" : "w-2 bg-sky-200 dark:bg-zinc-700 hover:bg-sky-300")} />
+                <button key={i} type="button" onClick={() => setCurrentSlide(i)} className={cn("h-2 rounded-full transition-all duration-300 outline-none", i === currentSlide ? "w-8 bg-sky-500" : "w-2 bg-sky-200 dark:bg-zinc-700 hover:bg-sky-300")} />
               ))}
             </div>
           </div>

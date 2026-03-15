@@ -1,11 +1,12 @@
 import React, { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { 
   BarChart3, 
   ArrowUpRight,
   Sparkles,
-  ChevronRight
+  ArrowRight
 } from 'lucide-react';
-import { motion } from 'framer-motion'; // Changed from 'motion/react' to match standard framer-motion imports
+import { motion } from 'framer-motion';
 import * as Tabs from '@radix-ui/react-tabs';
 import * as Tooltip from '@radix-ui/react-tooltip';
 import * as Progress from '@radix-ui/react-progress';
@@ -128,6 +129,7 @@ export default function Analytics() {
   const [isLoading, setIsLoading] = useState(true);
   const [analyticsData, setAnalyticsData] = useState({
     chartData: [] as any[],
+    displayChartData: [] as any[],
     avgReadiness: 0,
     totalSessions: 0,
     mostImproved: "N/A",
@@ -139,7 +141,6 @@ export default function Analytics() {
   useEffect(() => {
     const fetchAnalytics = async () => {
       try {
-        // 🔥 FIX: Cache-Buster explicitly added here to ensure fresh graph data!
         const response = await fetch(`/api/sessions?t=${Date.now()}`, {
           headers: {
             'Cache-Control': 'no-cache',
@@ -151,7 +152,14 @@ export default function Analytics() {
         if (Array.isArray(data) && data.length > 0) {
           const chronological = [...data].reverse();
 
-          const chartData = chronological.map((session, index) => {
+          // 🔥 FIX 1: Filter out 0-score / failed pitches so they don't break the charts
+          const validSessions = chronological.filter(session => {
+            const scores = session.evaluation_report?.scores;
+            if (!scores) return false;
+            return Object.values(scores).some(v => Number(v) > 0);
+          });
+
+          const chartData = validSessions.map((session, index) => {
             const scores = session.evaluation_report?.scores || {};
             return {
               name: `Pitch ${index + 1}`,
@@ -161,6 +169,11 @@ export default function Analytics() {
               tech: scores.clarity ? Number(scores.clarity) * 10 : 0
             };
           });
+
+          // 🔥 FIX 2: If only 1 valid pitch exists, Recharts AreaChart won't draw a line. We duplicate it to create a baseline.
+          const displayChartData = chartData.length === 1 
+            ? [{ ...chartData[0], name: "Baseline" }, { ...chartData[0], name: "Current" }] 
+            : chartData;
 
           const avgReadiness = chartData.length > 0 
             ? Math.round(chartData.reduce((acc, curr) => acc + curr.readiness, 0) / chartData.length)
@@ -181,7 +194,7 @@ export default function Analytics() {
             mostImproved = "Baseline Set";
           }
 
-          const insights = data.slice(0, 3).map((session, i) => ({
+          const insights = validSessions.slice(-3).reverse().map((session, i) => ({
             category: i === 0 ? "Latest Feedback" : "Past Review",
             time: new Date(session.timestamp).toLocaleDateString(),
             content: session.summary || "No summary recorded.",
@@ -190,8 +203,9 @@ export default function Analytics() {
 
           setAnalyticsData({
             chartData,
+            displayChartData,
             avgReadiness,
-            totalSessions: data.length,
+            totalSessions: data.length, // Still count all sessions, even failed ones
             mostImproved,
             insights,
             marketScores: chartData.map(d => d.market),
@@ -212,7 +226,7 @@ export default function Analytics() {
 
   return (
     <Tooltip.Provider>
-      <div className="space-y-8">
+      <div className="space-y-8 pb-20">
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end gap-4">
           <div>
             <h1 className="text-3xl font-bold text-slate-900 dark:text-zinc-100 mb-2">Analytics Deep Dive</h1>
@@ -250,15 +264,18 @@ export default function Analytics() {
                 <div className="w-full h-full flex items-end gap-4 pb-8">
                   {[40, 70, 50, 90, 60, 80, 45, 75].map((h, i) => <Skeleton key={i} className="flex-1 rounded-t-lg" style={{ height: `${h}%` }} />)}
                 </div>
-              ) : analyticsData.chartData.length === 0 ? (
+              ) : analyticsData.displayChartData.length === 0 ? (
                  <div className="flex flex-col items-center justify-center h-full text-slate-400">
                    <BarChart3 size={48} className="mb-4 opacity-20" />
-                   <p className="font-medium">No pitch history to graph.</p>
-                   <p className="text-sm">Complete your first pitch to see trends.</p>
+                   <p className="font-medium">No valid pitch history to graph.</p>
+                   {/* 🔥 FIX 3: Added actionable empty-state link */}
+                   <Link to="/setup" className="mt-4 flex items-center gap-2 px-6 py-2 bg-sky-500 hover:bg-sky-600 text-white font-bold rounded-xl transition-all">
+                     Start Your First Pitch <ArrowRight size={16} />
+                   </Link>
                  </div>
               ) : (
                 <ResponsiveContainer width="100%" height="100%">
-                  <AreaChart data={analyticsData.chartData}>
+                  <AreaChart data={analyticsData.displayChartData}>
                     <defs>
                       <linearGradient id="colorReadiness" x1="0" y1="0" x2="0" y2="1">
                         <stop offset="5%" stopColor="#0EA5E9" stopOpacity={0.1}/><stop offset="95%" stopColor="#0EA5E9" stopOpacity={0}/>
@@ -282,7 +299,10 @@ export default function Analytics() {
               {isLoading ? (
                 <><InsightItem isLoading /><InsightItem isLoading /></>
               ) : analyticsData.insights.length === 0 ? (
-                <p className="text-sm text-slate-500">Complete a pitch to generate insights.</p>
+                <div className="text-center py-10 space-y-4">
+                  <p className="text-sm text-slate-500">Complete a pitch to generate AI insights.</p>
+                  <Link to="/setup" className="inline-block px-4 py-2 bg-slate-100 dark:bg-zinc-800 text-slate-700 dark:text-zinc-300 font-bold text-xs rounded-lg hover:bg-slate-200 transition-colors">Go to Setup</Link>
+                </div>
               ) : (
                 analyticsData.insights.map((insight, i) => <InsightItem key={i} {...insight} />)
               )}
@@ -297,7 +317,7 @@ export default function Analytics() {
               {isLoading ? (
                 [40, 60, 30].map((_, i) => <Skeleton key={i} className="flex-1 w-full h-full rounded-t-lg" />)
               ) : analyticsData.marketScores.length === 0 ? (
-                 <div className="text-slate-500 w-full text-center mt-10">No data</div>
+                 <div className="text-slate-500 w-full text-center mt-10 text-sm">No data available</div>
               ) : (
                 analyticsData.marketScores.slice(-6).map((h, i) => (
                   <div key={i} className="flex-1 bg-slate-100 dark:bg-zinc-800 rounded-t-lg relative group cursor-pointer h-full flex items-end">
@@ -314,7 +334,7 @@ export default function Analytics() {
                {isLoading ? (
                 [40, 60, 30].map((_, i) => <Skeleton key={i} className="flex-1 w-full h-full rounded-t-lg" />)
               ) : analyticsData.techScores.length === 0 ? (
-                 <div className="text-slate-500 w-full text-center mt-10">No data</div>
+                 <div className="text-slate-500 w-full text-center mt-10 text-sm">No data available</div>
               ) : (
                 analyticsData.techScores.slice(-6).map((h, i) => (
                   <div key={i} className="flex-1 bg-slate-100 dark:bg-zinc-800 rounded-t-lg relative group cursor-pointer h-full flex items-end">

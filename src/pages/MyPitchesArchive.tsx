@@ -2,83 +2,93 @@ import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { 
   Search, Filter, MoreVertical, Play, BarChart3, 
-  Calendar, Clock, Download, Trash2, Share2
+  Calendar, Clock, Download, Trash2, Share2, AlertCircle
 } from 'lucide-react';
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
 import { cn } from '../lib/utils';
 import { Skeleton } from '../components/Skeleton'; 
 
-// --- Subcomponents ---
-const PitchRow = ({ id, name, date, duration, score, type }: { id: number, name: string, date: string, duration: string, score: number, type: string }) => (
-  <div className="group flex items-center justify-between p-6 bg-white dark:bg-zinc-900 border border-slate-100 dark:border-zinc-800 rounded-2xl hover:border-sky-200 dark:hover:border-sky-500/50 hover:shadow-lg hover:shadow-sky-50 dark:hover:shadow-none transition-all">
-    <div className="flex items-center gap-6 flex-1">
-      <Link to={`/replay?session=${id}`} className="w-12 h-12 bg-slate-50 dark:bg-zinc-800 rounded-xl flex items-center justify-center text-slate-400 dark:text-zinc-500 group-hover:bg-sky-50 dark:group-hover:bg-sky-900/20 group-hover:text-sky-500 transition-colors">
-        <Play size={24} fill="currentColor" />
-      </Link>
-      <div className="grid grid-cols-4 flex-1 gap-8 items-center">
-        <div className="col-span-1">
-          <h3 className="text-sm font-bold text-slate-900 dark:text-zinc-100 mb-1">{name}</h3>
-          <p className="text-[10px] font-bold text-slate-400 dark:text-zinc-500 uppercase tracking-widest">{type}</p>
-        </div>
-        <div className="flex items-center gap-2">
-          <Calendar size={14} className="text-slate-300 dark:text-zinc-600" />
-          <span className="text-xs text-slate-500 dark:text-zinc-400 font-medium">{date}</span>
-        </div>
-        <div className="flex items-center gap-2">
-          <Clock size={14} className="text-slate-300 dark:text-zinc-600" />
-          <span className="text-xs text-slate-500 dark:text-zinc-400 font-medium">{duration}</span>
-        </div>
-        <div className="flex items-center gap-4">
-          <div className="flex-1 h-1.5 bg-slate-100 dark:bg-zinc-800 rounded-full overflow-hidden">
-            <div className={cn(
-              "h-full rounded-full transition-all duration-1000",
-              score >= 80 ? "bg-emerald-500" : score >= 60 ? "bg-sky-500" : "bg-amber-500"
-            )} style={{ width: `${score}%` }} />
+const PitchRow = ({ id, name, date, duration, score, type, onDelete }: { id: number, name: string, date: string, duration: string, score: number, type: string, onDelete: (id: number) => void }) => {
+  const isIncomplete = score === 0;
+
+  return (
+    <div className="group flex items-center justify-between p-6 bg-white dark:bg-zinc-900 border border-slate-100 dark:border-zinc-800 rounded-2xl hover:border-sky-200 dark:hover:border-sky-500/50 hover:shadow-lg hover:shadow-sky-50 dark:hover:shadow-none transition-all">
+      <div className="flex items-center gap-6 flex-1">
+        <Link to={`/report?session=${id}`} className="w-12 h-12 bg-slate-50 dark:bg-zinc-800 rounded-xl flex items-center justify-center text-slate-400 dark:text-zinc-500 group-hover:bg-sky-50 dark:group-hover:bg-sky-900/20 group-hover:text-sky-500 transition-colors">
+          <Play size={24} fill="currentColor" />
+        </Link>
+        <div className="grid grid-cols-4 flex-1 gap-8 items-center">
+          <div className="col-span-1">
+            <h3 className="text-sm font-bold text-slate-900 dark:text-zinc-100 mb-1">{name}</h3>
+            <p className="text-[10px] font-bold text-slate-400 dark:text-zinc-500 uppercase tracking-widest">{type}</p>
           </div>
-          <span className="text-sm font-bold text-slate-900 dark:text-zinc-100">{score}</span>
+          <div className="flex items-center gap-2">
+            <Calendar size={14} className="text-slate-300 dark:text-zinc-600" />
+            <span className="text-xs text-slate-500 dark:text-zinc-400 font-medium">{date}</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <Clock size={14} className="text-slate-300 dark:text-zinc-600" />
+            <span className="text-xs text-slate-500 dark:text-zinc-400 font-medium">{duration}</span>
+          </div>
+          <div className="flex items-center gap-4">
+            {isIncomplete ? (
+              <div className="flex items-center gap-2 text-slate-400">
+                <AlertCircle size={14} />
+                <span className="text-xs font-bold uppercase tracking-widest">Incomplete</span>
+              </div>
+            ) : (
+              <>
+                <div className="flex-1 h-1.5 bg-slate-100 dark:bg-zinc-800 rounded-full overflow-hidden">
+                  <div className={cn(
+                    "h-full rounded-full transition-all duration-1000",
+                    score >= 80 ? "bg-emerald-500" : score >= 60 ? "bg-sky-500" : "bg-amber-500"
+                  )} style={{ width: `${score}%` }} />
+                </div>
+                <span className="text-sm font-bold text-slate-900 dark:text-zinc-100">{score}</span>
+              </>
+            )}
+          </div>
         </div>
       </div>
+      
+      <div className="flex items-center gap-4 ml-8">
+        <Link to={`/report?session=${id}`} className="px-4 py-2 bg-slate-50 dark:bg-zinc-800 text-slate-700 dark:text-zinc-300 text-xs font-bold rounded-lg hover:bg-slate-100 dark:hover:bg-zinc-700 transition-colors">
+          View Report
+        </Link>
+        <DropdownMenu.Root>
+          <DropdownMenu.Trigger asChild>
+            <button className="p-2 text-slate-400 dark:text-zinc-500 hover:text-slate-600 dark:hover:text-zinc-300 transition-colors">
+              <MoreVertical size={20} />
+            </button>
+          </DropdownMenu.Trigger>
+          <DropdownMenu.Portal>
+            <DropdownMenu.Content className="min-w-[160px] bg-white dark:bg-zinc-900 rounded-xl shadow-xl border border-slate-100 dark:border-zinc-800 p-2 z-50">
+              <DropdownMenu.Item asChild className="outline-none">
+                <Link to={`/report?session=${id}`} className="flex items-center gap-2 px-3 py-2 text-xs font-bold text-slate-700 dark:text-zinc-300 hover:bg-slate-50 dark:hover:bg-zinc-800 rounded-lg cursor-pointer">
+                  <BarChart3 size={14} />
+                  View Report
+                </Link>
+              </DropdownMenu.Item>
+              <DropdownMenu.Item className="flex items-center gap-2 px-3 py-2 text-xs font-bold text-slate-700 dark:text-zinc-300 hover:bg-slate-50 dark:hover:bg-zinc-800 rounded-lg cursor-pointer outline-none">
+                <Share2 size={14} />
+                Share Pitch
+              </DropdownMenu.Item>
+              <DropdownMenu.Separator className="h-px bg-slate-100 dark:bg-zinc-800 my-1" />
+              <DropdownMenu.Item 
+                onSelect={() => onDelete(id)}
+                className="flex items-center gap-2 px-3 py-2 text-xs font-bold text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-900/20 rounded-lg cursor-pointer outline-none"
+              >
+                <Trash2 size={14} />
+                Delete
+              </DropdownMenu.Item>
+            </DropdownMenu.Content>
+          </DropdownMenu.Portal>
+        </DropdownMenu.Root>
+      </div>
     </div>
-    
-    <div className="flex items-center gap-4 ml-8">
-      <Link to={`/report?session=${id}`} className="px-4 py-2 bg-slate-50 dark:bg-zinc-800 text-slate-700 dark:text-zinc-300 text-xs font-bold rounded-lg hover:bg-slate-100 dark:hover:bg-zinc-700 transition-colors">
-        View Report
-      </Link>
-      <DropdownMenu.Root>
-        <DropdownMenu.Trigger asChild>
-          <button className="p-2 text-slate-400 dark:text-zinc-500 hover:text-slate-600 dark:hover:text-zinc-300 transition-colors">
-            <MoreVertical size={20} />
-          </button>
-        </DropdownMenu.Trigger>
-        <DropdownMenu.Portal>
-          <DropdownMenu.Content className="min-w-[160px] bg-white dark:bg-zinc-900 rounded-xl shadow-xl border border-slate-100 dark:border-zinc-800 p-2 z-50">
-            <DropdownMenu.Item className="outline-none">
-              <Link to={`/report?session=${id}`} className="flex items-center gap-2 px-3 py-2 text-xs font-bold text-slate-700 dark:text-zinc-300 hover:bg-slate-50 dark:hover:bg-zinc-800 rounded-lg cursor-pointer">
-                <BarChart3 size={14} />
-                View Report
-              </Link>
-            </DropdownMenu.Item>
-            <DropdownMenu.Item className="flex items-center gap-2 px-3 py-2 text-xs font-bold text-slate-700 dark:text-zinc-300 hover:bg-slate-50 dark:hover:bg-zinc-800 rounded-lg cursor-pointer outline-none">
-              <Share2 size={14} />
-              Share Pitch
-            </DropdownMenu.Item>
-            <DropdownMenu.Item className="flex items-center gap-2 px-3 py-2 text-xs font-bold text-slate-700 dark:text-zinc-300 hover:bg-slate-50 dark:hover:bg-zinc-800 rounded-lg cursor-pointer outline-none">
-              <Download size={14} />
-              Download Data
-            </DropdownMenu.Item>
-            <DropdownMenu.Separator className="h-px bg-slate-100 dark:bg-zinc-800 my-1" />
-            <DropdownMenu.Item className="flex items-center gap-2 px-3 py-2 text-xs font-bold text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-900/20 rounded-lg cursor-pointer outline-none">
-              <Trash2 size={14} />
-              Delete
-            </DropdownMenu.Item>
-          </DropdownMenu.Content>
-        </DropdownMenu.Portal>
-      </DropdownMenu.Root>
-    </div>
-  </div>
-);
+  );
+};
 
-// --- Main Component ---
 export default function MyPitchesArchive() {
   const [sessions, setSessions] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -88,7 +98,6 @@ export default function MyPitchesArchive() {
   useEffect(() => {
     const fetchSessions = async () => {
       try {
-        // 🔥 FIX: The Cache-Buster ensures your archive list is always up-to-date!
         const response = await fetch(`/api/sessions?t=${Date.now()}`, {
           headers: {
             'Cache-Control': 'no-cache',
@@ -120,6 +129,11 @@ export default function MyPitchesArchive() {
 
     fetchSessions();
   }, []);
+
+  const handleDelete = (idToRemove: number) => {
+    setSessions(prev => prev.filter(s => s.id !== idToRemove));
+    setStats(prev => ({ ...prev, totalPitches: Math.max(0, prev.totalPitches - 1) }));
+  };
 
   const filteredSessions = sessions.filter(session => {
     const defaultName = `Pitch Session #${session.id}`;
@@ -193,9 +207,11 @@ export default function MyPitchesArchive() {
                 const score = r ? Math.round(((r.delivery + r.clarity + r.scalability + r.readiness) / 40) * 100) : 0;
                 const dateObj = new Date(session.timestamp);
                 
-                const simMins = Math.floor((session.id * 7) % 15) + 5; 
-                const simSecs = (session.id * 23) % 60;
-                const simDuration = `${simMins}m ${simSecs}s`;
+                // 🔥 Pulls real duration from the database evaluation
+                const realDurationSecs = session.evaluation_report?.duration || 0;
+                const simMins = Math.floor(realDurationSecs / 60); 
+                const simSecs = realDurationSecs % 60;
+                const realDuration = realDurationSecs > 0 ? `${simMins}m ${simSecs}s` : "0m 0s";
                 
                 const displayName = session.business_name || `Pitch Session #${session.id}`;
                 
@@ -205,9 +221,10 @@ export default function MyPitchesArchive() {
                     id={session.id}
                     name={displayName} 
                     date={dateObj.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })} 
-                    duration={simDuration} 
+                    duration={realDuration} 
                     score={score} 
                     type="Live Pitch" 
+                    onDelete={handleDelete}
                   />
                 );
               })
@@ -215,7 +232,6 @@ export default function MyPitchesArchive() {
           </div>
         </div>
 
-        {/* Sidebar Stats */}
         <div className="space-y-8">
           <div className="card p-8 space-y-8 dark:bg-zinc-900 dark:border-zinc-800">
             <h3 className="text-lg font-bold text-slate-900 dark:text-zinc-100">Archive Stats</h3>

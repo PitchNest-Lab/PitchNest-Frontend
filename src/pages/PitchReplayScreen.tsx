@@ -2,20 +2,14 @@ import React, { useEffect, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { 
   Play, 
-  SkipBack, 
-  SkipForward, 
-  Volume2, 
-  Maximize2, 
-  Settings, 
-  Download, 
-  Share2, 
   ChevronLeft, 
   MessageSquare, 
   Sparkles,
   Target,
   Clock,
-  Search,
-  FileText
+  FileText,
+  Download,
+  Share2
 } from 'lucide-react';
 import { cn } from '../lib/utils';
 
@@ -59,7 +53,6 @@ export default function PitchReplayScreen() {
         const searchParams = new URLSearchParams(location.search);
         const sessionId = searchParams.get('session');
 
-        // 🔥 FIX: The Cache-Buster! Adding ?t=Date.now() forces the browser to bypass its cache and get fresh DB data.
         const response = await fetch(`/api/sessions?t=${Date.now()}`, {
           headers: {
             'Cache-Control': 'no-cache',
@@ -90,15 +83,20 @@ export default function PitchReplayScreen() {
   }, [location.search]);
 
   const rawScores = session?.evaluation_report?.scores || {};
+  
+  const isInsufficientData = !rawScores || Object.keys(rawScores).length === 0 || Object.values(rawScores).every(v => v === 0);
+
   const scores = {
     delivery: Number(rawScores.delivery) || 0,
     clarity: Number(rawScores.clarity) || 0,
     scalability: Number(rawScores.scalability) || 0,
     readiness: Number(rawScores.readiness) || 0,
   };
-  const overallScore = session && Object.keys(rawScores).length > 0
-    ? Math.round(((scores.delivery + scores.clarity + scores.scalability + scores.readiness) / 40) * 100) 
-    : 0;
+  
+  const overallScore = isInsufficientData ? 0 : Math.round(((scores.delivery + scores.clarity + scores.scalability + scores.readiness) / 40) * 100);
+
+  // Parse dynamic transcript
+  const transcriptData = session?.evaluation_report?.transcript || [];
 
   if (error) {
     return (
@@ -151,7 +149,6 @@ export default function PitchReplayScreen() {
                 key={session.video_url} 
                 src={session.video_url} 
                 controls 
-                autoPlay
                 className="w-full h-full object-cover bg-black"
               />
             ) : (
@@ -170,12 +167,12 @@ export default function PitchReplayScreen() {
             )}
           </div>
 
-          <div className="grid grid-cols-4 gap-6">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
             {[
-              { label: "Overall Score", value: isLoading ? "..." : `${overallScore}%`, icon: Target, color: "text-sky-500" },
-              { label: "Delivery", value: isLoading ? "..." : `${scores.delivery}/10`, icon: Sparkles, color: "text-indigo-500" },
-              { label: "Clarity", value: isLoading ? "..." : `${scores.clarity}/10`, icon: MessageSquare, color: "text-purple-500" },
-              { label: "Scalability", value: isLoading ? "..." : `${scores.scalability}/10`, icon: Clock, color: "text-amber-500" }
+              { label: "Overall Score", value: isLoading ? "..." : isInsufficientData ? "N/A" : `${overallScore}%`, icon: Target, color: "text-sky-500" },
+              { label: "Delivery", value: isLoading ? "..." : isInsufficientData ? "N/A" : `${scores.delivery}/10`, icon: Sparkles, color: "text-indigo-500" },
+              { label: "Clarity", value: isLoading ? "..." : isInsufficientData ? "N/A" : `${scores.clarity}/10`, icon: MessageSquare, color: "text-purple-500" },
+              { label: "Scalability", value: isLoading ? "..." : isInsufficientData ? "N/A" : `${scores.scalability}/10`, icon: Clock, color: "text-amber-500" }
             ].map((stat, i) => (
               <div key={i} className="card p-6 flex flex-col gap-2 dark:bg-zinc-900 dark:border-zinc-800">
                 <span className="text-[10px] font-bold text-slate-400 dark:text-zinc-500 uppercase tracking-widest">{stat.label}</span>
@@ -188,19 +185,26 @@ export default function PitchReplayScreen() {
           </div>
         </div>
 
-        <div className="card flex flex-col overflow-hidden dark:bg-zinc-900 dark:border-zinc-800 opacity-70">
-          <div className="p-8 border-b border-slate-100 dark:border-zinc-800 flex justify-between items-center">
-            <div className="flex items-center gap-2">
-              <FileText className="text-sky-500" size={20} />
-              <h3 className="text-lg font-bold text-slate-900 dark:text-zinc-100">Transcript</h3>
-            </div>
-            <span className="px-2 py-1 bg-slate-100 dark:bg-zinc-800 text-slate-500 text-[10px] font-bold uppercase rounded">Mock Data</span>
+        {/* 🔥 FIX: Render real transcript from the database instead of mock data */}
+        <div className="card flex flex-col overflow-hidden dark:bg-zinc-900 dark:border-zinc-800">
+          <div className="p-8 border-b border-slate-100 dark:border-zinc-800 flex items-center gap-2">
+            <FileText className="text-sky-500" size={20} />
+            <h3 className="text-lg font-bold text-slate-900 dark:text-zinc-100">Live Transcript</h3>
           </div>
           <div className="flex-1 overflow-y-auto p-8 custom-scrollbar">
-            <TimelineEvent type="PITCH START" time="00:00" content='"Hello everyone, today I&apos;m excited to present PitchNest..."' />
-            <TimelineEvent type="INVESTOR QUESTION" time="00:15" active={true} content='"How does your algorithm account for market volatility?"' />
-            <TimelineEvent type="RESPONSE" time="00:20" content='"Great question. Our model utilizes real-time API feeds..."' />
-            <TimelineEvent type="CLOSING REMARKS" time="01:45" content='"Thank you for your time. We&apos;re looking for partners..."' />
+            {transcriptData.length > 0 ? (
+              transcriptData.map((msg: any, i: number) => (
+                <TimelineEvent 
+                  key={i} 
+                  type={msg.type === 'ai' ? 'INVESTOR RESPONSE' : 'FOUNDER PITCH'} 
+                  time="--:--" 
+                  content={`"${msg.text}"`} 
+                  active={false} 
+                />
+              ))
+            ) : (
+              <p className="text-slate-500 text-sm italic text-center mt-4">No transcript recorded for this session.</p>
+            )}
           </div>
         </div>
       </div>
@@ -227,9 +231,15 @@ export default function PitchReplayScreen() {
             </div>
             <div className="space-y-4 bg-sky-50 dark:bg-sky-900/10 p-6 rounded-2xl border border-sky-100 dark:border-sky-900/30">
               <p className="text-[10px] font-bold text-sky-600 dark:text-sky-400 uppercase tracking-widest">Investor Readiness</p>
-              <p className="text-sm text-slate-700 dark:text-zinc-300 leading-relaxed">
-                Based on this session, your pitch readiness is evaluated at a <strong>{scores.readiness}/10</strong>. Focus on iterating your delivery and ensuring your market size arguments are defensible before presenting to live VC panels.
-              </p>
+              {isInsufficientData ? (
+                 <p className="text-sm text-slate-700 dark:text-zinc-300 leading-relaxed italic">
+                   Please complete a longer pitch session to receive an investor readiness evaluation.
+                 </p>
+              ) : (
+                <p className="text-sm text-slate-700 dark:text-zinc-300 leading-relaxed">
+                  Based on this session, your pitch readiness is evaluated at a <strong>{scores.readiness}/10</strong>. Focus on iterating your delivery and ensuring your market size arguments are defensible before presenting to live VC panels.
+                </p>
+              )}
             </div>
           </div>
         ) : (

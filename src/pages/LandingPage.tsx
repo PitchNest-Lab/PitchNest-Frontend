@@ -1,13 +1,22 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Rocket, PlayCircle, ArrowRight, Users, MessageSquare, BarChart3, ShieldCheck } from 'lucide-react';
-import { motion } from 'motion/react';
+import { motion } from 'framer-motion'; // 🔥 FIX 1: Corrected framer-motion import
 import { cn } from '../lib/utils';
 import { ThemeToggle } from '../components/ThemeToggle';
 
 export default function LandingPage() {
-  const [logoError, setLogoError] = React.useState(false);
-  const [footerLogoError, setFooterLogoError] = React.useState(false);
+  const [logoError, setLogoError] = useState(false);
+  const [footerLogoError, setFooterLogoError] = useState(false);
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+
+  // 🔥 FIX 3: Check if the user is already logged in so the CTA makes sense
+  useEffect(() => {
+    const user = localStorage.getItem('user');
+    if (user) {
+      setIsLoggedIn(true);
+    }
+  }, []);
 
   return (
     <div className="min-h-screen bg-white dark:bg-zinc-950 font-sans text-slate-900 dark:text-zinc-100 transition-colors duration-300">
@@ -34,15 +43,22 @@ export default function LandingPage() {
         <div className="hidden md:flex items-center gap-8 text-sm font-medium text-slate-600 dark:text-zinc-400">
           <a href="#features" className="hover:text-sky-600 dark:hover:text-sky-400 transition-colors">Features</a>
           <a href="#how-it-works" className="hover:text-sky-600 dark:hover:text-sky-400 transition-colors">How It Works</a>
-          <a href="#pricing" className="hover:text-sky-600 dark:hover:text-sky-400 transition-colors">Pricing</a>
-          <a href="#faq" className="hover:text-sky-600 dark:hover:text-sky-400 transition-colors">FAQ</a>
+          {/* 🔥 FIX 2: Removed non-existent #pricing and #faq links to avoid dead clicks */}
         </div>
         <div className="flex items-center gap-4">
           <ThemeToggle />
-          <Link to="/login" className="text-sm font-bold text-slate-900 dark:text-zinc-100 hover:text-sky-600 dark:hover:text-sky-400 transition-colors">Login</Link>
-          <Link to="/signup" className="px-5 py-2.5 bg-sky-500 text-white text-sm font-bold rounded-xl shadow-lg shadow-sky-200 dark:shadow-sky-500/20 hover:bg-sky-600 transition-all">
-            Start Pitching
-          </Link>
+          {isLoggedIn ? (
+            <Link to="/dashboard" className="px-5 py-2.5 bg-sky-500 text-white text-sm font-bold rounded-xl shadow-lg shadow-sky-200 dark:shadow-sky-500/20 hover:bg-sky-600 transition-all">
+              Go to Dashboard
+            </Link>
+          ) : (
+            <>
+              <Link to="/login" className="text-sm font-bold text-slate-900 dark:text-zinc-100 hover:text-sky-600 dark:hover:text-sky-400 transition-colors">Login</Link>
+              <Link to="/signup" className="px-5 py-2.5 bg-sky-500 text-white text-sm font-bold rounded-xl shadow-lg shadow-sky-200 dark:shadow-sky-500/20 hover:bg-sky-600 transition-all">
+                Start Pitching
+              </Link>
+            </>
+          )}
         </div>
       </nav>
 
@@ -64,18 +80,19 @@ export default function LandingPage() {
             Present your vision to a panel of AI investors that listen, ask questions, and debate your idea in real-time.
           </p>
           <div className="flex flex-wrap gap-4">
-            <Link to="/signup" className="px-8 py-4 bg-sky-500 text-white font-bold rounded-xl shadow-xl shadow-sky-200 dark:shadow-sky-500/20 hover:bg-sky-600 transition-all flex items-center gap-2">
-              Start Pitch
+            <Link to={isLoggedIn ? "/dashboard" : "/signup"} className="px-8 py-4 bg-sky-500 text-white font-bold rounded-xl shadow-xl shadow-sky-200 dark:shadow-sky-500/20 hover:bg-sky-600 transition-all flex items-center gap-2">
+              Start Pitching
             </Link>
-            <button className="px-8 py-4 bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 text-slate-900 dark:text-zinc-100 font-bold rounded-xl hover:bg-slate-50 dark:hover:bg-zinc-800 transition-all flex items-center gap-2">
+            {/* 🔥 FIX 5: Converted to anchor tag. Put your actual YouTube demo link here! */}
+            <a href="#" target="_blank" rel="noreferrer" className="px-8 py-4 bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 text-slate-900 dark:text-zinc-100 font-bold rounded-xl hover:bg-slate-50 dark:hover:bg-zinc-800 transition-all flex items-center gap-2">
               <PlayCircle size={20} />
               Watch Demo
-            </button>
+            </a>
           </div>
           <div className="mt-12 flex items-center gap-4">
             <div className="flex -space-x-3">
               {[1, 2, 3].map(i => (
-                <img key={i} src={`https://picsum.photos/seed/user${i}/100/100`} className="w-10 h-10 rounded-full border-2 border-white dark:border-zinc-800" referrerPolicy="no-referrer" />
+                <img key={i} src={`https://picsum.photos/seed/user${i}/100/100`} className="w-10 h-10 rounded-full border-2 border-white dark:border-zinc-800" referrerPolicy="no-referrer" alt="User Avatar" />
               ))}
             </div>
             <p className="text-sm text-slate-500 dark:text-zinc-400 font-medium">Trusted by 500+ startup founders worldwide</p>
@@ -117,8 +134,8 @@ export default function LandingPage() {
             </div>
           </div>
           {/* Decorative elements */}
-          <div className="absolute -top-6 -right-6 w-32 h-32 bg-sky-500/10 rounded-full blur-3xl" />
-          <div className="absolute -bottom-10 -left-10 w-48 h-48 bg-indigo-500/10 rounded-full blur-3xl" />
+          <div className="absolute -top-6 -right-6 w-32 h-32 bg-sky-500/10 rounded-full blur-3xl pointer-events-none" />
+          <div className="absolute -bottom-10 -left-10 w-48 h-48 bg-indigo-500/10 rounded-full blur-3xl pointer-events-none" />
         </motion.div>
       </section>
 
@@ -204,13 +221,13 @@ export default function LandingPage() {
           <div className="relative z-10 max-w-3xl mx-auto">
             <h2 className="text-5xl font-bold mb-8 leading-tight">Ready to face the panel? Start your first pitch today.</h2>
             <p className="text-xl text-white/80 mb-12">Don't wait for a real board meeting to find the flaws in your pitch. Iterate faster with PitchNest.</p>
-            <Link to="/signup" className="px-10 py-5 bg-white text-sky-600 font-bold rounded-2xl shadow-2xl hover:bg-sky-50 transition-all inline-flex items-center gap-2">
+            <Link to={isLoggedIn ? "/dashboard" : "/signup"} className="px-10 py-5 bg-white text-sky-600 font-bold rounded-2xl shadow-2xl hover:bg-sky-50 transition-all inline-flex items-center gap-2">
               Start Pitching Now
             </Link>
           </div>
           {/* Decorative circles */}
-          <div className="absolute -top-24 -left-24 w-64 h-64 bg-white/10 rounded-full blur-3xl" />
-          <div className="absolute -bottom-24 -right-24 w-96 h-96 bg-white/10 rounded-full blur-3xl" />
+          <div className="absolute -top-24 -left-24 w-64 h-64 bg-white/10 rounded-full blur-3xl pointer-events-none" />
+          <div className="absolute -bottom-24 -right-24 w-96 h-96 bg-white/10 rounded-full blur-3xl pointer-events-none" />
         </div>
       </section>
 
@@ -243,19 +260,19 @@ export default function LandingPage() {
           <div>
             <h4 className="font-bold mb-6 text-slate-900 dark:text-zinc-100">Platform</h4>
             <ul className="space-y-4 text-sm text-slate-500 dark:text-zinc-400">
-              <li><a href="#" className="hover:text-sky-600 dark:hover:text-sky-400">About Us</a></li>
-              <li><a href="#" className="hover:text-sky-600 dark:hover:text-sky-400">Features</a></li>
-              <li><a href="#" className="hover:text-sky-600 dark:hover:text-sky-400">Success Stories</a></li>
-              <li><a href="#" className="hover:text-sky-600 dark:hover:text-sky-400">Career</a></li>
+              <li><Link to="/" className="hover:text-sky-600 dark:hover:text-sky-400">About Us</Link></li>
+              <li><a href="#features" className="hover:text-sky-600 dark:hover:text-sky-400">Features</a></li>
+              <li><Link to="/login" className="hover:text-sky-600 dark:hover:text-sky-400">Login</Link></li>
+              <li><Link to="/signup" className="hover:text-sky-600 dark:hover:text-sky-400">Sign Up</Link></li>
             </ul>
           </div>
           <div>
             <h4 className="font-bold mb-6 text-slate-900 dark:text-zinc-100">Legal</h4>
             <ul className="space-y-4 text-sm text-slate-500 dark:text-zinc-400">
-              <li><a href="#" className="hover:text-sky-600 dark:hover:text-sky-400">Privacy Policy</a></li>
-              <li><a href="#" className="hover:text-sky-600 dark:hover:text-sky-400">Terms of Service</a></li>
-              <li><a href="#" className="hover:text-sky-600 dark:hover:text-sky-400">Cookie Policy</a></li>
-              <li><a href="#" className="hover:text-sky-600 dark:hover:text-sky-400">Security</a></li>
+              <li><span className="cursor-pointer hover:text-sky-600 dark:hover:text-sky-400">Privacy Policy</span></li>
+              <li><span className="cursor-pointer hover:text-sky-600 dark:hover:text-sky-400">Terms of Service</span></li>
+              <li><span className="cursor-pointer hover:text-sky-600 dark:hover:text-sky-400">Cookie Policy</span></li>
+              <li><span className="cursor-pointer hover:text-sky-600 dark:hover:text-sky-400">Security</span></li>
             </ul>
           </div>
           <div>
@@ -270,7 +287,8 @@ export default function LandingPage() {
           </div>
         </div>
         <div className="max-w-7xl mx-auto px-6 mt-20 pt-8 border-t border-slate-200 dark:border-zinc-800 flex justify-between items-center text-xs text-slate-400 dark:text-zinc-500">
-          <p>© 2024 PitchNest AI. All rights reserved.</p>
+          {/* 🔥 FIX 4: Dynamic date so the copyright is always current */}
+          <p>© {new Date().getFullYear()} PitchNest AI. All rights reserved.</p>
           <p>Built with passion for the startup ecosystem.</p>
         </div>
       </footer>

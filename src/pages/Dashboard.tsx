@@ -1,47 +1,62 @@
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Rocket, Play, BarChart3, Target, Sparkles, ChevronRight, Clock, CheckCircle2 } from 'lucide-react';
+import { Rocket, Play, BarChart3, Target, Sparkles, ChevronRight, Clock, CheckCircle2, AlertCircle } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { cn } from '../lib/utils';
 import { Skeleton } from '../components/Skeleton';
 
 // --- Components ---
-const RecentPitchItem = ({ id, name, date, score, status }: { id: number, name: string, date: string, score: number, status: string }) => (
-  <div className="flex items-center justify-between p-4 bg-white dark:bg-zinc-900 border border-slate-100 dark:border-zinc-800 rounded-2xl hover:border-sky-200 dark:hover:border-sky-500/50 hover:shadow-md transition-all group">
-    <div className="flex items-center gap-4">
-      <div className="w-12 h-12 bg-slate-50 dark:bg-zinc-800 rounded-xl flex items-center justify-center text-slate-400 dark:text-zinc-500 group-hover:bg-sky-50 dark:group-hover:bg-sky-900/20 group-hover:text-sky-500 transition-colors">
-        <Play size={20} fill="currentColor" />
-      </div>
-      <div>
-        <p className="text-sm font-bold text-slate-900 dark:text-zinc-100">{name}</p>
-        <p className="text-[10px] text-slate-400 dark:text-zinc-500 font-medium">{date}</p>
-      </div>
-    </div>
-    <div className="flex items-center gap-8">
-      <div className="flex flex-col items-end w-24">
-        <div className="flex items-center gap-2 mb-1">
-          <div className="w-16 h-1.5 bg-slate-100 dark:bg-zinc-800 rounded-full overflow-hidden">
-            <div className="bg-emerald-500 h-full" style={{ width: `${score}%` }} />
-          </div>
-          <span className="text-xs font-bold text-slate-700 dark:text-zinc-300">{score}</span>
+const RecentPitchItem = ({ id, name, date, score, status }: { id: number, name: string, date: string, score: number, status: string }) => {
+  const isIncomplete = score === 0;
+
+  return (
+    <div className="flex items-center justify-between p-4 bg-white dark:bg-zinc-900 border border-slate-100 dark:border-zinc-800 rounded-2xl hover:border-sky-200 dark:hover:border-sky-500/50 hover:shadow-md transition-all group">
+      <div className="flex items-center gap-4">
+        <div className="w-12 h-12 bg-slate-50 dark:bg-zinc-800 rounded-xl flex items-center justify-center text-slate-400 dark:text-zinc-500 group-hover:bg-sky-50 dark:group-hover:bg-sky-900/20 group-hover:text-sky-500 transition-colors">
+          <Play size={20} fill="currentColor" />
+        </div>
+        <div>
+          <p className="text-sm font-bold text-slate-900 dark:text-zinc-100">{name}</p>
+          <p className="text-[10px] text-slate-400 dark:text-zinc-500 font-medium">{date}</p>
         </div>
       </div>
-      <div className="w-32">
-        <span className={cn(
-          "text-[10px] font-bold px-3 py-1 rounded-full",
-          status === "Investor Ready" ? "bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400" : 
-          status === "Needs Polish" ? "bg-amber-50 dark:bg-amber-900/20 text-amber-600 dark:text-amber-400" : "bg-sky-50 dark:bg-sky-900/20 text-sky-600 dark:text-sky-400"
-        )}>
-          {status}
-        </span>
+      <div className="flex items-center gap-8">
+        <div className="flex flex-col items-end w-24">
+          {isIncomplete ? (
+            <div className="flex items-center gap-1.5 text-slate-400">
+              <AlertCircle size={14} />
+              <span className="text-[10px] font-bold uppercase tracking-widest">N/A</span>
+            </div>
+          ) : (
+            <div className="flex items-center gap-2 mb-1">
+              <div className="w-16 h-1.5 bg-slate-100 dark:bg-zinc-800 rounded-full overflow-hidden">
+                <div className={cn(
+                  "h-full transition-all duration-1000",
+                  score >= 80 ? "bg-emerald-500" : score >= 60 ? "bg-sky-500" : "bg-amber-500"
+                )} style={{ width: `${score}%` }} />
+              </div>
+              <span className="text-xs font-bold text-slate-700 dark:text-zinc-300">{score}</span>
+            </div>
+          )}
+        </div>
+        <div className="w-32">
+          <span className={cn(
+            "text-[10px] font-bold px-3 py-1 rounded-full",
+            status === "Investor Ready" ? "bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400" : 
+            status === "Good Progress" ? "bg-sky-50 dark:bg-sky-900/20 text-sky-600 dark:text-sky-400" :
+            status === "Incomplete" ? "bg-slate-100 dark:bg-zinc-800 text-slate-500 dark:text-zinc-400" :
+            "bg-amber-50 dark:bg-amber-900/20 text-amber-600 dark:text-amber-400"
+          )}>
+            {status}
+          </span>
+        </div>
+        <Link to={`/replay?session=${id}`} className="p-2 text-slate-300 dark:text-zinc-600 hover:text-sky-500 dark:hover:text-sky-400 transition-colors">
+          <Play size={18} />
+        </Link>
       </div>
-      {/* 🔥 FIX 2: Play button now accurately links to the correct specific replay! */}
-      <Link to={`/replay?session=${id}`} className="p-2 text-slate-300 dark:text-zinc-600 hover:text-sky-500 dark:hover:text-sky-400 transition-colors">
-        <Play size={18} />
-      </Link>
     </div>
-  </div>
-);
+  );
+};
 
 const RecentPitchSkeleton = () => (
   <div className="flex items-center justify-between p-4 bg-white dark:bg-zinc-900 border border-slate-100 dark:border-zinc-800 rounded-2xl">
@@ -97,7 +112,6 @@ export default function Dashboard() {
   useEffect(() => {
     const fetchSessions = async () => {
       try {
-        // 🔥 FIX 1: The Cache-Buster ensures your Dashboard stats update instantly!
         const response = await fetch(`/api/sessions?t=${Date.now()}`, {
           headers: {
             'Cache-Control': 'no-cache',
@@ -109,19 +123,22 @@ export default function Dashboard() {
         if (Array.isArray(data) && data.length > 0) {
           setSessions(data);
           
-          const scores = data.map((s: any) => {
-            const r = s.evaluation_report?.scores || {};
-            const d = Number(r.delivery) || 0;
-            const c = Number(r.clarity) || 0;
-            const sc = Number(r.scalability) || 0;
-            const read = Number(r.readiness) || 0;
-            return Math.round(((d + c + sc + read) / 40) * 100);
-          });
+          // 🔥 FIX 1: Filter out 0 scores so average isn't dragged down by incomplete pitches
+          const validScores = data
+            .map((s: any) => {
+              const r = s.evaluation_report?.scores || {};
+              const d = Number(r.delivery) || 0;
+              const c = Number(r.clarity) || 0;
+              const sc = Number(r.scalability) || 0;
+              const read = Number(r.readiness) || 0;
+              return Math.round(((d + c + sc + read) / 40) * 100);
+            })
+            .filter((score: number) => score > 0);
 
           setStats({
             totalPitches: data.length,
-            avgScore: scores.length > 0 ? Math.round(scores.reduce((a: number, b: number) => a + b, 0) / scores.length) : 0,
-            bestScore: scores.length > 0 ? Math.max(...scores) : 0
+            avgScore: validScores.length > 0 ? Math.round(validScores.reduce((a: number, b: number) => a + b, 0) / validScores.length) : 0,
+            bestScore: validScores.length > 0 ? Math.max(...validScores) : 0
           });
         }
       } catch (error) {
@@ -135,7 +152,7 @@ export default function Dashboard() {
   }, []);
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-8 pb-20">
       {/* Welcome Hero */}
       <motion.div 
         initial={{ opacity: 0, y: 10 }}
@@ -156,7 +173,7 @@ export default function Dashboard() {
             Start New Pitch
           </Link>
         </div>
-        <div className="absolute right-10 top-1/2 -translate-y-1/2 opacity-20">
+        <div className="absolute right-10 top-1/2 -translate-y-1/2 opacity-20 pointer-events-none">
           <Rocket size={240} fill="currentColor" />
         </div>
       </motion.div>
@@ -234,8 +251,10 @@ export default function Dashboard() {
                   (Number(r.readiness) || 0)
                 ) / 40) * 100);
                 
+                // 🔥 FIX 2: Safely handles 0 scores
                 let statusBadge = "Needs Polish";
-                if (finalScore >= 80) statusBadge = "Investor Ready";
+                if (finalScore === 0) statusBadge = "Incomplete";
+                else if (finalScore >= 80) statusBadge = "Investor Ready";
                 else if (finalScore >= 60) statusBadge = "Good Progress";
 
                 const displayName = session.business_name || `Pitch Session #${session.id}`;
@@ -289,13 +308,15 @@ export default function Dashboard() {
                 )}
               </>
             )}
-            <button className="w-full py-4 bg-sky-50 dark:bg-sky-900/20 text-sky-600 dark:text-sky-400 font-bold rounded-2xl flex items-center justify-between px-6 hover:bg-sky-100 dark:hover:bg-sky-900/30 transition-colors group">
+            
+            {/* 🔥 FIX 3: Replaced dead <button> with a functional React Router <Link> */}
+            <Link to="/analytics" className="w-full py-4 bg-sky-50 dark:bg-sky-900/20 text-sky-600 dark:text-sky-400 font-bold rounded-2xl flex items-center justify-between px-6 hover:bg-sky-100 dark:hover:bg-sky-900/30 transition-colors group">
               <span className="flex items-center gap-2">
-                <Rocket size={16} />
-                Unlock more tips
+                <BarChart3 size={16} />
+                Unlock deep analytics
               </span>
               <ChevronRight size={18} className="group-hover:translate-x-1 transition-transform" />
-            </button>
+            </Link>
           </div>
         </div>
       </div>

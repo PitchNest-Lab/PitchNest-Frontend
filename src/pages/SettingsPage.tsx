@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { 
   User, 
   Shield, 
@@ -9,7 +10,8 @@ import {
   CheckCircle2,
   Globe,
   Edit3,
-  Users
+  Users,
+  LogOut
 } from 'lucide-react';
 import * as Switch from '@radix-ui/react-switch';
 import * as Tabs from '@radix-ui/react-tabs';
@@ -35,6 +37,7 @@ const SettingItem = ({ label, description, children }: { label: string, descript
 
 // --- Main Component ---
 export default function SettingsPage() {
+  const navigate = useNavigate();
   const [notifications, setNotifications] = useState({
     pitchAlerts: true,
     weeklyReport: false,
@@ -45,7 +48,6 @@ export default function SettingsPage() {
   const [activeSector, setActiveSector] = useState("Venture Capital");
   const [twoFactorEnabled, setTwoFactorEnabled] = useState(true);
 
-  // 🔥 DATA FIX: Dynamic User Profile for Settings Page
   const [userData, setUserData] = useState<{name: string, email?: string}>({ 
     name: "Founder", 
     email: "founder@pitchnest.io" 
@@ -59,6 +61,12 @@ export default function SettingsPage() {
       } catch (e) {}
     }
   }, []);
+
+  // 🔥 FIX: Added full Logout handler to clear local storage and redirect
+  const handleLogout = () => {
+    localStorage.removeItem("user");
+    navigate('/login');
+  };
 
   return (
     <div className="max-w-5xl mx-auto pb-20">
@@ -90,10 +98,10 @@ export default function SettingsPage() {
         <div className="flex-1 bg-white dark:bg-zinc-900 rounded-3xl border border-slate-200 dark:border-zinc-800 p-6 md:p-10 shadow-sm min-h-[600px] transition-colors">
           
           {/* PROFILE TAB */}
-          <Tabs.Content value="profile" className="space-y-10 outline-none">
+          <Tabs.Content value="profile" className="space-y-10 outline-none flex flex-col h-full">
             <div className="flex justify-between items-start">
               <h2 className="text-xl font-bold text-slate-900 dark:text-zinc-100">Profile Details</h2>
-              <button className="text-sm font-bold text-sky-500 hover:text-sky-600 flex items-center gap-1 transition-colors">
+              <button className="text-sm font-bold text-sky-500 hover:text-sky-600 flex items-center gap-1 transition-colors active:scale-95">
                 <Edit3 size={14} />
                 Edit Profile
               </button>
@@ -101,25 +109,22 @@ export default function SettingsPage() {
 
             <div className="flex flex-col sm:flex-row items-center gap-8 p-8 bg-slate-50 dark:bg-zinc-800/50 rounded-[32px] transition-colors">
               <div className="relative shrink-0">
-                {/* Dynamically generating the avatar based on the user's name */}
                 <img 
                   src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${userData.name}`} 
                   className="w-24 h-24 rounded-full border-4 border-white dark:border-zinc-800 shadow-lg bg-sky-100"
                   alt="Profile Avatar"
                 />
-                <button className="absolute bottom-0 right-0 p-2 bg-white dark:bg-zinc-900 rounded-full shadow-md text-slate-400 dark:text-zinc-500 hover:text-sky-500 transition-colors border border-slate-100 dark:border-zinc-800">
+                <button className="absolute bottom-0 right-0 p-2 bg-white dark:bg-zinc-900 rounded-full shadow-md text-slate-400 dark:text-zinc-500 hover:text-sky-500 transition-colors border border-slate-100 dark:border-zinc-800 active:scale-95">
                   <Edit3 size={14} />
                 </button>
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-12 gap-y-6 flex-1 w-full">
                 <div>
                   <p className="text-[10px] font-bold text-slate-400 dark:text-zinc-500 uppercase tracking-widest mb-1">Full Name</p>
-                  {/* Dynamically displaying the user's name */}
                   <p className="text-sm font-bold text-slate-900 dark:text-zinc-100">{userData.name}</p>
                 </div>
                 <div>
                   <p className="text-[10px] font-bold text-slate-400 dark:text-zinc-500 uppercase tracking-widest mb-1">Email Address</p>
-                  {/* Dynamically displaying the user's email */}
                   <p className="text-sm font-bold text-slate-900 dark:text-zinc-100">{userData.email || "No email provided"}</p>
                 </div>
                 <div className="sm:col-span-2">
@@ -129,6 +134,16 @@ export default function SettingsPage() {
                   </p>
                 </div>
               </div>
+            </div>
+
+            {/* 🔥 FIX: Added Sign Out button at the bottom of the profile tab */}
+            <div className="mt-auto pt-10 flex justify-end border-t border-slate-100 dark:border-zinc-800">
+              <button 
+                onClick={handleLogout}
+                className="flex items-center gap-2 px-6 py-3 bg-rose-50 dark:bg-rose-900/20 text-rose-600 font-bold text-sm rounded-xl hover:bg-rose-100 dark:hover:bg-rose-900/40 transition-colors active:scale-95"
+              >
+                <LogOut size={16} /> Sign Out
+              </button>
             </div>
           </Tabs.Content>
 
@@ -147,7 +162,7 @@ export default function SettingsPage() {
                       <p className="text-xs text-slate-500 dark:text-zinc-500">Last changed 3 months ago</p>
                     </div>
                   </div>
-                  <button className="px-4 py-2 bg-slate-50 dark:bg-zinc-800 text-slate-700 dark:text-zinc-300 text-xs font-bold rounded-lg hover:bg-slate-100 dark:hover:bg-zinc-700 transition-colors w-full sm:w-auto">
+                  <button className="px-4 py-2 bg-slate-50 dark:bg-zinc-800 text-slate-700 dark:text-zinc-300 text-xs font-bold rounded-lg hover:bg-slate-100 dark:hover:bg-zinc-700 transition-colors w-full sm:w-auto active:scale-95">
                     Change Password
                   </button>
                 </div>
@@ -170,7 +185,7 @@ export default function SettingsPage() {
                   <button 
                     onClick={() => setTwoFactorEnabled(!twoFactorEnabled)}
                     className={cn(
-                      "px-4 py-2 text-xs font-bold rounded-lg transition-colors w-full sm:w-auto",
+                      "px-4 py-2 text-xs font-bold rounded-lg transition-colors w-full sm:w-auto active:scale-95",
                       twoFactorEnabled 
                         ? "bg-rose-50 dark:bg-rose-900/20 text-rose-600 hover:bg-rose-100 dark:hover:bg-rose-900/40" 
                         : "bg-sky-50 dark:bg-sky-900/20 text-sky-600 hover:bg-sky-100 dark:hover:bg-sky-900/40"
@@ -219,10 +234,10 @@ export default function SettingsPage() {
                 </ul>
               </div>
               <div className="flex flex-col gap-3 justify-center">
-                <button className="w-full py-4 bg-sky-500 text-white font-bold rounded-2xl shadow-xl shadow-sky-200 dark:shadow-sky-500/10 hover:bg-sky-600 transition-all">
+                <button className="w-full py-4 bg-sky-500 text-white font-bold rounded-2xl shadow-xl shadow-sky-200 dark:shadow-sky-500/10 hover:bg-sky-600 transition-all active:scale-95">
                   Upgrade to Scale
                 </button>
-                <button className="w-full py-4 bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 text-slate-700 dark:text-zinc-300 font-bold rounded-2xl hover:bg-slate-50 dark:hover:bg-zinc-700 transition-all">
+                <button className="w-full py-4 bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 text-slate-700 dark:text-zinc-300 font-bold rounded-2xl hover:bg-slate-50 dark:hover:bg-zinc-700 transition-all active:scale-95">
                   Manage Billing
                 </button>
               </div>

@@ -54,9 +54,17 @@ export default function PrePitchSetup() {
   const { register, handleSubmit, setValue, watch, formState: { errors } } = useForm<SetupFormValues>({
     resolver: zodResolver(setupSchema),
     defaultValues: {
-      mode: 'panel', businessName: '', description: '', industry: 'SaaS & Enterprise',
-      investorArchetype: 'Seed Stage - Venture Capital', aggressiveness: 60, riskAppetite: 75,
-      cameraEnabled: true, micEnabled: true, screenShareEnabled: false,
+      mode: 'panel', 
+      // 🔥 FIX 1: Frictionless defaults so judges don't get stuck on validation
+      businessName: 'My Startup', 
+      description: 'We are building the next generation of AI tools for enterprise.', 
+      industry: 'SaaS & Enterprise',
+      investorArchetype: 'Seed Stage - Venture Capital', 
+      aggressiveness: 60, 
+      riskAppetite: 75,
+      cameraEnabled: true, 
+      micEnabled: true, 
+      screenShareEnabled: false,
     }
   });
 
@@ -101,7 +109,7 @@ export default function PrePitchSetup() {
   };
 
   return (
-    <div className="max-w-6xl mx-auto h-[calc(100vh-80px)] flex flex-col overflow-hidden">
+    <div className="max-w-6xl mx-auto h-[calc(100vh-80px)] flex flex-col overflow-hidden pb-10">
       <div className="flex items-center justify-between shrink-0 mb-6">
         <div>
           <h1 className="text-3xl font-extrabold text-slate-900 dark:text-zinc-100">Pre-Pitch Configuration</h1>
@@ -113,7 +121,7 @@ export default function PrePitchSetup() {
 
       <form onSubmit={handleSubmit(onSubmit)} className="flex-1 grid lg:grid-cols-12 gap-6 min-h-0">
         
-        {/* LEFT COLUMN: Setup (Takes up 8 columns) */}
+        {/* LEFT COLUMN: Setup */}
         <div className="lg:col-span-8 flex flex-col gap-6 overflow-y-auto pr-2 custom-scrollbar">
           
           <div className="flex gap-4 shrink-0">
@@ -125,22 +133,30 @@ export default function PrePitchSetup() {
           <div className="bg-white dark:bg-zinc-900 p-6 rounded-[24px] border border-slate-200 dark:border-zinc-800 shadow-sm shrink-0">
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-1.5 col-span-2 md:col-span-1">
-                <label className="text-xs font-bold text-slate-700 dark:text-zinc-300 flex items-center gap-1.5"><Briefcase size={14} className="text-sky-500"/> Startup Name</label>
-                <input {...register('businessName')} type="text" placeholder="e.g. PitchNest AI" className="w-full px-3 py-2 text-sm bg-slate-50 dark:bg-zinc-800 border rounded-xl focus:ring-2 focus:ring-sky-500/20 dark:border-zinc-700 dark:text-zinc-100" />
+                <div className="flex justify-between">
+                  <label className="text-xs font-bold text-slate-700 dark:text-zinc-300 flex items-center gap-1.5"><Briefcase size={14} className="text-sky-500"/> Startup Name</label>
+                  {/* 🔥 FIX 2: Visible error message so user knows why the form won't submit */}
+                  {errors.businessName && <span className="text-[10px] text-rose-500 font-bold">{errors.businessName.message}</span>}
+                </div>
+                <input {...register('businessName')} type="text" placeholder="e.g. PitchNest AI" className={cn("w-full px-3 py-2 text-sm bg-slate-50 dark:bg-zinc-800 border rounded-xl focus:ring-2 focus:ring-sky-500/20 dark:border-zinc-700 dark:text-zinc-100", errors.businessName && "border-rose-300 focus:ring-rose-500/20")} />
               </div>
               <div className="space-y-1.5 col-span-2 md:col-span-1">
                 <label className="text-xs font-bold text-slate-700 dark:text-zinc-300 flex items-center gap-1.5"><AlignLeft size={14} className="text-sky-500"/> Industry & Persona</label>
                 <div className="flex gap-2">
-                  <select {...register('industry')} className="flex-1 px-3 py-2 text-sm bg-slate-50 dark:bg-zinc-800 border rounded-xl dark:border-zinc-700">
+                  <select {...register('industry')} className="flex-1 px-3 py-2 text-sm bg-slate-50 dark:bg-zinc-800 border rounded-xl dark:border-zinc-700 text-slate-700 dark:text-zinc-300">
                     <option>SaaS & Enterprise</option><option>Fintech</option><option>Healthtech</option>
                   </select>
-                  <select {...register('investorArchetype')} className="flex-1 px-3 py-2 text-sm bg-slate-50 dark:bg-zinc-800 border rounded-xl dark:border-zinc-700">
+                  <select {...register('investorArchetype')} className="flex-1 px-3 py-2 text-sm bg-slate-50 dark:bg-zinc-800 border rounded-xl dark:border-zinc-700 text-slate-700 dark:text-zinc-300">
                     <option>Seed VC</option><option>Angel Group</option><option>Growth Fund</option>
                   </select>
                 </div>
               </div>
               <div className="space-y-1.5 col-span-2">
-                <textarea {...register('description')} placeholder="Elevator pitch... (What do you do?)" rows={2} className="w-full px-3 py-2 text-sm bg-slate-50 dark:bg-zinc-800 border rounded-xl resize-none dark:border-zinc-700 dark:text-zinc-100" />
+                <div className="flex justify-between">
+                  <label className="text-xs font-bold text-slate-700 dark:text-zinc-300">Elevator Pitch</label>
+                  {errors.description && <span className="text-[10px] text-rose-500 font-bold">{errors.description.message}</span>}
+                </div>
+                <textarea {...register('description')} placeholder="What do you do? (Min 10 characters)" rows={2} className={cn("w-full px-3 py-2 text-sm bg-slate-50 dark:bg-zinc-800 border rounded-xl resize-none dark:border-zinc-700 dark:text-zinc-100", errors.description && "border-rose-300 focus:ring-rose-500/20")} />
               </div>
             </div>
           </div>
@@ -167,7 +183,8 @@ export default function PrePitchSetup() {
                   <hw.icon size={18} className={hw.state ? "text-emerald-500" : "text-slate-400"} />
                   <span className="text-xs font-bold">{hw.label}</span>
                 </div>
-                <Switch.Root checked={hw.state} onCheckedChange={hw.set} className="w-8 h-4.5 bg-slate-200 dark:bg-zinc-800 rounded-full relative data-[state=checked]:bg-emerald-500">
+                {/* 🔥 FIX 3: Safe Radix Switch handling */}
+                <Switch.Root checked={hw.state} onCheckedChange={(checked) => hw.set(checked)} className="w-8 h-4.5 bg-slate-200 dark:bg-zinc-800 rounded-full relative data-[state=checked]:bg-emerald-500 transition-colors">
                   <Switch.Thumb className="block w-3.5 h-3.5 mt-0.5 ml-0.5 bg-white rounded-full transition-transform data-[state=checked]:translate-x-3.5" />
                 </Switch.Root>
               </div>
@@ -176,7 +193,7 @@ export default function PrePitchSetup() {
 
         </div>
 
-        {/* RIGHT COLUMN: Deck & Submit (Takes up 4 columns) */}
+        {/* RIGHT COLUMN: Deck & Submit */}
         <div className="lg:col-span-4 flex flex-col gap-4 min-h-0">
           <div className="flex-1 bg-slate-900 rounded-[32px] p-6 flex flex-col text-white min-h-0">
             <h3 className="text-sm font-bold uppercase tracking-widest text-white/50 mb-4 shrink-0">Select Deck</h3>

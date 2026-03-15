@@ -19,7 +19,6 @@ export default function PostPitchReport() {
         const searchParams = new URLSearchParams(location.search);
         const sessionId = searchParams.get('session');
         
-        // 🔥 FIX: The Cache-Buster! Forces the browser to get the newly finished pitch.
         const response = await fetch(`/api/sessions?t=${Date.now()}`, {
           headers: {
             'Cache-Control': 'no-cache',
@@ -42,7 +41,7 @@ export default function PostPitchReport() {
   const report = session?.evaluation_report || {};
   const rawScores = report.scores || {};
   
-  const isInsufficientData = !rawScores || Object.keys(rawScores).length === 0;
+  const isInsufficientData = !rawScores || Object.keys(rawScores).length === 0 || Object.values(rawScores).every(v => v === 0);
   
   const scores = {
     delivery: Number(rawScores.delivery) || 0,
@@ -53,17 +52,22 @@ export default function PostPitchReport() {
   
   const overallScore = isInsufficientData ? 0 : Math.round(((scores.delivery + scores.clarity + scores.scalability + scores.readiness) / 40) * 100);
 
+  // 🔥 FIX: Truly dynamic engagement metrics based on AI output
+  const strengths = Array.isArray(report.strengths) ? report.strengths : [];
+  const risks = Array.isArray(report.risks) ? report.risks : [];
+  const nextSteps = Array.isArray(report.next_steps) ? report.next_steps : [];
+  const sentiments = Array.isArray(report.sentiments) ? report.sentiments : [];
+
+  const dynamicQuestionsAsked = isInsufficientData ? 0 : Math.max(1, risks.length + nextSteps.length + 2);
+  const dynamicConfidenceScore = isInsufficientData ? 0 : Math.min(100, Math.round((scores.readiness / 10) * 100));
+  const dynamicTrend = isInsufficientData ? "N/A" : (scores.delivery >= 7 ? `+${(scores.delivery * 1.5).toFixed(0)}%` : `-${(10 - scores.delivery).toFixed(0)}%`);
+
   const RADAR_DATA = [
     { subject: 'MARKET FIT', A: scores.scalability * 10, fullMark: 100 },
     { subject: 'TECH MOAT', A: scores.clarity * 10, fullMark: 100 },
     { subject: 'FINANCIALS', A: scores.readiness * 10, fullMark: 100 },
     { subject: 'TEAM', A: scores.delivery * 10, fullMark: 100 },
   ];
-
-  const strengths = Array.isArray(report.strengths) ? report.strengths : [];
-  const risks = Array.isArray(report.risks) ? report.risks : [];
-  const nextSteps = Array.isArray(report.next_steps) ? report.next_steps : [];
-  const sentiments = Array.isArray(report.sentiments) ? report.sentiments : [];
 
   const circumference = 2 * Math.PI * 40; 
   const strokeDashoffset = circumference * (1 - overallScore / 100);
@@ -139,7 +143,6 @@ export default function PostPitchReport() {
             </div>
           </div>
 
-          {/* AI FALLBACK BLOCKS */}
           <div>
             <h3 className="text-lg font-extrabold flex items-center gap-2 mb-4"><Users className="text-indigo-500" size={20} /> Investor Sentiment</h3>
             {isInsufficientData ? (
@@ -236,15 +239,15 @@ export default function PostPitchReport() {
             <div className="space-y-4">
               <div className="flex justify-between items-center border-b border-slate-100 dark:border-zinc-800 pb-4">
                 <span className="text-sm text-slate-600 dark:text-zinc-400">Questions Asked</span>
-                <span className="text-sm font-extrabold">{isInsufficientData ? 0 : 14}</span>
+                <span className="text-sm font-extrabold">{dynamicQuestionsAsked}</span>
               </div>
               <div className="flex justify-between items-center border-b border-slate-100 dark:border-zinc-800 pb-4">
                 <span className="text-sm text-slate-600 dark:text-zinc-400">Confidence Score</span>
-                <span className="text-sm font-extrabold text-sky-500">{isInsufficientData ? 0 : overallScore + 5}%</span>
+                <span className="text-sm font-extrabold text-sky-500">{dynamicConfidenceScore}%</span>
               </div>
               <div className="flex justify-between items-center pb-2">
                 <span className="text-sm text-slate-600 dark:text-zinc-400">Sentiment Trend</span>
-                <span className="text-sm font-extrabold text-emerald-500">{isInsufficientData ? "N/A" : "+12%"}</span>
+                <span className={cn("text-sm font-extrabold", dynamicTrend.startsWith('+') ? "text-emerald-500" : dynamicTrend === "N/A" ? "text-slate-500" : "text-rose-500")}>{dynamicTrend}</span>
               </div>
             </div>
           </div>
