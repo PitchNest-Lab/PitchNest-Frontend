@@ -1,15 +1,7 @@
-import React, { useEffect, useState } from 'react';
-import { Link, useLocation } from 'react-router-dom';
+import React from 'react';
+import { Link } from 'react-router-dom';
 import { 
-  Play, 
-  ChevronLeft, 
-  MessageSquare, 
-  Sparkles,
-  Target,
-  Clock,
-  FileText,
-  Download,
-  Share2
+  Play, ChevronLeft, MessageSquare, Sparkles, Target, Clock, FileText, Download, Share2
 } from 'lucide-react';
 import { cn } from '../lib/utils';
 
@@ -26,87 +18,34 @@ const TimelineEvent = ({ type, time, content, active = false }: { type: string, 
       <span className={cn(
         "text-[10px] font-bold uppercase tracking-widest px-2 py-1 rounded",
         type.includes('INVESTOR') ? "bg-purple-50 dark:bg-purple-900/20 text-purple-600 dark:text-purple-400" : 
-        type.includes('RESPONSE') ? "bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400" : "bg-sky-50 dark:bg-sky-900/20 text-sky-600 dark:text-sky-400"
+        type.includes('FOUNDER') ? "bg-sky-50 dark:bg-sky-900/20 text-sky-600 dark:text-sky-400" : "bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400"
       )}>
         {type}
       </span>
       <span className="text-[10px] font-bold text-slate-400 dark:text-zinc-500">{time}</span>
     </div>
-    <p className={cn(
-      "text-sm leading-relaxed",
-      active ? "text-slate-900 dark:text-zinc-100 font-medium" : "text-slate-500 dark:text-zinc-400"
-    )}>
+    <p className={cn("text-sm leading-relaxed", active ? "text-slate-900 dark:text-zinc-100 font-medium" : "text-slate-500 dark:text-zinc-400")}>
       {content}
     </p>
   </div>
 );
 
+// 🔥 THE ULTIMATE HARDCODED DEMO DATA
+const MOCK_REPORT = {
+  business_name: "Seed Round - Y Combinator",
+  summary: "An incredibly strong pitch with a clear value proposition. The founder demonstrated deep market knowledge, though the go-to-market strategy for enterprise clients could use a bit more clarity regarding customer acquisition costs (CAC).",
+  scores: { delivery: 9, clarity: 8, scalability: 9, readiness: 9 },
+  overall: 88,
+  transcript: [
+    { type: "FOUNDER PITCH", time: "00:00", text: "Hi panel, I'm building PitchNest. We use AI to simulate VC boardrooms so founders can practice their pitches before stepping into the real room." },
+    { type: "INVESTOR RESPONSE", time: "01:15", text: "That's a massive pain point. But how do you plan to monetize this? Is it B2B or B2C?" },
+    { type: "FOUNDER PITCH", time: "01:22", text: "We are starting with a B2B SaaS model targeting accelerators and incubators, who then offer it as a perk to their cohorts." },
+    { type: "INVESTOR RESPONSE", time: "02:10", text: "Smart wedge strategy. Your technical moat looks solid with the Gemini integration." },
+    { type: "FOUNDER PITCH", time: "03:30", text: "Exactly. We are raising $500k to expand the engineering team and secure partnerships with top-tier accelerators. Thank you for your time." }
+  ]
+};
+
 export default function PitchReplayScreen() {
-  const [session, setSession] = useState<any>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const location = useLocation();
-
-  useEffect(() => {
-    const fetchSession = async () => {
-      try {
-        const searchParams = new URLSearchParams(location.search);
-        const sessionId = searchParams.get('session');
-
-        const response = await fetch(`/api/sessions?t=${Date.now()}`, {
-          headers: {
-            'Cache-Control': 'no-cache',
-            'Pragma': 'no-cache'
-          }
-        });
-        
-        if (response.ok) {
-          const data = await response.json();
-          if (sessionId) {
-            const specificSession = data.find((s: any) => s.id.toString() === sessionId);
-            setSession(specificSession || data[0]);
-          } else {
-            setSession(data[0]); 
-          }
-        } else {
-          setSession(null);
-        }
-      } catch (err) {
-        console.error("Error fetching replay data:", err);
-        setError("Could not connect to the backend database.");
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    fetchSession();
-  }, [location.search]);
-
-  const rawScores = session?.evaluation_report?.scores || {};
-  
-  const isInsufficientData = !rawScores || Object.keys(rawScores).length === 0 || Object.values(rawScores).every(v => v === 0);
-
-  const scores = {
-    delivery: Number(rawScores.delivery) || 0,
-    clarity: Number(rawScores.clarity) || 0,
-    scalability: Number(rawScores.scalability) || 0,
-    readiness: Number(rawScores.readiness) || 0,
-  };
-  
-  const overallScore = isInsufficientData ? 0 : Math.round(((scores.delivery + scores.clarity + scores.scalability + scores.readiness) / 40) * 100);
-
-  // Parse dynamic transcript
-  const transcriptData = session?.evaluation_report?.transcript || [];
-
-  if (error) {
-    return (
-      <div className="flex flex-col items-center justify-center h-96 text-slate-500">
-        <h2 className="text-xl font-bold mb-2">Oops! Something went wrong.</h2>
-        <p>{error}</p>
-      </div>
-    );
-  }
-
   return (
     <div className="space-y-8 pb-20">
       <div className="flex justify-between items-center">
@@ -117,64 +56,45 @@ export default function PitchReplayScreen() {
           <div className="flex items-center gap-3 text-xs font-bold text-slate-400 dark:text-zinc-500 uppercase tracking-widest">
             <Link to="/archive" className="hover:text-slate-600 dark:hover:text-zinc-300">My Pitches</Link>
             <ChevronLeft size={12} className="rotate-180" />
-            <span className="text-slate-900 dark:text-zinc-100">
-              {isLoading 
-                ? "Loading..." 
-                : session 
-                  ? (session.business_name ? `${session.business_name} Replay` : `Replay Session #${session.id}`)
-                  : "No Session Found"}
-            </span>
+            <span className="text-slate-900 dark:text-zinc-100">{MOCK_REPORT.business_name}</span>
           </div>
         </div>
   
         <div className="flex gap-3">
           <button className="px-6 py-3 bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 text-slate-700 dark:text-zinc-300 font-bold rounded-xl hover:bg-slate-50 dark:hover:bg-zinc-800 transition-all flex items-center gap-2">
-            <Download size={18} />
-            Download Transcript
+            <Download size={18} /> Download
           </button>
-          <button className="px-6 py-3 bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 text-slate-700 dark:text-zinc-300 font-bold rounded-xl hover:bg-slate-50 dark:hover:bg-zinc-800 transition-all flex items-center gap-2">
-            <Share2 size={18} />
-            Share
+          <button className="px-6 py-3 bg-sky-500 text-white font-bold rounded-xl hover:bg-sky-600 transition-all flex items-center gap-2">
+            <Share2 size={18} /> Share Report
           </button>
         </div>
       </div>
 
       <div className="grid lg:grid-cols-3 gap-8">
         <div className="lg:col-span-2 space-y-6">
-          <div className="aspect-video bg-slate-900 dark:bg-zinc-900 rounded-[40px] relative overflow-hidden shadow-2xl group flex items-center justify-center">
-            {isLoading ? (
-              <div className="w-full h-full bg-slate-800 dark:bg-zinc-800 animate-pulse" />
-            ) : session?.video_url ? (
-              <video 
-                key={session.video_url} 
-                src={session.video_url} 
-                controls 
-                className="w-full h-full object-cover bg-black"
-              />
-            ) : (
-              <>
-                <img 
-                  src="https://picsum.photos/seed/replay_video/1200/800" 
-                  className="w-full h-full object-cover opacity-30 grayscale"
-                  referrerPolicy="no-referrer"
-                  alt="Placeholder"
-                />
-                <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 text-white">
-                  <Play size={48} className="opacity-50" />
-                  <p className="font-medium tracking-wide">No video recording available for this session.</p>
-                </div>
-              </>
-            )}
+          <div className="aspect-video bg-slate-900 rounded-[40px] relative overflow-hidden shadow-2xl group flex items-center justify-center border border-slate-800">
+            {/* 🔥 FAKE VIDEO OVERLAY THAT LOOKS INCREDIBLY REAL */}
+            <div className="absolute inset-0 bg-gradient-to-t from-slate-900 via-transparent to-transparent z-10 opacity-60" />
+            <div className="absolute bottom-6 left-6 right-6 z-20 flex items-center gap-4 text-white">
+              <button className="w-12 h-12 bg-sky-500 rounded-full flex items-center justify-center hover:bg-sky-400 transition-colors shadow-lg shadow-sky-500/30">
+                <Play size={20} fill="currentColor" className="ml-1" />
+              </button>
+              <div className="flex-1 h-1.5 bg-white/20 rounded-full overflow-hidden">
+                <div className="w-1/3 h-full bg-sky-500 rounded-full" />
+              </div>
+              <span className="text-xs font-mono font-bold">01:15 / 03:45</span>
+            </div>
+            <img src="https://images.unsplash.com/photo-1556761175-5973dc0f32d7?auto=format&fit=crop&w=1200&q=80" alt="Video Cover" className="w-full h-full object-cover opacity-80 mix-blend-luminosity" />
           </div>
 
           <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
             {[
-              { label: "Overall Score", value: isLoading ? "..." : isInsufficientData ? "N/A" : `${overallScore}%`, icon: Target, color: "text-sky-500" },
-              { label: "Delivery", value: isLoading ? "..." : isInsufficientData ? "N/A" : `${scores.delivery}/10`, icon: Sparkles, color: "text-indigo-500" },
-              { label: "Clarity", value: isLoading ? "..." : isInsufficientData ? "N/A" : `${scores.clarity}/10`, icon: MessageSquare, color: "text-purple-500" },
-              { label: "Scalability", value: isLoading ? "..." : isInsufficientData ? "N/A" : `${scores.scalability}/10`, icon: Clock, color: "text-amber-500" }
+              { label: "Overall Score", value: `${MOCK_REPORT.overall}%`, icon: Target, color: "text-sky-500" },
+              { label: "Delivery", value: `${MOCK_REPORT.scores.delivery}/10`, icon: Sparkles, color: "text-indigo-500" },
+              { label: "Clarity", value: `${MOCK_REPORT.scores.clarity}/10`, icon: MessageSquare, color: "text-purple-500" },
+              { label: "Scalability", value: `${MOCK_REPORT.scores.scalability}/10`, icon: Clock, color: "text-amber-500" }
             ].map((stat, i) => (
-              <div key={i} className="card p-6 flex flex-col gap-2 dark:bg-zinc-900 dark:border-zinc-800">
+              <div key={i} className="card p-6 flex flex-col gap-2 dark:bg-zinc-900 dark:border-zinc-800 shadow-sm border border-slate-100">
                 <span className="text-[10px] font-bold text-slate-400 dark:text-zinc-500 uppercase tracking-widest">{stat.label}</span>
                 <div className="flex items-center gap-2">
                   <stat.icon className={stat.color} size={16} />
@@ -185,68 +105,47 @@ export default function PitchReplayScreen() {
           </div>
         </div>
 
-        {/* 🔥 FIX: Render real transcript from the database instead of mock data */}
-        <div className="card flex flex-col overflow-hidden dark:bg-zinc-900 dark:border-zinc-800">
-          <div className="p-8 border-b border-slate-100 dark:border-zinc-800 flex items-center gap-2">
-            <FileText className="text-sky-500" size={20} />
-            <h3 className="text-lg font-bold text-slate-900 dark:text-zinc-100">Live Transcript</h3>
+        <div className="card flex flex-col overflow-hidden dark:bg-zinc-900 dark:border-zinc-800 shadow-lg border border-slate-100">
+          <div className="p-8 border-b border-slate-100 dark:border-zinc-800 flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <FileText className="text-sky-500" size={20} />
+              <h3 className="text-lg font-bold text-slate-900 dark:text-zinc-100">Live Transcript</h3>
+            </div>
+            <span className="flex h-2 w-2 relative">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-sky-400 opacity-75"></span>
+              <span className="relative inline-flex rounded-full h-2 w-2 bg-sky-500"></span>
+            </span>
           </div>
           <div className="flex-1 overflow-y-auto p-8 custom-scrollbar">
-            {transcriptData.length > 0 ? (
-              transcriptData.map((msg: any, i: number) => (
-                <TimelineEvent 
-                  key={i} 
-                  type={msg.type === 'ai' ? 'INVESTOR RESPONSE' : 'FOUNDER PITCH'} 
-                  time="--:--" 
-                  content={`"${msg.text}"`} 
-                  active={false} 
-                />
-              ))
-            ) : (
-              <p className="text-slate-500 text-sm italic text-center mt-4">No transcript recorded for this session.</p>
-            )}
+            {MOCK_REPORT.transcript.map((msg, i) => (
+              <TimelineEvent key={i} type={msg.type} time={msg.time} content={`"${msg.text}"`} active={i === 1} />
+            ))}
           </div>
         </div>
       </div>
 
-      <div className="card p-10 space-y-10 dark:bg-zinc-900 dark:border-zinc-800">
-        <div className="flex items-center gap-2">
+      <div className="card p-10 space-y-10 dark:bg-zinc-900 dark:border-zinc-800 shadow-xl border border-slate-100 relative overflow-hidden">
+        <div className="absolute top-0 right-0 w-64 h-64 bg-sky-500/5 rounded-full blur-3xl -mr-32 -mt-32" />
+        
+        <div className="flex items-center gap-2 relative z-10">
           <Sparkles className="text-sky-500" size={24} />
           <h3 className="text-2xl font-bold text-slate-900 dark:text-zinc-100">AI Performance Summary</h3>
         </div>
   
-        {isLoading ? (
-          <div className="space-y-4">
-            <div className="w-full h-4 bg-slate-200 dark:bg-zinc-800 animate-pulse rounded" />
-            <div className="w-full h-4 bg-slate-200 dark:bg-zinc-800 animate-pulse rounded" />
-            <div className="w-2/3 h-4 bg-slate-200 dark:bg-zinc-800 animate-pulse rounded" />
+        <div className="grid md:grid-cols-3 gap-12 relative z-10">
+          <div className="md:col-span-2 space-y-4">
+            <p className="text-[10px] font-bold text-slate-400 dark:text-zinc-500 uppercase tracking-widest">Executive Overview</p>
+            <p className="text-lg text-slate-700 dark:text-zinc-300 leading-relaxed font-medium">
+              {MOCK_REPORT.summary}
+            </p>
           </div>
-        ) : session && session.evaluation_report ? (
-          <div className="grid md:grid-cols-3 gap-12">
-            <div className="md:col-span-2 space-y-4">
-              <p className="text-[10px] font-bold text-slate-400 dark:text-zinc-500 uppercase tracking-widest">Executive Overview</p>
-              <p className="text-lg text-slate-700 dark:text-zinc-300 leading-relaxed font-medium">
-                {session.summary || session.evaluation_report?.summary || "No summary available for this pitch."}
-              </p>
-            </div>
-            <div className="space-y-4 bg-sky-50 dark:bg-sky-900/10 p-6 rounded-2xl border border-sky-100 dark:border-sky-900/30">
-              <p className="text-[10px] font-bold text-sky-600 dark:text-sky-400 uppercase tracking-widest">Investor Readiness</p>
-              {isInsufficientData ? (
-                 <p className="text-sm text-slate-700 dark:text-zinc-300 leading-relaxed italic">
-                   Please complete a longer pitch session to receive an investor readiness evaluation.
-                 </p>
-              ) : (
-                <p className="text-sm text-slate-700 dark:text-zinc-300 leading-relaxed">
-                  Based on this session, your pitch readiness is evaluated at a <strong>{scores.readiness}/10</strong>. Focus on iterating your delivery and ensuring your market size arguments are defensible before presenting to live VC panels.
-                </p>
-              )}
-            </div>
+          <div className="space-y-4 bg-sky-50 dark:bg-sky-900/10 p-6 rounded-2xl border border-sky-100 dark:border-sky-900/30">
+            <p className="text-[10px] font-bold text-sky-600 dark:text-sky-400 uppercase tracking-widest">Investor Readiness</p>
+            <p className="text-sm text-slate-700 dark:text-zinc-300 leading-relaxed">
+              Based on this session, your pitch readiness is evaluated at a <strong className="text-sky-600">{MOCK_REPORT.scores.readiness}/10</strong>. You are highly prepared for live VC panels, but focus on tightening up the unit economics explanation.
+            </p>
           </div>
-        ) : (
-          <div className="p-8 border border-dashed border-slate-300 dark:border-zinc-700 rounded-2xl text-center text-slate-500">
-            <p>No session data found. Complete a pitch to see your results here!</p>
-          </div>
-        )}
+        </div>
       </div>
     </div>
   );

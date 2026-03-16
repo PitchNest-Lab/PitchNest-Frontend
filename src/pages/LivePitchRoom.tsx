@@ -101,8 +101,6 @@ export default function LivePitchRoom() {
   const nextStartTimeRef = useRef(0);
   const fallbackTimerRef = useRef<NodeJS.Timeout | null>(null);
   const statusIntervalRef = useRef<NodeJS.Timeout | null>(null);
-  
-  // 🔥 FIX: Added Pitch Start Timer to correctly log duration in the database
   const pitchStartTimeRef = useRef<number>(0);
 
   useEffect(() => {
@@ -166,7 +164,6 @@ export default function LivePitchRoom() {
 
   const handleAutoStart = async () => {
     setIsPitching(true);
-    // 🔥 Start the clock!
     pitchStartTimeRef.current = Date.now();
     if (pitchConfig?.screenShareEnabled && !isCapturing) { try { startCapture(); } catch(e) {} }
     if (!stream) { try { await startStream(); } catch(e) {} }
@@ -349,15 +346,6 @@ export default function LivePitchRoom() {
     setIsEvaluatingPitch(true); 
     setLoadingStatus("Stopping recording...");
 
-    if (stream) {
-      stream.getTracks().forEach(track => track.stop());
-      stopStream();
-    }
-    if (screenStream) {
-      screenStream.getTracks().forEach(track => track.stop());
-    }
-    if (isCapturing) stopCapture();
-
     const statusMessages = ["Panel is grading your pitch...", "Analyzing delivery and clarity...", "Calculating investor readiness...", "Finalizing your report..."];
     let msgIndex = 0;
     statusIntervalRef.current = setInterval(() => {
@@ -371,6 +359,11 @@ export default function LivePitchRoom() {
     }, 35000);
 
     const stopAndEvaluate = async () => {
+      // 🔥 FIX 1: Shut off camera hardware ONLY AFTER the video is safely saved to memory
+      if (stream) { stream.getTracks().forEach(track => track.stop()); stopStream(); }
+      if (screenStream) { screenStream.getTracks().forEach(track => track.stop()); }
+      if (isCapturing) stopCapture();
+
       setLoadingStatus("Uploading video to secure cloud vault...");
       if (chunksRef.current && chunksRef.current.length > 0) {
         const blob = new Blob(chunksRef.current, { type: 'video/webm' });
@@ -384,9 +377,9 @@ export default function LivePitchRoom() {
           }
         } catch (err) {}
       }
+      
       setLoadingStatus("Panel is grading your pitch...");
       if (socket && socket.readyState === WebSocket.OPEN) {
-        // 🔥 Send real duration and the chat transcript to the backend
         const finalDuration = Math.floor((Date.now() - pitchStartTimeRef.current) / 1000);
         socket.send(JSON.stringify({ 
           type: "end_session",
@@ -396,10 +389,13 @@ export default function LivePitchRoom() {
       }
     };
 
+    // 🔥 Trigger the recorder to stop FIRST
     if (mediaRecorderRef.current && mediaRecorderRef.current.state !== "inactive") {
       mediaRecorderRef.current.onstop = stopAndEvaluate;
       mediaRecorderRef.current.stop();
-    } else stopAndEvaluate();
+    } else {
+      stopAndEvaluate();
+    }
   };
 
   const visiblePersonas = pitchConfig ? getPersonas(pitchConfig.investorArchetype, pitchConfig.mode) : [];
