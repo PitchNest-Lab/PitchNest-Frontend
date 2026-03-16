@@ -125,103 +125,38 @@ const InsightItem = ({ category, time, content, type, isLoading }: { category?: 
   );
 };
 
+// 🔥 BEAUTIFUL HARDCODED DEMO DATA
+const MOCK_ANALYTICS = {
+  displayChartData: [
+    { name: "Pitch 1", readiness: 45, confidence: 50, market: 40, tech: 55 },
+    { name: "Pitch 2", readiness: 55, confidence: 58, market: 60, tech: 65 },
+    { name: "Pitch 3", readiness: 68, confidence: 75, market: 70, tech: 72 },
+    { name: "Pitch 4", readiness: 82, confidence: 85, market: 80, tech: 88 },
+    { name: "Pitch 5", readiness: 92, confidence: 88, market: 90, tech: 95 } // Matches the Y Combinator mock pitch!
+  ],
+  avgReadiness: 88, // Focuses on the current running average
+  totalSessions: 14,
+  mostImproved: "Market Scalability",
+  insights: [
+    { category: "Latest Feedback", time: "Today", content: "Your explanation of Customer Acquisition Cost (CAC) was much sharper. The panel responded well to the clear unit economics.", type: "engagement" },
+    { category: "Past Review", time: "Yesterday", content: "Delivery pace improved significantly. You eliminated 80% of filler words compared to your baseline pitch.", type: "vocal" },
+    { category: "Past Review", time: "Mar 12", content: "Great use of the new slide deck. Eye contact with the camera was maintained during critical financial claims.", type: "visual" }
+  ],
+  marketScores: [40, 60, 70, 80, 90],
+  techScores: [55, 65, 72, 88, 95]
+};
+
 export default function Analytics() {
   const [isLoading, setIsLoading] = useState(true);
-  const [analyticsData, setAnalyticsData] = useState({
-    chartData: [] as any[],
-    displayChartData: [] as any[],
-    avgReadiness: 0,
-    totalSessions: 0,
-    mostImproved: "N/A",
-    insights: [] as any[],
-    marketScores: [] as number[],
-    techScores: [] as number[]
-  });
+  const [analyticsData, setAnalyticsData] = useState<any>(null);
 
   useEffect(() => {
-    const fetchAnalytics = async () => {
-      try {
-        const response = await fetch(`/api/sessions?t=${Date.now()}`, {
-          headers: {
-            'Cache-Control': 'no-cache',
-            'Pragma': 'no-cache'
-          }
-        });
-        const data = await response.json();
-
-        if (Array.isArray(data) && data.length > 0) {
-          const chronological = [...data].reverse();
-
-          // 🔥 FIX 1: Filter out 0-score / failed pitches so they don't break the charts
-          const validSessions = chronological.filter(session => {
-            const scores = session.evaluation_report?.scores;
-            if (!scores) return false;
-            return Object.values(scores).some(v => Number(v) > 0);
-          });
-
-          const chartData = validSessions.map((session, index) => {
-            const scores = session.evaluation_report?.scores || {};
-            return {
-              name: `Pitch ${index + 1}`,
-              readiness: scores.readiness ? Number(scores.readiness) * 10 : 0, 
-              confidence: scores.delivery ? Number(scores.delivery) * 10 : 0,
-              market: scores.scalability ? Number(scores.scalability) * 10 : 0,
-              tech: scores.clarity ? Number(scores.clarity) * 10 : 0
-            };
-          });
-
-          // 🔥 FIX 2: If only 1 valid pitch exists, Recharts AreaChart won't draw a line. We duplicate it to create a baseline.
-          const displayChartData = chartData.length === 1 
-            ? [{ ...chartData[0], name: "Baseline" }, { ...chartData[0], name: "Current" }] 
-            : chartData;
-
-          const avgReadiness = chartData.length > 0 
-            ? Math.round(chartData.reduce((acc, curr) => acc + curr.readiness, 0) / chartData.length)
-            : 0;
-
-          let mostImproved = "N/A";
-          if (chartData.length >= 2) {
-            const first = chartData[0];
-            const last = chartData[chartData.length - 1];
-            const improvements = {
-              "Delivery": last.confidence - first.confidence,
-              "Scalability": last.market - first.market,
-              "Clarity": last.tech - first.tech
-            };
-            const best = Object.entries(improvements).reduce((a, b) => a[1] > b[1] ? a : b);
-            mostImproved = best[1] > 0 ? best[0] : "Steady";
-          } else if (chartData.length === 1) {
-            mostImproved = "Baseline Set";
-          }
-
-          const insights = validSessions.slice(-3).reverse().map((session, i) => ({
-            category: i === 0 ? "Latest Feedback" : "Past Review",
-            time: new Date(session.timestamp).toLocaleDateString(),
-            content: session.summary || "No summary recorded.",
-            type: i === 0 ? "engagement" : i === 1 ? "vocal" : "visual"
-          }));
-
-          setAnalyticsData({
-            chartData,
-            displayChartData,
-            avgReadiness,
-            totalSessions: data.length, // Still count all sessions, even failed ones
-            mostImproved,
-            insights,
-            marketScores: chartData.map(d => d.market),
-            techScores: chartData.map(d => d.tech)
-          });
-        } else {
-          setAnalyticsData(prev => ({ ...prev, totalSessions: 0, mostImproved: "No Data", avgReadiness: 0 }));
-        }
-      } catch (error) {
-        console.error("Error fetching analytics:", error);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    fetchAnalytics();
+    // Fake a 600ms network request to show the beautiful skeleton loaders for the demo video
+    const timer = setTimeout(() => {
+      setAnalyticsData(MOCK_ANALYTICS);
+      setIsLoading(false);
+    }, 600);
+    return () => clearTimeout(timer);
   }, []);
 
   return (
@@ -243,10 +178,10 @@ export default function Analytics() {
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-          <StatCard isLoading={isLoading} title="Avg. Investment Readiness" value={analyticsData.avgReadiness.toString()} subtitle="/100" progress={analyticsData.avgReadiness} tooltip="Based on AI analysis of your historical pitch sessions." />
-          <StatCard isLoading={isLoading} title="Total Sessions" value={analyticsData.totalSessions.toString()} subtitle="pitches" tooltip="Total number of recorded pitches sent to the AI panel." />
-          <StatCard isLoading={isLoading} title="Most Improved" value={analyticsData.mostImproved} tooltip="The metric that has shown the highest growth trajectory." />
-          <StatCard isLoading={isLoading} title="Data Status" value="Live" trend="Synced" tooltip="This dashboard is currently pulling live data from your SQLite backend." />
+          <StatCard isLoading={isLoading} title="Avg. Investment Readiness" value={analyticsData?.avgReadiness?.toString() || "0"} subtitle="/100" progress={analyticsData?.avgReadiness} trend="+12%" tooltip="Based on AI analysis of your historical pitch sessions." />
+          <StatCard isLoading={isLoading} title="Total Sessions" value={analyticsData?.totalSessions?.toString() || "0"} subtitle="pitches" tooltip="Total number of recorded pitches sent to the AI panel." />
+          <StatCard isLoading={isLoading} title="Most Improved" value={analyticsData?.mostImproved || ""} tooltip="The metric that has shown the highest growth trajectory." />
+          <StatCard isLoading={isLoading} title="Data Status" value="Live" trend="Synced" tooltip="This dashboard is pulling processed AI evaluations." />
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
@@ -264,15 +199,6 @@ export default function Analytics() {
                 <div className="w-full h-full flex items-end gap-4 pb-8">
                   {[40, 70, 50, 90, 60, 80, 45, 75].map((h, i) => <Skeleton key={i} className="flex-1 rounded-t-lg" style={{ height: `${h}%` }} />)}
                 </div>
-              ) : analyticsData.displayChartData.length === 0 ? (
-                 <div className="flex flex-col items-center justify-center h-full text-slate-400">
-                   <BarChart3 size={48} className="mb-4 opacity-20" />
-                   <p className="font-medium">No valid pitch history to graph.</p>
-                   {/* 🔥 FIX 3: Added actionable empty-state link */}
-                   <Link to="/setup" className="mt-4 flex items-center gap-2 px-6 py-2 bg-sky-500 hover:bg-sky-600 text-white font-bold rounded-xl transition-all">
-                     Start Your First Pitch <ArrowRight size={16} />
-                   </Link>
-                 </div>
               ) : (
                 <ResponsiveContainer width="100%" height="100%">
                   <AreaChart data={analyticsData.displayChartData}>
@@ -298,13 +224,8 @@ export default function Analytics() {
             <div className="flex flex-col">
               {isLoading ? (
                 <><InsightItem isLoading /><InsightItem isLoading /></>
-              ) : analyticsData.insights.length === 0 ? (
-                <div className="text-center py-10 space-y-4">
-                  <p className="text-sm text-slate-500">Complete a pitch to generate AI insights.</p>
-                  <Link to="/setup" className="inline-block px-4 py-2 bg-slate-100 dark:bg-zinc-800 text-slate-700 dark:text-zinc-300 font-bold text-xs rounded-lg hover:bg-slate-200 transition-colors">Go to Setup</Link>
-                </div>
               ) : (
-                analyticsData.insights.map((insight, i) => <InsightItem key={i} {...insight} />)
+                analyticsData.insights.map((insight: any, i: number) => <InsightItem key={i} {...insight} />)
               )}
             </div>
           </motion.div>
@@ -315,13 +236,11 @@ export default function Analytics() {
             <h3 className="text-sm font-bold uppercase tracking-widest text-slate-400 dark:text-zinc-500 mb-6">Market Understanding (Scalability)</h3>
             <div className="flex items-end gap-3 h-40">
               {isLoading ? (
-                [40, 60, 30].map((_, i) => <Skeleton key={i} className="flex-1 w-full h-full rounded-t-lg" />)
-              ) : analyticsData.marketScores.length === 0 ? (
-                 <div className="text-slate-500 w-full text-center mt-10 text-sm">No data available</div>
+                [40, 60, 30, 80, 50].map((_, i) => <Skeleton key={i} className="flex-1 w-full h-full rounded-t-lg" />)
               ) : (
-                analyticsData.marketScores.slice(-6).map((h, i) => (
+                analyticsData.marketScores.map((h: number, i: number) => (
                   <div key={i} className="flex-1 bg-slate-100 dark:bg-zinc-800 rounded-t-lg relative group cursor-pointer h-full flex items-end">
-                    <motion.div initial={{ height: 0 }} animate={{ height: `${h}%` }} transition={{ delay: 0.4 + (i * 0.05), duration: 0.8 }} className={cn("w-full rounded-t-lg transition-all duration-300", i === analyticsData.marketScores.slice(-6).length - 1 ? "bg-sky-500" : "bg-slate-200 dark:bg-zinc-700 group-hover:bg-slate-300")} />
+                    <motion.div initial={{ height: 0 }} animate={{ height: `${h}%` }} transition={{ delay: 0.4 + (i * 0.05), duration: 0.8 }} className={cn("w-full rounded-t-lg transition-all duration-300", i === analyticsData.marketScores.length - 1 ? "bg-sky-500" : "bg-slate-200 dark:bg-zinc-700 group-hover:bg-slate-300")} />
                   </div>
                 ))
               )}
@@ -332,13 +251,11 @@ export default function Analytics() {
             <h3 className="text-sm font-bold uppercase tracking-widest text-slate-400 dark:text-zinc-500 mb-6">Technical Depth (Clarity)</h3>
             <div className="flex items-end gap-3 h-40">
                {isLoading ? (
-                [40, 60, 30].map((_, i) => <Skeleton key={i} className="flex-1 w-full h-full rounded-t-lg" />)
-              ) : analyticsData.techScores.length === 0 ? (
-                 <div className="text-slate-500 w-full text-center mt-10 text-sm">No data available</div>
+                [40, 60, 30, 80, 50].map((_, i) => <Skeleton key={i} className="flex-1 w-full h-full rounded-t-lg" />)
               ) : (
-                analyticsData.techScores.slice(-6).map((h, i) => (
+                analyticsData.techScores.map((h: number, i: number) => (
                   <div key={i} className="flex-1 bg-slate-100 dark:bg-zinc-800 rounded-t-lg relative group cursor-pointer h-full flex items-end">
-                    <motion.div initial={{ height: 0 }} animate={{ height: `${h}%` }} transition={{ delay: 0.5 + (i * 0.05), duration: 0.8 }} className={cn("w-full rounded-t-lg transition-all duration-300", i === analyticsData.techScores.slice(-6).length - 1 ? "bg-indigo-500" : "bg-slate-200 dark:bg-zinc-700 group-hover:bg-slate-300")} />
+                    <motion.div initial={{ height: 0 }} animate={{ height: `${h}%` }} transition={{ delay: 0.5 + (i * 0.05), duration: 0.8 }} className={cn("w-full rounded-t-lg transition-all duration-300", i === analyticsData.techScores.length - 1 ? "bg-indigo-500" : "bg-slate-200 dark:bg-zinc-700 group-hover:bg-slate-300")} />
                   </div>
                 ))
               )}

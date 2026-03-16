@@ -12,9 +12,9 @@ const RecentPitchItem = ({ id, name, date, score, status }: { id: number, name: 
   return (
     <div className="flex items-center justify-between p-4 bg-white dark:bg-zinc-900 border border-slate-100 dark:border-zinc-800 rounded-2xl hover:border-sky-200 dark:hover:border-sky-500/50 hover:shadow-md transition-all group">
       <div className="flex items-center gap-4">
-        <div className="w-12 h-12 bg-slate-50 dark:bg-zinc-800 rounded-xl flex items-center justify-center text-slate-400 dark:text-zinc-500 group-hover:bg-sky-50 dark:group-hover:bg-sky-900/20 group-hover:text-sky-500 transition-colors">
+        <Link to={`/report?session=${id}`} className="w-12 h-12 bg-slate-50 dark:bg-zinc-800 rounded-xl flex items-center justify-center text-slate-400 dark:text-zinc-500 group-hover:bg-sky-50 dark:group-hover:bg-sky-900/20 group-hover:text-sky-500 transition-colors">
           <Play size={20} fill="currentColor" />
-        </div>
+        </Link>
         <div>
           <p className="text-sm font-bold text-slate-900 dark:text-zinc-100">{name}</p>
           <p className="text-[10px] text-slate-400 dark:text-zinc-500 font-medium">{date}</p>
@@ -50,30 +50,13 @@ const RecentPitchItem = ({ id, name, date, score, status }: { id: number, name: 
             {status}
           </span>
         </div>
-        <Link to={`/replay?session=${id}`} className="p-2 text-slate-300 dark:text-zinc-600 hover:text-sky-500 dark:hover:text-sky-400 transition-colors">
+        <Link to={`/report?session=${id}`} className="p-2 text-slate-300 dark:text-zinc-600 hover:text-sky-500 dark:hover:text-sky-400 transition-colors">
           <Play size={18} />
         </Link>
       </div>
     </div>
   );
 };
-
-const RecentPitchSkeleton = () => (
-  <div className="flex items-center justify-between p-4 bg-white dark:bg-zinc-900 border border-slate-100 dark:border-zinc-800 rounded-2xl">
-    <div className="flex items-center gap-4">
-      <Skeleton className="w-12 h-12 rounded-xl" />
-      <div className="space-y-2">
-        <Skeleton className="h-4 w-32" />
-        <Skeleton className="h-3 w-20" />
-      </div>
-    </div>
-    <div className="flex items-center gap-8">
-      <Skeleton className="h-4 w-24" />
-      <Skeleton className="h-6 w-32 rounded-full" />
-      <Skeleton className="w-8 h-8 rounded-full" />
-    </div>
-  </div>
-);
 
 const InsightCard = ({ title, content, icon: Icon, color, darkColor }: { title: string, content: string, icon: any, color: string, darkColor: string }) => (
   <div className={cn("p-6 rounded-2xl border-l-4 transition-colors", color, darkColor)}>
@@ -87,68 +70,45 @@ const InsightCard = ({ title, content, icon: Icon, color, darkColor }: { title: 
   </div>
 );
 
-const InsightSkeleton = () => (
-  <div className="p-6 rounded-2xl border border-slate-100 dark:border-zinc-800 space-y-3 bg-white dark:bg-zinc-900">
-    <div className="flex items-center gap-2">
-      <Skeleton className="w-5 h-5 rounded" />
-      <Skeleton className="h-4 w-24" />
-    </div>
-    <Skeleton className="h-3 w-full" />
-    <Skeleton className="h-3 w-2/3" />
-  </div>
-);
+// 🔥 BEAUTIFUL HARDCODED DEMO DATA
+const MOCK_SESSIONS = [
+  { id: 101, name: "Seed Round - Y Combinator", date: "Mar 15, 2026", score: 92, status: "Investor Ready" },
+  { id: 102, name: "Angel Investor Pitch", date: "Mar 12, 2026", score: 85, status: "Investor Ready" },
+  { id: 103, name: "PitchNest App Demo", date: "Mar 10, 2026", score: 78, status: "Good Progress" },
+  { id: 104, name: "Techstars Application", date: "Mar 05, 2026", score: 88, status: "Investor Ready" }
+];
+
+const MOCK_STATS = {
+  avgScore: 88,
+  totalPitches: 14,
+  bestScore: 92
+};
+
+const MOCK_INSIGHTS = [
+  {
+    title: "Latest AI Feedback",
+    content: "Your explanation of Customer Acquisition Cost (CAC) was much sharper. The panel responded well to the clear unit economics.",
+    icon: Sparkles,
+    color: "border-sky-500 bg-sky-50/30",
+    darkColor: "dark:border-sky-500 dark:bg-sky-500/5"
+  },
+  {
+    title: "Previous Session Notes",
+    content: "Delivery pace improved significantly. You eliminated 80% of filler words compared to your baseline pitch.",
+    icon: Target,
+    color: "border-indigo-500 bg-indigo-50/30",
+    darkColor: "dark:border-indigo-500 dark:bg-indigo-500/5"
+  }
+];
 
 // --- Main Dashboard Component ---
 export default function Dashboard() {
   const [isLoading, setIsLoading] = useState(true);
-  const [sessions, setSessions] = useState<any[]>([]);
-  
-  const [stats, setStats] = useState({
-    avgScore: 0,
-    totalPitches: 0,
-    bestScore: 0
-  });
 
   useEffect(() => {
-    const fetchSessions = async () => {
-      try {
-        const response = await fetch(`/api/sessions?t=${Date.now()}`, {
-          headers: {
-            'Cache-Control': 'no-cache',
-            'Pragma': 'no-cache'
-          }
-        });
-        const data = await response.json();
-        
-        if (Array.isArray(data) && data.length > 0) {
-          setSessions(data);
-          
-          // 🔥 FIX 1: Filter out 0 scores so average isn't dragged down by incomplete pitches
-          const validScores = data
-            .map((s: any) => {
-              const r = s.evaluation_report?.scores || {};
-              const d = Number(r.delivery) || 0;
-              const c = Number(r.clarity) || 0;
-              const sc = Number(r.scalability) || 0;
-              const read = Number(r.readiness) || 0;
-              return Math.round(((d + c + sc + read) / 40) * 100);
-            })
-            .filter((score: number) => score > 0);
-
-          setStats({
-            totalPitches: data.length,
-            avgScore: validScores.length > 0 ? Math.round(validScores.reduce((a: number, b: number) => a + b, 0) / validScores.length) : 0,
-            bestScore: validScores.length > 0 ? Math.max(...validScores) : 0
-          });
-        }
-      } catch (error) {
-        console.error("Failed to load real data:", error);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    fetchSessions();
+    // Fake loading state for visual polish during the demo
+    const timer = setTimeout(() => setIsLoading(false), 500);
+    return () => clearTimeout(timer);
   }, []);
 
   return (
@@ -164,9 +124,7 @@ export default function Dashboard() {
             Welcome back, Founder! 🚀
           </h2>
           <p className="text-white/80 text-lg mb-8 leading-relaxed">
-            {stats.totalPitches > 0 
-              ? `You've completed ${stats.totalPitches} pitches. Ready to refine your next big idea with our AI panel?`
-              : "Welcome to PitchNest! Ready to face the AI panel for your very first pitch?"}
+            You've completed {MOCK_STATS.totalPitches} pitches. Ready to refine your next big idea with our AI panel?
           </p>
           <Link to="/setup" className="px-8 py-3.5 bg-white text-sky-600 font-bold rounded-xl shadow-xl hover:bg-sky-50 transition-all inline-flex items-center gap-2">
             <Rocket size={18} fill="currentColor" />
@@ -181,9 +139,9 @@ export default function Dashboard() {
       {/* Dynamic Stats Overview */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
         {[
-          { label: "Average Pitch Score", value: stats.avgScore || "0", suffix: "/100", trend: "", icon: BarChart3, color: "text-sky-500" },
-          { label: "Total Pitches", value: stats.totalPitches, suffix: "Sessions", trend: "", icon: Target, color: "text-indigo-500" },
-          { label: "Best Score", value: stats.bestScore || "0", suffix: "/100", trend: "", icon: CheckCircle2, color: "text-emerald-500" },
+          { label: "Average Pitch Score", value: MOCK_STATS.avgScore.toString(), suffix: "/100", trend: "+12%", icon: BarChart3, color: "text-sky-500" },
+          { label: "Total Pitches", value: MOCK_STATS.totalPitches, suffix: "Sessions", trend: "", icon: Target, color: "text-indigo-500" },
+          { label: "Best Score", value: MOCK_STATS.bestScore.toString(), suffix: "/100", trend: "", icon: CheckCircle2, color: "text-emerald-500" },
           { label: "AI Improvements", value: "Ready", suffix: "Pending Action", trend: "", icon: Sparkles, color: "text-amber-500" }
         ].map((stat, i) => (
           <motion.div 
@@ -234,42 +192,20 @@ export default function Dashboard() {
           <div className="space-y-3">
             {isLoading ? (
               <>
-                <RecentPitchSkeleton />
-                <RecentPitchSkeleton />
+                <Skeleton className="h-20 w-full rounded-2xl" />
+                <Skeleton className="h-20 w-full rounded-2xl" />
               </>
-            ) : sessions.length === 0 ? (
-              <div className="p-8 text-center bg-white dark:bg-zinc-900 rounded-2xl border border-slate-100 dark:border-zinc-800">
-                <p className="text-slate-500 dark:text-zinc-400">No pitches recorded yet. Start your first session!</p>
-              </div>
             ) : (
-              sessions.slice(0, 4).map((session) => {
-                const r = session.evaluation_report?.scores || {};
-                const finalScore = Math.round(((
-                  (Number(r.delivery) || 0) + 
-                  (Number(r.clarity) || 0) + 
-                  (Number(r.scalability) || 0) + 
-                  (Number(r.readiness) || 0)
-                ) / 40) * 100);
-                
-                // 🔥 FIX 2: Safely handles 0 scores
-                let statusBadge = "Needs Polish";
-                if (finalScore === 0) statusBadge = "Incomplete";
-                else if (finalScore >= 80) statusBadge = "Investor Ready";
-                else if (finalScore >= 60) statusBadge = "Good Progress";
-
-                const displayName = session.business_name || `Pitch Session #${session.id}`;
-
-                return (
-                  <RecentPitchItem 
-                    key={session.id}
-                    id={session.id}
-                    name={displayName} 
-                    date={new Date(session.timestamp).toLocaleString()} 
-                    score={finalScore} 
-                    status={statusBadge} 
-                  />
-                );
-              })
+              MOCK_SESSIONS.map((session) => (
+                <RecentPitchItem 
+                  key={session.id}
+                  id={session.id}
+                  name={session.name} 
+                  date={session.date} 
+                  score={session.score} 
+                  status={session.status} 
+                />
+              ))
             )}
           </div>
         </div>
@@ -283,33 +219,24 @@ export default function Dashboard() {
           <div className="space-y-4">
             {isLoading ? (
               <>
-                <InsightSkeleton />
-                <InsightSkeleton />
+                <Skeleton className="h-32 w-full rounded-2xl" />
+                <Skeleton className="h-32 w-full rounded-2xl" />
               </>
-            ) : sessions.length === 0 ? (
-               <p className="text-sm text-slate-500">Complete a pitch to unlock AI insights.</p>
             ) : (
               <>
-                <InsightCard 
-                  title="Latest AI Feedback"
-                  content={sessions[0]?.summary || "No summary available for the last pitch."}
-                  icon={Sparkles}
-                  color="border-sky-500 bg-sky-50/30"
-                  darkColor="dark:border-sky-500 dark:bg-sky-500/5"
-                />
-                {sessions[1] && (
+                {MOCK_INSIGHTS.map((insight, i) => (
                   <InsightCard 
-                    title="Previous Session Notes"
-                    content={sessions[1]?.summary || "Keep practicing to build more history!"}
-                    icon={Target}
-                    color="border-indigo-500 bg-indigo-50/30"
-                    darkColor="dark:border-indigo-500 dark:bg-indigo-500/5"
+                    key={i}
+                    title={insight.title}
+                    content={insight.content}
+                    icon={insight.icon}
+                    color={insight.color}
+                    darkColor={insight.darkColor}
                   />
-                )}
+                ))}
               </>
             )}
             
-            {/* 🔥 FIX 3: Replaced dead <button> with a functional React Router <Link> */}
             <Link to="/analytics" className="w-full py-4 bg-sky-50 dark:bg-sky-900/20 text-sky-600 dark:text-sky-400 font-bold rounded-2xl flex items-center justify-between px-6 hover:bg-sky-100 dark:hover:bg-sky-900/30 transition-colors group">
               <span className="flex items-center gap-2">
                 <BarChart3 size={16} />

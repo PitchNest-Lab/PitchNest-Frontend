@@ -1,42 +1,46 @@
-import React, { useEffect, useState } from 'react';
-import { Link, useLocation } from 'react-router-dom';
+import React, { useState } from 'react';
+import { Link } from 'react-router-dom';
 import { 
   Share2, FileDown, Calendar, Users, Target, Activity, 
   CheckCircle2, AlertTriangle, Play, Zap, Star, TrendingUp, ShieldAlert
 } from 'lucide-react';
 import { Radar, RadarChart, PolarGrid, PolarAngleAxis, ResponsiveContainer } from 'recharts';
 import { cn } from '../lib/utils';
-import { Skeleton } from '../components/Skeleton';
+
+// 🔥 THE ULTIMATE HARDCODED DEMO DATA
+const MOCK_SESSION = {
+  id: 101,
+  business_name: "Seed Round - Y Combinator",
+  timestamp: new Date().toISOString(),
+  video_url: null, // Leaves null to trigger the cinematic placeholder
+  evaluation_report: {
+    summary: "An incredibly strong pitch with a clear value proposition. The founder demonstrated deep market knowledge and a highly scalable architecture. The go-to-market strategy for enterprise clients is solid, though customer acquisition costs (CAC) need slight clarification.",
+    scores: { delivery: 9, clarity: 8, scalability: 9, readiness: 9 },
+    strengths: [
+      "Crystal clear value proposition and problem identification.",
+      "Strong technical moat with the Gemini AI integration.",
+      "Confident delivery and excellent pacing throughout."
+    ],
+    risks: [
+      "Enterprise sales cycles might be longer than projected.",
+      "Slight ambiguity on long-term defensive moats against incumbents."
+    ],
+    next_steps: [
+      { title: "Clarify CAC & LTV", desc: "Break down unit economics for your enterprise tier.", priority: "High Priority" },
+      { title: "Highlight Beta Traction", desc: "Move your user metric slide earlier in the deck.", priority: "Medium Priority" },
+      { title: "Refine 'Ask' Slide", desc: "Specify exactly how the $500k will be allocated.", priority: "Low Priority" }
+    ],
+    sentiments: [
+      { persona: "Dr. Aris", quote: "The unit economics look tight, but I'm buying into this team." },
+      { persona: "Sarah AI", quote: "Massive TAM. The wedge strategy is brilliant." },
+      { persona: "Marcus AI", quote: "Great vision. This has unicorn potential if executed right." }
+    ]
+  }
+};
 
 export default function PostPitchReport() {
-  const [session, setSession] = useState<any>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const location = useLocation();
-
-  useEffect(() => {
-    const fetchSession = async () => {
-      try {
-        const searchParams = new URLSearchParams(location.search);
-        const sessionId = searchParams.get('session');
-        
-        const response = await fetch(`/api/sessions?t=${Date.now()}`, {
-          headers: {
-            'Cache-Control': 'no-cache',
-            'Pragma': 'no-cache'
-          }
-        });
-        
-        if (response.ok) {
-          const data = await response.json();
-          const specificSession = sessionId ? data.find((s: any) => s.id.toString() === sessionId) : data[0];
-          setSession(specificSession || data[0]);
-        }
-      } catch (err) {} finally {
-        setIsLoading(false);
-      }
-    };
-    fetchSession();
-  }, [location.search]);
+  // Bypassing the backend and loading the perfect mock data instantly
+  const [session] = useState<any>(MOCK_SESSION);
 
   const report = session?.evaluation_report || {};
   const rawScores = report.scores || {};
@@ -52,7 +56,6 @@ export default function PostPitchReport() {
   
   const overallScore = isInsufficientData ? 0 : Math.round(((scores.delivery + scores.clarity + scores.scalability + scores.readiness) / 40) * 100);
 
-  // 🔥 FIX: Truly dynamic engagement metrics based on AI output
   const strengths = Array.isArray(report.strengths) ? report.strengths : [];
   const risks = Array.isArray(report.risks) ? report.risks : [];
   const nextSteps = Array.isArray(report.next_steps) ? report.next_steps : [];
@@ -74,7 +77,6 @@ export default function PostPitchReport() {
   const formattedDate = session?.timestamp ? new Date(session.timestamp).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 'Unknown Date';
   const businessName = session?.business_name || "My Startup";
 
-  if (isLoading) return <div className="p-20 text-center"><Skeleton className="w-full h-96 rounded-3xl" /></div>;
   if (!session) return <div className="p-20 text-center">No pitch data found.</div>;
 
   return (
@@ -227,7 +229,18 @@ export default function PostPitchReport() {
                 <video src={session.video_url} className="w-full h-full object-cover" controls />
               ) : (
                 <>
-                  <div className="absolute inset-0 flex items-center justify-center bg-slate-800"><div className="w-12 h-12 bg-white/20 backdrop-blur rounded-full flex items-center justify-center"><Play fill="white" size={24} className="text-white ml-1" /></div></div>
+                  {/* 🔥 STUNNING FAKE VIDEO OVERLAY */}
+                  <div className="absolute inset-0 bg-gradient-to-t from-slate-900 via-transparent to-transparent z-10 opacity-60" />
+                  <div className="absolute bottom-4 left-4 right-4 z-20 flex items-center gap-3 text-white">
+                    <button className="w-10 h-10 bg-sky-500 rounded-full flex items-center justify-center hover:bg-sky-400 transition-colors shadow-lg shadow-sky-500/30">
+                      <Play size={16} fill="currentColor" className="ml-1" />
+                    </button>
+                    <div className="flex-1 h-1.5 bg-white/20 rounded-full overflow-hidden">
+                      <div className="w-1/3 h-full bg-sky-500 rounded-full" />
+                    </div>
+                    <span className="text-[10px] font-mono font-bold">01:15 / 03:45</span>
+                  </div>
+                  <img src="https://images.unsplash.com/photo-1556761175-5973dc0f32d7?auto=format&fit=crop&w=800&q=80" alt="Video Cover" className="w-full h-full object-cover opacity-80 mix-blend-luminosity" />
                 </>
               )}
             </div>

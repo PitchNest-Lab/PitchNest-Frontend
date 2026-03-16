@@ -185,7 +185,9 @@ export default function LivePitchRoom() {
           videoBitsPerSecond: 250000 
         });
         mediaRecorder.ondataavailable = (e) => { if (e.data && e.data.size > 0) chunksRef.current.push(e.data); };
-        mediaRecorder.start(1000); 
+        
+        // 🔥 FIX 1: Smaller chunk size (250ms instead of 1000ms) for upload stability
+        mediaRecorder.start(250); 
         mediaRecorderRef.current = mediaRecorder;
       } catch (e) {}
     }
@@ -210,6 +212,11 @@ export default function LivePitchRoom() {
       const base64Data = btoa(binary);
 
       if (socket.readyState === WebSocket.OPEN) {
+        // 🔥 FIX 2: Buffer overflow guard to stop Gemini from freezing mid-pitch
+        if (socket.bufferedAmount > 1000000) {
+          console.warn("WebSocket buffer full, dropping chunk");
+          return;
+        }
         socket.send(JSON.stringify({ realtimeInput: { mediaChunks: [{ mimeType: "audio/pcm;rate=16000", data: base64Data }] } }));
       }
     };
@@ -359,7 +366,6 @@ export default function LivePitchRoom() {
     }, 35000);
 
     const stopAndEvaluate = async () => {
-      // 🔥 FIX 1: Shut off camera hardware ONLY AFTER the video is safely saved to memory
       if (stream) { stream.getTracks().forEach(track => track.stop()); stopStream(); }
       if (screenStream) { screenStream.getTracks().forEach(track => track.stop()); }
       if (isCapturing) stopCapture();
@@ -378,6 +384,9 @@ export default function LivePitchRoom() {
         } catch (err) {}
       }
       
+      // 🔥 FIX 3: Clear chunks from memory to prevent browser memory leak
+      chunksRef.current = [];
+      
       setLoadingStatus("Panel is grading your pitch...");
       if (socket && socket.readyState === WebSocket.OPEN) {
         const finalDuration = Math.floor((Date.now() - pitchStartTimeRef.current) / 1000);
@@ -389,7 +398,6 @@ export default function LivePitchRoom() {
       }
     };
 
-    // 🔥 Trigger the recorder to stop FIRST
     if (mediaRecorderRef.current && mediaRecorderRef.current.state !== "inactive") {
       mediaRecorderRef.current.onstop = stopAndEvaluate;
       mediaRecorderRef.current.stop();
