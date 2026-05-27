@@ -60,6 +60,11 @@ const PitchRow = ({ id, name, date, duration, score, type, onDelete }: { id: num
                   <BarChart3 size={14} /> View Report
                 </Link>
               </DropdownMenu.Item>
+              <DropdownMenu.Item asChild className="outline-none">
+                <Link to={`/replay?session=${id}`} className="flex items-center gap-2 px-3 py-2 text-xs font-bold text-slate-700 dark:text-zinc-300 hover:bg-slate-50 dark:hover:bg-zinc-800 rounded-lg cursor-pointer">
+                  <Play size={14} /> View Replay
+                </Link>
+              </DropdownMenu.Item>
               <DropdownMenu.Item className="flex items-center gap-2 px-3 py-2 text-xs font-bold text-slate-700 dark:text-zinc-300 hover:bg-slate-50 dark:hover:bg-zinc-800 rounded-lg cursor-pointer outline-none">
                 <Share2 size={14} /> Share Pitch
               </DropdownMenu.Item>
