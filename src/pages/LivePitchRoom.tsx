@@ -117,10 +117,17 @@ export default function LivePitchRoom() {
     const userMsgs = messages.filter(m => m.type === 'user').length;
     const aiMsgs = messages.filter(m => m.type === 'ai').length;
 
-    setOverallScore(Math.min(92, 22 + Math.floor(elapsed / 15) + (userMsgs * 2)));
-    setClarityScore(Math.min(95, 45 + Math.floor(elapsed / 20) + (userMsgs * 3)));
-    setConfidenceScore(Math.min(88, 15 + Math.floor(elapsed / 18) + (userMsgs * 4)));
-    setMarketFitScore(Math.min(90, 5 + Math.floor(elapsed / 25) + (aiMsgs * 5)));
+    if (userMsgs === 0 && aiMsgs === 0) {
+      setOverallScore(0);
+      setClarityScore(0);
+      setConfidenceScore(0);
+      setMarketFitScore(0);
+    } else {
+      setOverallScore(Math.min(92, 22 + Math.floor(elapsed / 15) + (userMsgs * 2)));
+      setClarityScore(Math.min(95, 45 + Math.floor(elapsed / 20) + (userMsgs * 3)));
+      setConfidenceScore(Math.min(88, 15 + Math.floor(elapsed / 18) + (userMsgs * 4)));
+      setMarketFitScore(Math.min(90, 5 + Math.floor(elapsed / 25) + (aiMsgs * 5)));
+    }
     
     if (timeLeft <= 0) {
       handleEndSession();
