@@ -81,7 +81,7 @@ export default function LivePitchRoom() {
   const [isPitching, setIsPitching] = useState(false);
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [isMicMuted, setIsMicMuted] = useState(false);
-  const [messages, setMessages] = useState<{id: string, text: string, type: 'user'|'ai', speaker?: string}[]>([]);
+  const [messages, setMessages] = useState<{id: string, text: string, type: 'user'|'ai', speaker?: string, inputMethod?: 'voice' | 'chat'}[]>([]);
   const [isEvaluatingPitch, setIsEvaluatingPitch] = useState(false);
   const [loadingStatus, setLoadingStatus] = useState("Panel is grading your pitch...");
   const [logoError, setLogoError] = useState(false);
@@ -102,6 +102,8 @@ export default function LivePitchRoom() {
   const fallbackTimerRef = useRef<NodeJS.Timeout | null>(null);
   const statusIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const pitchStartTimeRef = useRef<number>(0);
+  const recognitionRef = useRef<any>(null);
+  const recognitionActiveRef = useRef<boolean>(false);
 
   useEffect(() => {
     const storedUser = localStorage.getItem("user");
@@ -109,6 +111,75 @@ export default function LivePitchRoom() {
       try { setUserData(JSON.parse(storedUser)); } catch (e) {}
     }
   }, []);
+
+  // Web Speech API SpeechRecognition to transcribe spoken text for visual logging and evaluation
+  useEffect(() => {
+    if (!isPitching) {
+      if (recognitionRef.current) {
+        try { recognitionRef.current.stop(); } catch (e) {}
+        recognitionRef.current = null;
+      }
+      recognitionActiveRef.current = false;
+      return;
+    }
+
+    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    if (!SpeechRecognition) {
+      console.warn("SpeechRecognition not supported in this browser");
+      return;
+    }
+
+    const rec = new SpeechRecognition();
+    rec.continuous = true;
+    rec.interimResults = false;
+    rec.lang = 'en-US';
+
+    rec.onstart = () => {
+      console.log("Speech recognition started");
+      recognitionActiveRef.current = true;
+    };
+
+    rec.onresult = (event: any) => {
+      const result = event.results[event.results.length - 1];
+      if (result.isFinal) {
+        const transcript = result[0].transcript.trim();
+        if (transcript) {
+          setMessages(prev => [
+            ...prev,
+            {
+              id: `voice-${Date.now()}`,
+              text: transcript,
+              type: 'user',
+              speaker: userData.name,
+              inputMethod: 'voice'
+            }
+          ]);
+        }
+      }
+    };
+
+    rec.onerror = (event: any) => {
+      console.error("Speech Recognition Error:", event.error);
+    };
+
+    rec.onend = () => {
+      console.log("Speech recognition ended");
+      if (isPitching && !isMicMuted && recognitionActiveRef.current) {
+        try { rec.start(); } catch (e) {}
+      }
+    };
+
+    recognitionRef.current = rec;
+
+    if (!isMicMuted) {
+      try { rec.start(); } catch (e) {}
+    }
+
+    return () => {
+      recognitionActiveRef.current = false;
+      try { rec.stop(); } catch (e) {}
+    };
+  }, [isPitching, isMicMuted, userData.name]);
 
   useEffect(() => {
     if (!isPitching || isEvaluatingPitch) return;
@@ -333,7 +404,7 @@ export default function LivePitchRoom() {
     e.preventDefault();
     wakeAudio(); 
     if (!chatInput.trim() || !socket || !isConnected) return;
-    setMessages(prev => [...prev, { id: `user-${Date.now()}`, text: chatInput, type: 'user', speaker: userData.name }]);
+    setMessages(prev => [...prev, { id: `user-${Date.now()}`, text: chatInput, type: 'user', speaker: userData.name, inputMethod: 'chat' }]);
     socket.send(JSON.stringify({ type: "chat_message", text: chatInput }));
     setChatInput("");
   };
