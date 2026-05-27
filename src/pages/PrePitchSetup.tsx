@@ -74,6 +74,7 @@ export default function PrePitchSetup() {
   const cameraEnabled = watch('cameraEnabled');
   const micEnabled = watch('micEnabled');
   const screenShareEnabled = watch('screenShareEnabled');
+  const canScreenShare = typeof navigator?.mediaDevices?.getDisplayMedia === 'function';
   const aggressiveness = watch('aggressiveness');
   const riskAppetite = watch('riskAppetite');
 
@@ -178,7 +179,7 @@ export default function PrePitchSetup() {
             {[ 
               { icon: Camera, label: 'Camera', state: cameraEnabled, set: (c:boolean) => setValue('cameraEnabled', c) },
               { icon: Mic, label: 'Microphone', state: micEnabled, set: (c:boolean) => setValue('micEnabled', c) },
-              { icon: Monitor, label: 'Screen', state: screenShareEnabled, set: toggleScreenShare }
+              ...(canScreenShare ? [{ icon: Monitor, label: 'Screen', state: screenShareEnabled, set: toggleScreenShare }] : [])
             ].map((hw, i) => (
               <div key={i} className="flex-1 bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 rounded-2xl p-4 flex items-center justify-between">
                 <div className="flex items-center gap-3">
