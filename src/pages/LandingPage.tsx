@@ -10,6 +10,39 @@ export default function LandingPage() {
   const [footerLogoError, setFooterLogoError] = useState(false);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
 
+  const [waitlistEmail, setWaitlistEmail] = useState('');
+  const [waitlistStatus, setWaitlistStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
+  const [waitlistMessage, setWaitlistMessage] = useState('');
+
+  const handleWaitlistSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!waitlistEmail || !waitlistEmail.includes('@')) {
+      setWaitlistStatus('error');
+      setWaitlistMessage('Please enter a valid email address.');
+      return;
+    }
+
+    setWaitlistStatus('loading');
+    try {
+      const res = await fetch('/api/waitlist', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: waitlistEmail })
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setWaitlistStatus('success');
+        setWaitlistEmail('');
+      } else {
+        setWaitlistStatus('error');
+        setWaitlistMessage(data.error || 'Something went wrong. Please try again.');
+      }
+    } catch (err) {
+      setWaitlistStatus('error');
+      setWaitlistMessage('Server connection error. Please try again.');
+    }
+  };
+
   // 🔥 FIX 3: Check if the user is already logged in so the CTA makes sense
   useEffect(() => {
     const user = localStorage.getItem('user');
@@ -83,20 +116,44 @@ export default function LandingPage() {
             <Link to={isLoggedIn ? "/dashboard" : "/signup"} className="px-8 py-4 bg-sky-500 text-white font-bold rounded-xl shadow-xl shadow-sky-200 dark:shadow-sky-500/20 hover:bg-sky-600 transition-all flex items-center gap-2">
               Start Pitching
             </Link>
-            {/* 🔥 FIX 5: Converted to anchor tag. Put your actual YouTube demo link here! */}
-            <a href="#" target="_blank" rel="noreferrer" className="px-8 py-4 bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 text-slate-900 dark:text-zinc-100 font-bold rounded-xl hover:bg-slate-50 dark:hover:bg-zinc-800 transition-all flex items-center gap-2">
+            <a href="https://www.youtube.com" className="px-8 py-4 bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 text-slate-900 dark:text-zinc-100 font-bold rounded-xl hover:bg-slate-50 dark:hover:bg-zinc-800 transition-all flex items-center gap-2">
               <PlayCircle size={20} />
               Watch Demo
             </a>
           </div>
-          <div className="mt-12 flex items-center gap-4">
-            <div className="flex -space-x-3">
-              {[1, 2, 3].map(i => (
-                <img key={i} src={`https://picsum.photos/seed/user${i}/100/100`} className="w-10 h-10 rounded-full border-2 border-white dark:border-zinc-800" referrerPolicy="no-referrer" alt="User Avatar" />
-              ))}
+
+          {/* Premium Early Access / Waitlist Sign-up Form */}
+          {waitlistStatus === 'success' ? (
+            <div className="mt-12 bg-emerald-50 dark:bg-emerald-950/20 border border-emerald-200 dark:border-emerald-900/30 text-emerald-600 dark:text-emerald-400 px-6 py-4 rounded-2xl flex items-center gap-3 max-w-md">
+              <ShieldCheck size={20} className="shrink-0" />
+              <span className="text-sm font-bold">You are on the list! We will notify you for early access. 🎉</span>
             </div>
-            <p className="text-sm text-slate-500 dark:text-zinc-400 font-medium">Trusted by 500+ startup founders worldwide</p>
-          </div>
+          ) : (
+            <div className="mt-12">
+              <p className="text-sm text-slate-500 dark:text-zinc-400 font-bold mb-4 uppercase tracking-wider">Be among the first startup founders to join early access!</p>
+              <form onSubmit={handleWaitlistSubmit} className="flex gap-2 max-w-md bg-slate-50 dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 rounded-2xl p-1.5 focus-within:ring-2 focus-within:ring-sky-500/20 transition-all">
+                <input 
+                  type="email" 
+                  value={waitlistEmail}
+                  onChange={(e) => setWaitlistEmail(e.target.value)}
+                  placeholder="Enter your email for early access" 
+                  className="flex-1 bg-transparent border-none text-sm text-slate-900 dark:text-zinc-100 placeholder:text-slate-400 dark:placeholder:text-zinc-600 px-3 outline-none"
+                  disabled={waitlistStatus === 'loading'}
+                />
+                <button 
+                  type="submit" 
+                  disabled={waitlistStatus === 'loading'}
+                  className="px-5 py-3 bg-sky-500 text-white text-xs font-bold rounded-xl hover:bg-sky-600 transition-all shrink-0 flex items-center gap-2"
+                >
+                  {waitlistStatus === 'loading' ? 'Joining...' : 'Get Early Access'}
+                  <ArrowRight size={14} />
+                </button>
+              </form>
+              {waitlistStatus === 'error' && (
+                <p className="text-xs text-rose-500 font-medium mt-2 pl-3">{waitlistMessage}</p>
+              )}
+            </div>
+          )}
         </motion.div>
 
         <motion.div
@@ -269,21 +326,40 @@ export default function LandingPage() {
           <div>
             <h4 className="font-bold mb-6 text-slate-900 dark:text-zinc-100">Legal</h4>
             <ul className="space-y-4 text-sm text-slate-500 dark:text-zinc-400">
-              <li><span className="cursor-pointer hover:text-sky-600 dark:hover:text-sky-400">Privacy Policy</span></li>
-              <li><span className="cursor-pointer hover:text-sky-600 dark:hover:text-sky-400">Terms of Service</span></li>
-              <li><span className="cursor-pointer hover:text-sky-600 dark:hover:text-sky-400">Cookie Policy</span></li>
-              <li><span className="cursor-pointer hover:text-sky-600 dark:hover:text-sky-400">Security</span></li>
+              <li><Link to="/privacy" className="hover:text-sky-600 dark:hover:text-sky-400">Privacy Policy</Link></li>
+              <li><Link to="/terms" className="hover:text-sky-600 dark:hover:text-sky-400">Terms of Service</Link></li>
+              <li><Link to="/cookies" className="hover:text-sky-600 dark:hover:text-sky-400">Cookie Policy</Link></li>
+              <li><Link to="/security" className="hover:text-sky-600 dark:hover:text-sky-400">Security</Link></li>
             </ul>
           </div>
           <div>
-            <h4 className="font-bold mb-6 text-slate-900 dark:text-zinc-100">Newsletter</h4>
-            <p className="text-sm text-slate-500 dark:text-zinc-400 mb-4">Get the latest pitch tips and AI updates.</p>
-            <div className="flex gap-2">
-              <input type="email" placeholder="Email" className="flex-1 bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-sky-500/20 dark:text-zinc-100" />
-              <button className="p-2 bg-sky-500 text-white rounded-lg hover:bg-sky-600 transition-colors">
-                <ArrowRight size={20} />
-              </button>
-            </div>
+            <h4 className="font-bold mb-6 text-slate-900 dark:text-zinc-100">Waitlist & Newsletter</h4>
+            <p className="text-sm text-slate-500 dark:text-zinc-400 mb-4">Get early access updates and expert pitch advice.</p>
+            
+            {waitlistStatus === 'success' ? (
+              <p className="text-sm text-emerald-500 font-bold">Successfully subscribed! 🎉</p>
+            ) : (
+              <form onSubmit={handleWaitlistSubmit} className="flex gap-2">
+                <input 
+                  type="email" 
+                  value={waitlistEmail}
+                  onChange={(e) => setWaitlistEmail(e.target.value)}
+                  placeholder="Founder email" 
+                  className="flex-1 bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-sky-500/20 dark:text-zinc-100" 
+                  disabled={waitlistStatus === 'loading'}
+                />
+                <button 
+                  type="submit"
+                  disabled={waitlistStatus === 'loading'}
+                  className="p-2 bg-sky-500 text-white rounded-lg hover:bg-sky-600 transition-colors"
+                >
+                  <ArrowRight size={20} />
+                </button>
+              </form>
+            )}
+            {waitlistStatus === 'error' && (
+              <p className="text-xs text-rose-500 font-medium mt-2">{waitlistMessage}</p>
+            )}
           </div>
         </div>
         <div className="max-w-7xl mx-auto px-6 mt-20 pt-8 border-t border-slate-200 dark:border-zinc-800 flex justify-between items-center text-xs text-slate-400 dark:text-zinc-500">

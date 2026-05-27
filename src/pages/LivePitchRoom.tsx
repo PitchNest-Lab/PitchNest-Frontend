@@ -619,9 +619,11 @@ export default function LivePitchRoom() {
             <button onClick={toggleMic} className={cn("flex-1 py-2.5 rounded-xl border transition-all flex items-center justify-center", !isMicMuted ? "bg-slate-800 border-slate-700 text-white hover:bg-slate-700" : "bg-rose-500/20 border-rose-500/50 text-rose-500 hover:bg-rose-500/30")}>
               {!isMicMuted ? <Mic size={16} /> : <MicOff size={16} />}
             </button>
-            <button onClick={toggleScreenShare} className={cn("flex-1 py-2.5 rounded-xl border transition-all flex items-center justify-center", isCapturing ? "bg-sky-500 text-white border-sky-500 hover:bg-sky-600" : "bg-slate-800 border-slate-700 text-white hover:bg-slate-700")}>
-              {isCapturing ? <Monitor size={16} /> : <MonitorOff size={16} />}
-            </button>
+            {canScreenShare && (
+              <button onClick={toggleScreenShare} className={cn("flex-1 py-2.5 rounded-xl border transition-all flex items-center justify-center", isCapturing ? "bg-sky-500 text-white border-sky-500 hover:bg-sky-600" : "bg-slate-800 border-slate-700 text-white hover:bg-slate-700")}>
+                {isCapturing ? <Monitor size={16} /> : <MonitorOff size={16} />}
+              </button>
+            )}
           </div>
 
           <button 

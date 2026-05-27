@@ -101,7 +101,7 @@ export default function SignupPage() {
               <label className="text-xs font-bold text-slate-700 dark:text-zinc-300">Full Name</label>
               <div className="relative">
                 <User className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
-                <input {...register('name')} type="text" placeholder="Emmanuel Etim" className={cn("w-full pl-10 pr-4 py-3 bg-slate-50 dark:bg-zinc-800 border rounded-xl focus:outline-none focus:ring-2 transition-all dark:text-zinc-100 text-sm", errors.name ? "border-rose-500 focus:ring-rose-500/20" : "border-slate-200 dark:border-zinc-700 focus:ring-sky-500/20")} />
+                <input {...register('name')} type="text" placeholder="Your full name" className={cn("w-full pl-10 pr-4 py-3 bg-slate-50 dark:bg-zinc-800 border rounded-xl focus:outline-none focus:ring-2 transition-all dark:text-zinc-100 text-sm", errors.name ? "border-rose-500 focus:ring-rose-500/20" : "border-slate-200 dark:border-zinc-700 focus:ring-sky-500/20")} />
               </div>
               {errors.name && <p className="text-xs font-bold text-rose-500">{errors.name.message}</p>}
             </div>
