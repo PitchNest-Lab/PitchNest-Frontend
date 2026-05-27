@@ -4,7 +4,8 @@ import {
   BarChart3, 
   ArrowUpRight,
   Sparkles,
-  ArrowRight
+  ArrowRight,
+  Rocket
 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import * as Tabs from '@radix-ui/react-tabs';
@@ -125,39 +126,100 @@ const InsightItem = ({ category, time, content, type, isLoading }: { category?: 
   );
 };
 
-// 🔥 BEAUTIFUL HARDCODED DEMO DATA
-const MOCK_ANALYTICS = {
-  displayChartData: [
-    { name: "Pitch 1", readiness: 45, confidence: 50, market: 40, tech: 55 },
-    { name: "Pitch 2", readiness: 55, confidence: 58, market: 60, tech: 65 },
-    { name: "Pitch 3", readiness: 68, confidence: 75, market: 70, tech: 72 },
-    { name: "Pitch 4", readiness: 82, confidence: 85, market: 80, tech: 88 },
-    { name: "Pitch 5", readiness: 92, confidence: 88, market: 90, tech: 95 } // Matches the Y Combinator mock pitch!
-  ],
-  avgReadiness: 88, // Focuses on the current running average
-  totalSessions: 14,
-  mostImproved: "Market Scalability",
-  insights: [
-    { category: "Latest Feedback", time: "Today", content: "Your explanation of Customer Acquisition Cost (CAC) was much sharper. The panel responded well to the clear unit economics.", type: "engagement" },
-    { category: "Past Review", time: "Yesterday", content: "Delivery pace improved significantly. You eliminated 80% of filler words compared to your baseline pitch.", type: "vocal" },
-    { category: "Past Review", time: "Mar 12", content: "Great use of the new slide deck. Eye contact with the camera was maintained during critical financial claims.", type: "visual" }
-  ],
-  marketScores: [40, 60, 70, 80, 90],
-  techScores: [55, 65, 72, 88, 95]
-};
+// Helper to compute overall score from evaluation_report
+function getOverallScore(report: any): number {
+  if (!report || !report.scores) return 0;
+  const s = report.scores;
+  const total = (Number(s.delivery) || 0) + (Number(s.clarity) || 0) + (Number(s.scalability) || 0) + (Number(s.readiness) || 0);
+  return Math.round((total / 40) * 100);
+}
+
+function formatDate(timestamp: string): string {
+  try {
+    return new Date(timestamp).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  } catch { return "Unknown"; }
+}
 
 export default function Analytics() {
   const [isLoading, setIsLoading] = useState(true);
-  const [analyticsData, setAnalyticsData] = useState<any>(null);
+  const [sessions, setSessions] = useState<any[]>([]);
 
   useEffect(() => {
-    // Fake a 600ms network request to show the beautiful skeleton loaders for the demo video
-    const timer = setTimeout(() => {
-      setAnalyticsData(MOCK_ANALYTICS);
-      setIsLoading(false);
-    }, 600);
-    return () => clearTimeout(timer);
+    const fetchSessions = async () => {
+      try {
+        const res = await fetch('/api/sessions');
+        if (res.ok) {
+          const data = await res.json();
+          setSessions(data);
+        }
+      } catch (err) {
+        console.error("Failed to fetch sessions:", err);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    fetchSessions();
   }, []);
+
+  // Derive analytics from real session data
+  const scoredSessions = sessions
+    .map(s => ({ ...s, overallScore: getOverallScore(s.evaluation_report) }))
+    .filter(s => s.overallScore > 0);
+
+  const avgReadiness = scoredSessions.length > 0
+    ? Math.round(scoredSessions.reduce((a, b) => a + b.overallScore, 0) / scoredSessions.length)
+    : 0;
+
+  const totalSessions = sessions.length;
+
+  // Chart data from real sessions (most recent 8, reversed to show oldest-to-newest)
+  const chartSessions = [...scoredSessions].reverse().slice(-8);
+  const displayChartData = chartSessions.map((s, i) => {
+    const report = s.evaluation_report || {};
+    const scores = report.scores || {};
+    return {
+      name: s.business_name?.substring(0, 12) || `Pitch ${i + 1}`,
+      readiness: s.overallScore,
+      confidence: Math.round((Number(scores.delivery) || 0) * 10),
+      market: Math.round((Number(scores.scalability) || 0) * 10),
+      tech: Math.round((Number(scores.clarity) || 0) * 10),
+    };
+  });
+
+  // Market and tech score arrays for the bar charts
+  const marketScores = chartSessions.map(s => Math.round((Number(s.evaluation_report?.scores?.scalability) || 0) * 10));
+  const techScores = chartSessions.map(s => Math.round((Number(s.evaluation_report?.scores?.clarity) || 0) * 10));
+
+  // Most improved metric
+  let mostImproved = "N/A";
+  if (chartSessions.length >= 2) {
+    const first = chartSessions[0].evaluation_report?.scores || {};
+    const last = chartSessions[chartSessions.length - 1].evaluation_report?.scores || {};
+    const diffs = [
+      { name: "Delivery", diff: (Number(last.delivery) || 0) - (Number(first.delivery) || 0) },
+      { name: "Clarity", diff: (Number(last.clarity) || 0) - (Number(first.clarity) || 0) },
+      { name: "Market Scalability", diff: (Number(last.scalability) || 0) - (Number(first.scalability) || 0) },
+      { name: "Readiness", diff: (Number(last.readiness) || 0) - (Number(first.readiness) || 0) },
+    ];
+    const best = diffs.reduce((a, b) => b.diff > a.diff ? b : a, diffs[0]);
+    if (best.diff > 0) mostImproved = best.name;
+  }
+
+  // Derive insights from real session reports
+  const insights: any[] = [];
+  for (const session of sessions.slice(0, 3)) {
+    const report = session.evaluation_report;
+    if (report?.summary) {
+      insights.push({
+        category: session === sessions[0] ? "Latest Feedback" : "Past Review",
+        time: formatDate(session.timestamp),
+        content: report.summary,
+        type: session === sessions[0] ? "engagement" : "vocal"
+      });
+    }
+  }
+
+  const hasData = scoredSessions.length > 0;
 
   return (
     <Tooltip.Provider>
@@ -178,10 +240,10 @@ export default function Analytics() {
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-          <StatCard isLoading={isLoading} title="Avg. Investment Readiness" value={analyticsData?.avgReadiness?.toString() || "0"} subtitle="/100" progress={analyticsData?.avgReadiness} trend="+12%" tooltip="Based on AI analysis of your historical pitch sessions." />
-          <StatCard isLoading={isLoading} title="Total Sessions" value={analyticsData?.totalSessions?.toString() || "0"} subtitle="pitches" tooltip="Total number of recorded pitches sent to the AI panel." />
-          <StatCard isLoading={isLoading} title="Most Improved" value={analyticsData?.mostImproved || ""} tooltip="The metric that has shown the highest growth trajectory." />
-          <StatCard isLoading={isLoading} title="Data Status" value="Live" trend="Synced" tooltip="This dashboard is pulling processed AI evaluations." />
+          <StatCard isLoading={isLoading} title="Avg. Investment Readiness" value={hasData ? avgReadiness.toString() : "—"} subtitle={hasData ? "/100" : ""} progress={hasData ? avgReadiness : undefined} trend={hasData && avgReadiness >= 70 ? "Strong" : undefined} tooltip="Based on AI analysis of your historical pitch sessions." />
+          <StatCard isLoading={isLoading} title="Total Sessions" value={totalSessions.toString()} subtitle="pitches" tooltip="Total number of recorded pitches sent to the AI panel." />
+          <StatCard isLoading={isLoading} title="Most Improved" value={mostImproved} tooltip="The metric that has shown the highest growth trajectory." />
+          <StatCard isLoading={isLoading} title="Data Status" value={hasData ? "Live" : "Waiting"} trend={hasData ? "Synced" : undefined} tooltip="This dashboard is pulling processed AI evaluations." />
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
@@ -199,9 +261,14 @@ export default function Analytics() {
                 <div className="w-full h-full flex items-end gap-4 pb-8">
                   {[40, 70, 50, 90, 60, 80, 45, 75].map((h, i) => <Skeleton key={i} className="flex-1 rounded-t-lg" style={{ height: `${h}%` }} />)}
                 </div>
+              ) : displayChartData.length === 0 ? (
+                <div className="w-full h-full flex flex-col items-center justify-center text-slate-400 dark:text-zinc-600">
+                  <Rocket size={48} className="mb-4 opacity-50" />
+                  <p className="text-sm font-medium">Complete pitches to see your score trends</p>
+                </div>
               ) : (
                 <ResponsiveContainer width="100%" height="100%">
-                  <AreaChart data={analyticsData.displayChartData}>
+                  <AreaChart data={displayChartData}>
                     <defs>
                       <linearGradient id="colorReadiness" x1="0" y1="0" x2="0" y2="1">
                         <stop offset="5%" stopColor="#0EA5E9" stopOpacity={0.1}/><stop offset="95%" stopColor="#0EA5E9" stopOpacity={0}/>
@@ -224,8 +291,13 @@ export default function Analytics() {
             <div className="flex flex-col">
               {isLoading ? (
                 <><InsightItem isLoading /><InsightItem isLoading /></>
+              ) : insights.length === 0 ? (
+                <div className="py-8 text-center text-slate-400 dark:text-zinc-600">
+                  <Sparkles size={32} className="mx-auto mb-3 opacity-50" />
+                  <p className="text-sm font-medium">No insights yet. Complete a pitch to get AI feedback.</p>
+                </div>
               ) : (
-                analyticsData.insights.map((insight: any, i: number) => <InsightItem key={i} {...insight} />)
+                insights.map((insight: any, i: number) => <InsightItem key={i} {...insight} />)
               )}
             </div>
           </motion.div>
@@ -237,10 +309,12 @@ export default function Analytics() {
             <div className="flex items-end gap-3 h-40">
               {isLoading ? (
                 [40, 60, 30, 80, 50].map((_, i) => <Skeleton key={i} className="flex-1 w-full h-full rounded-t-lg" />)
+              ) : marketScores.length === 0 ? (
+                <div className="w-full h-full flex items-center justify-center text-slate-400 text-xs font-medium">No data yet</div>
               ) : (
-                analyticsData.marketScores.map((h: number, i: number) => (
+                marketScores.map((h: number, i: number) => (
                   <div key={i} className="flex-1 bg-slate-100 dark:bg-zinc-800 rounded-t-lg relative group cursor-pointer h-full flex items-end">
-                    <motion.div initial={{ height: 0 }} animate={{ height: `${h}%` }} transition={{ delay: 0.4 + (i * 0.05), duration: 0.8 }} className={cn("w-full rounded-t-lg transition-all duration-300", i === analyticsData.marketScores.length - 1 ? "bg-sky-500" : "bg-slate-200 dark:bg-zinc-700 group-hover:bg-slate-300")} />
+                    <motion.div initial={{ height: 0 }} animate={{ height: `${h}%` }} transition={{ delay: 0.4 + (i * 0.05), duration: 0.8 }} className={cn("w-full rounded-t-lg transition-all duration-300", i === marketScores.length - 1 ? "bg-sky-500" : "bg-slate-200 dark:bg-zinc-700 group-hover:bg-slate-300")} />
                   </div>
                 ))
               )}
@@ -252,10 +326,12 @@ export default function Analytics() {
             <div className="flex items-end gap-3 h-40">
                {isLoading ? (
                 [40, 60, 30, 80, 50].map((_, i) => <Skeleton key={i} className="flex-1 w-full h-full rounded-t-lg" />)
+              ) : techScores.length === 0 ? (
+                <div className="w-full h-full flex items-center justify-center text-slate-400 text-xs font-medium">No data yet</div>
               ) : (
-                analyticsData.techScores.map((h: number, i: number) => (
+                techScores.map((h: number, i: number) => (
                   <div key={i} className="flex-1 bg-slate-100 dark:bg-zinc-800 rounded-t-lg relative group cursor-pointer h-full flex items-end">
-                    <motion.div initial={{ height: 0 }} animate={{ height: `${h}%` }} transition={{ delay: 0.5 + (i * 0.05), duration: 0.8 }} className={cn("w-full rounded-t-lg transition-all duration-300", i === analyticsData.techScores.length - 1 ? "bg-indigo-500" : "bg-slate-200 dark:bg-zinc-700 group-hover:bg-slate-300")} />
+                    <motion.div initial={{ height: 0 }} animate={{ height: `${h}%` }} transition={{ delay: 0.5 + (i * 0.05), duration: 0.8 }} className={cn("w-full rounded-t-lg transition-all duration-300", i === techScores.length - 1 ? "bg-indigo-500" : "bg-slate-200 dark:bg-zinc-700 group-hover:bg-slate-300")} />
                   </div>
                 ))
               )}

@@ -1,46 +1,66 @@
-import React, { useState } from 'react';
-import { Link } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { Link, useSearchParams } from 'react-router-dom';
 import { 
   Share2, FileDown, Calendar, Users, Target, Activity, 
-  CheckCircle2, AlertTriangle, Play, Zap, Star, TrendingUp, ShieldAlert
+  CheckCircle2, AlertTriangle, Play, Zap, Star, TrendingUp, ShieldAlert, Loader2
 } from 'lucide-react';
 import { Radar, RadarChart, PolarGrid, PolarAngleAxis, ResponsiveContainer } from 'recharts';
 import { cn } from '../lib/utils';
 
-// 🔥 THE ULTIMATE HARDCODED DEMO DATA
-const MOCK_SESSION = {
-  id: 101,
-  business_name: "Seed Round - Y Combinator",
-  timestamp: new Date().toISOString(),
-  video_url: null, // Leaves null to trigger the cinematic placeholder
-  evaluation_report: {
-    summary: "An incredibly strong pitch with a clear value proposition. The founder demonstrated deep market knowledge and a highly scalable architecture. The go-to-market strategy for enterprise clients is solid, though customer acquisition costs (CAC) need slight clarification.",
-    scores: { delivery: 9, clarity: 8, scalability: 9, readiness: 9 },
-    strengths: [
-      "Crystal clear value proposition and problem identification.",
-      "Strong technical moat with the Gemini AI integration.",
-      "Confident delivery and excellent pacing throughout."
-    ],
-    risks: [
-      "Enterprise sales cycles might be longer than projected.",
-      "Slight ambiguity on long-term defensive moats against incumbents."
-    ],
-    next_steps: [
-      { title: "Clarify CAC & LTV", desc: "Break down unit economics for your enterprise tier.", priority: "High Priority" },
-      { title: "Highlight Beta Traction", desc: "Move your user metric slide earlier in the deck.", priority: "Medium Priority" },
-      { title: "Refine 'Ask' Slide", desc: "Specify exactly how the $500k will be allocated.", priority: "Low Priority" }
-    ],
-    sentiments: [
-      { persona: "Dr. Aris", quote: "The unit economics look tight, but I'm buying into this team." },
-      { persona: "Sarah AI", quote: "Massive TAM. The wedge strategy is brilliant." },
-      { persona: "Marcus AI", quote: "Great vision. This has unicorn potential if executed right." }
-    ]
-  }
-};
-
 export default function PostPitchReport() {
-  // Bypassing the backend and loading the perfect mock data instantly
-  const [session] = useState<any>(MOCK_SESSION);
+  const [searchParams] = useSearchParams();
+  const sessionId = searchParams.get('session');
+  const [session, setSession] = useState<any>(null);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchSession = async () => {
+      try {
+        let url = '/api/sessions';
+        if (sessionId) {
+          url = `/api/sessions/${sessionId}`;
+        }
+        const res = await fetch(url);
+        if (res.ok) {
+          const data = await res.json();
+          // If we fetched the array of sessions because no ID was in query params, take the latest one
+          if (Array.isArray(data)) {
+            setSession(data[0] || null);
+          } else {
+            setSession(data);
+          }
+        }
+      } catch (err) {
+        console.error("Failed to fetch session:", err);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    fetchSession();
+  }, [sessionId]);
+
+  if (isLoading) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[50vh] gap-4">
+        <Loader2 className="animate-spin text-sky-500" size={48} />
+        <p className="text-slate-500 font-medium">Analyzing evaluation report...</p>
+      </div>
+    );
+  }
+
+  if (!session) {
+    return (
+      <div className="p-16 text-center border-2 border-dashed border-slate-200 dark:border-zinc-800 rounded-2xl max-w-2xl mx-auto my-12">
+        <Star size={48} className="mx-auto text-slate-300 dark:text-zinc-700 mb-4 animate-pulse" />
+        <h3 className="text-xl font-bold mb-2">No Pitch Report Found</h3>
+        <p className="text-slate-500 dark:text-zinc-500 font-medium mb-6">Complete your first pitch session to unlock real-time feedback, investor sentiment, and readiness scoring!</p>
+        <Link to="/setup" className="px-6 py-2.5 bg-sky-500 text-white font-bold rounded-xl hover:bg-sky-600 transition-all inline-flex items-center gap-2 text-sm shadow-lg shadow-sky-500/25">
+          <Play size={16} fill="currentColor" />
+          Start Pitching
+        </Link>
+      </div>
+    );
+  }
 
   const report = session?.evaluation_report || {};
   const rawScores = report.scores || {};
@@ -76,8 +96,6 @@ export default function PostPitchReport() {
   const strokeDashoffset = circumference * (1 - overallScore / 100);
   const formattedDate = session?.timestamp ? new Date(session.timestamp).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 'Unknown Date';
   const businessName = session?.business_name || "My Startup";
-
-  if (!session) return <div className="p-20 text-center">No pitch data found.</div>;
 
   return (
     <div className="max-w-7xl mx-auto pb-20 font-sans text-slate-900 dark:text-zinc-100">
@@ -229,22 +247,23 @@ export default function PostPitchReport() {
                 <video src={session.video_url} className="w-full h-full object-cover" controls />
               ) : (
                 <>
-                  {/* 🔥 STUNNING FAKE VIDEO OVERLAY */}
                   <div className="absolute inset-0 bg-gradient-to-t from-slate-900 via-transparent to-transparent z-10 opacity-60" />
                   <div className="absolute bottom-4 left-4 right-4 z-20 flex items-center gap-3 text-white">
-                    <button className="w-10 h-10 bg-sky-500 rounded-full flex items-center justify-center hover:bg-sky-400 transition-colors shadow-lg shadow-sky-500/30">
+                    <Link to={`/replay?session=${session.id}`} className="w-10 h-10 bg-sky-500 rounded-full flex items-center justify-center hover:bg-sky-400 transition-colors shadow-lg shadow-sky-500/30">
                       <Play size={16} fill="currentColor" className="ml-1" />
-                    </button>
+                    </Link>
                     <div className="flex-1 h-1.5 bg-white/20 rounded-full overflow-hidden">
                       <div className="w-1/3 h-full bg-sky-500 rounded-full" />
                     </div>
-                    <span className="text-[10px] font-mono font-bold">01:15 / 03:45</span>
+                    <span className="text-[10px] font-mono font-bold">Replay Timeline</span>
                   </div>
                   <img src="https://images.unsplash.com/photo-1556761175-5973dc0f32d7?auto=format&fit=crop&w=800&q=80" alt="Video Cover" className="w-full h-full object-cover opacity-80 mix-blend-luminosity" />
                 </>
               )}
             </div>
-            <p className="text-xs text-slate-500 leading-relaxed">Watch your presentation with real-time AI heatmaps of investor engagement.</p>
+            <Link to={`/replay?session=${session.id}`} className="w-full py-3 bg-slate-50 dark:bg-zinc-800 text-slate-700 dark:text-zinc-300 font-bold rounded-xl text-xs hover:bg-slate-100 dark:hover:bg-zinc-700 transition-all flex items-center justify-center gap-2 shadow-sm border border-slate-100 dark:border-zinc-800">
+               Open Replay Timeline
+            </Link>
           </div>
 
           <div className="bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 rounded-3xl p-6 shadow-sm">
