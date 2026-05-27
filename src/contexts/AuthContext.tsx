@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 
 interface User {
   id: number;
@@ -8,22 +8,29 @@ interface User {
 
 interface AuthContextType {
   user: User | null;
+  token: string | null;
   login: (email: string, password: string) => Promise<void>;
   signup: (name: string, email: string, password: string) => Promise<void>;
   logout: () => void;
   isLoading: boolean;
+  authFetch: (url: string, options?: RequestInit) => Promise<Response>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
+  const [token, setToken] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     const storedUser = localStorage.getItem('user');
-    if (storedUser) {
-      try { setUser(JSON.parse(storedUser)); } catch (e) {}
+    const storedToken = localStorage.getItem('token');
+    if (storedUser && storedToken) {
+      try { 
+        setUser(JSON.parse(storedUser));
+        setToken(storedToken);
+      } catch (e) {}
     }
     setIsLoading(false);
   }, []);
@@ -37,8 +44,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || 'Login failed');
     
-    setUser(data);
-    localStorage.setItem('user', JSON.stringify(data));
+    setUser(data.user);
+    setToken(data.token);
+    localStorage.setItem('user', JSON.stringify(data.user));
+    localStorage.setItem('token', data.token);
   };
 
   const signup = async (name: string, email: string, password: string) => {
@@ -50,18 +59,46 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || 'Signup failed');
     
-    // ✅ Automatically log the user in using the returned data!
-    setUser(data);
-    localStorage.setItem('user', JSON.stringify(data));
+    setUser(data.user);
+    setToken(data.token);
+    localStorage.setItem('user', JSON.stringify(data.user));
+    localStorage.setItem('token', data.token);
   };
 
   const logout = () => {
     setUser(null);
+    setToken(null);
     localStorage.removeItem('user');
+    localStorage.removeItem('token');
   };
 
+  /**
+   * Authenticated fetch wrapper — automatically attaches the JWT Bearer token
+   * to all API requests. Use this instead of raw fetch() for protected endpoints.
+   */
+  const authFetch = useCallback(async (url: string, options: RequestInit = {}): Promise<Response> => {
+    const currentToken = token || localStorage.getItem('token');
+    
+    const headers = new Headers(options.headers || {});
+    if (currentToken) {
+      headers.set('Authorization', `Bearer ${currentToken}`);
+    }
+
+    const res = await fetch(url, { ...options, headers });
+
+    // If token expired or invalid, force logout
+    if (res.status === 401) {
+      setUser(null);
+      setToken(null);
+      localStorage.removeItem('user');
+      localStorage.removeItem('token');
+    }
+
+    return res;
+  }, [token]);
+
   return (
-    <AuthContext.Provider value={{ user, login, signup, logout, isLoading }}>
+    <AuthContext.Provider value={{ user, token, login, signup, logout, isLoading, authFetch }}>
       {children}
     </AuthContext.Provider>
   );

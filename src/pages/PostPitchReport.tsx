@@ -6,10 +6,12 @@ import {
 } from 'lucide-react';
 import { Radar, RadarChart, PolarGrid, PolarAngleAxis, ResponsiveContainer } from 'recharts';
 import { cn } from '../lib/utils';
+import { useAuth } from '../contexts/AuthContext';
 
 export default function PostPitchReport() {
   const [searchParams] = useSearchParams();
   const sessionId = searchParams.get('session');
+  const { authFetch } = useAuth();
   const [session, setSession] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -20,7 +22,7 @@ export default function PostPitchReport() {
         if (sessionId) {
           url = `/api/sessions/${sessionId}`;
         }
-        const res = await fetch(url);
+        const res = await authFetch(url);
         if (res.ok) {
           const data = await res.json();
           // If we fetched the array of sessions because no ID was in query params, take the latest one

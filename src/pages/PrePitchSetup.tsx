@@ -9,6 +9,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { cn } from '../lib/utils';
+import { useAuth } from '../contexts/AuthContext';
 import { Skeleton } from '../components/Skeleton';
 import { useScreenCapture } from '../hooks/useScreenCapture';
 
@@ -44,6 +45,7 @@ const ModeCard = ({ title, icon: Icon, active, onClick }: { title: string, icon:
 export default function PrePitchSetup() {
   const location = useLocation();
   const navigate = useNavigate();
+  const { authFetch } = useAuth();
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [availableDecks, setAvailableDecks] = useState<any[]>([]);
@@ -80,7 +82,7 @@ export default function PrePitchSetup() {
   useEffect(() => {
     const fetchDecks = async () => {
       try {
-        const res = await fetch('/api/decks');
+        const res = await authFetch('/api/decks');
         if (res.ok) {
           const data = await res.json();
           setAvailableDecks(data);

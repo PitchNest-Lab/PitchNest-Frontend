@@ -10,6 +10,7 @@ import { cn } from '../lib/utils';
 import { useMediaRecorder } from '../hooks/useMediaRecorder';
 import { useScreenCapture } from '../hooks/useScreenCapture';
 import { useSocketContext } from '../contexts/SocketContext'; 
+import { useAuth } from '../contexts/AuthContext';
 
 const VoiceWaveform = ({ isActive }: { isActive?: boolean }) => (
   <div className="flex items-center gap-[3px] h-4 px-1">
@@ -67,6 +68,8 @@ export default function LivePitchRoom() {
   const { stream, startStream, stopStream } = useMediaRecorder();
   const { socket, isConnected } = useSocketContext();
   const { isCapturing, startCapture, stopCapture, screenStream } = useScreenCapture(() => {});
+  const { user, authFetch } = useAuth();
+  const canScreenShare = typeof navigator?.mediaDevices?.getDisplayMedia === 'function';
 
   const [roomState, setRoomState] = useState<'waiting' | 'countdown' | 'live'>('waiting');
   const [countdown, setCountdown] = useState(3);
@@ -86,10 +89,7 @@ export default function LivePitchRoom() {
 
   const [userData, setUserData] = useState<{name: string, email?: string}>({ name: "Founder" });
 
-  const [overallScore, setOverallScore] = useState(22);
-  const [clarityScore, setClarityScore] = useState(45);
-  const [confidenceScore, setConfidenceScore] = useState(15);
-  const [marketFitScore, setMarketFitScore] = useState(5);
+
 
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<BlobPart[]>([]);
@@ -113,29 +113,13 @@ export default function LivePitchRoom() {
   useEffect(() => {
     if (!isPitching || isEvaluatingPitch) return;
     
-    const elapsed = (15 * 60) - timeLeft;
-    const userMsgs = messages.filter(m => m.type === 'user').length;
-    const aiMsgs = messages.filter(m => m.type === 'ai').length;
-
-    if (userMsgs === 0 && aiMsgs === 0) {
-      setOverallScore(0);
-      setClarityScore(0);
-      setConfidenceScore(0);
-      setMarketFitScore(0);
-    } else {
-      setOverallScore(Math.min(92, 22 + Math.floor(elapsed / 15) + (userMsgs * 2)));
-      setClarityScore(Math.min(95, 45 + Math.floor(elapsed / 20) + (userMsgs * 3)));
-      setConfidenceScore(Math.min(88, 15 + Math.floor(elapsed / 18) + (userMsgs * 4)));
-      setMarketFitScore(Math.min(90, 5 + Math.floor(elapsed / 25) + (aiMsgs * 5)));
-    }
-    
     if (timeLeft <= 0) {
       handleEndSession();
       return;
     }
     const timer = setInterval(() => setTimeLeft(prev => prev - 1), 1000);
     return () => clearInterval(timer);
-  }, [isPitching, timeLeft, isEvaluatingPitch, messages]);
+  }, [isPitching, timeLeft, isEvaluatingPitch]);
 
   const formatTime = (seconds: number) => {
     const m = Math.floor(seconds / 60);
@@ -178,7 +162,7 @@ export default function LivePitchRoom() {
 
   useEffect(() => {
     if (isPitching && isConnected && socket?.readyState === WebSocket.OPEN && !hasSentReady) {
-      socket.send(JSON.stringify({ type: "client_ready", config: pitchConfig }));
+      socket.send(JSON.stringify({ type: "client_ready", config: { ...pitchConfig, userId: user?.id } }));
       setHasSentReady(true);
     }
   }, [isPitching, isConnected, socket, hasSentReady, pitchConfig]);
@@ -383,7 +367,7 @@ export default function LivePitchRoom() {
         const formData = new FormData();
         formData.append('video', blob, `pitch_${Date.now()}.webm`);
         try {
-          const res = await fetch('/api/upload-video', { method: 'POST', body: formData });
+          const res = await authFetch('/api/upload-video', { method: 'POST', body: formData });
           const data = await res.json();
           if (data.videoUrl && socket && socket.readyState === WebSocket.OPEN) {
             socket.send(JSON.stringify({ type: "set_video_url", url: data.videoUrl }));
@@ -648,57 +632,89 @@ export default function LivePitchRoom() {
             <VolumeX size={16} /> End Pitch Session
           </button>
 
-          <div className="flex-1 bg-slate-800/40 rounded-[24px] p-5 border border-white/5 flex flex-col gap-5 min-h-0 overflow-y-auto custom-scrollbar">
-            <div className="flex items-center gap-2 text-white/50 text-[10px] font-bold uppercase tracking-widest shrink-0">
-              <Activity size={14} /> Real-time Metrics
-            </div>
-            
-            <div className="flex items-center gap-4 bg-slate-900/50 p-4 rounded-2xl border border-white/5 shrink-0">
-              <div className="relative w-14 h-14 flex items-center justify-center shrink-0">
-                <svg className="w-full h-full transform -rotate-90">
-                  <circle cx="28" cy="28" r="24" className="stroke-slate-700" strokeWidth="4" fill="none" />
-                  <circle cx="28" cy="28" r="24" className="stroke-sky-500 transition-all duration-1000 ease-out" strokeWidth="4" fill="none" strokeDasharray="150" strokeDashoffset={150 - (150 * overallScore) / 100} strokeLinecap="round" />
-                </svg>
-                <span className="absolute text-sm font-bold text-white">{overallScore}</span>
-              </div>
-              <div>
-                <h4 className="text-xs font-bold text-white mb-0.5">Overall Score</h4>
-                <p className="text-[10px] text-sky-400 font-medium">Pitch in progress...</p>
-              </div>
-            </div>
+          {/* Live Session Monitor Panel */}
+          {(() => {
+            const userMsgCount = messages.filter(m => m.type === 'user').length;
+            const aiMsgCount = messages.filter(m => m.type === 'ai').length;
+            const totalMsgCount = userMsgCount + aiMsgCount;
+            const dialogueBalance = totalMsgCount > 0 ? Math.round((userMsgCount / totalMsgCount) * 100) : 50;
 
-            <div className="flex-1 space-y-4 flex flex-col justify-center">
-              <div>
-                <div className="flex justify-between text-[10px] font-bold text-white/70 mb-1.5 uppercase tracking-wider">
-                  <span>Clarity</span>
-                  <span className="text-emerald-400 flex items-center gap-1"><TrendingUp size={10}/> {clarityScore}</span>
+            return (
+              <div className="flex-1 bg-slate-800/40 rounded-[24px] p-5 border border-white/5 flex flex-col gap-5 min-h-0 overflow-y-auto custom-scrollbar">
+                <div className="flex items-center gap-2 text-white/50 text-[10px] font-bold uppercase tracking-widest shrink-0">
+                  <Activity size={14} /> Live Session Monitor
                 </div>
-                <div className="h-1.5 w-full bg-slate-700 rounded-full overflow-hidden">
-                  <div className="h-full bg-emerald-500 transition-all duration-1000 ease-out rounded-full" style={{ width: `${clarityScore}%` }} />
-                </div>
-              </div>
+                
+                {/* Boardroom Vitals */}
+                <div className="space-y-3 shrink-0">
+                  <h4 className="text-[10px] font-bold text-white/40 uppercase tracking-widest">Boardroom Vitals</h4>
+                  
+                  <div className="bg-slate-900/50 p-3.5 rounded-2xl border border-white/5 space-y-3">
+                    <div className="flex justify-between items-center text-xs">
+                      <span className="text-slate-400 font-medium">Brain Link</span>
+                      <span className={cn("px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider", isConnected ? "bg-emerald-500/10 text-emerald-400" : "bg-rose-500/10 text-rose-400")}>
+                        {isConnected ? "Connected" : "Offline"}
+                      </span>
+                    </div>
+                    
+                    <div className="flex justify-between items-center text-xs">
+                      <span className="text-slate-400 font-medium">Audio Pipeline</span>
+                      <span className={cn("px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider", stream && !isMicMuted ? "bg-emerald-500/10 text-emerald-400" : "bg-rose-500/10 text-rose-400")}>
+                        {stream && !isMicMuted ? "PCM 16kHz" : "Muted"}
+                      </span>
+                    </div>
 
-              <div>
-                <div className="flex justify-between text-[10px] font-bold text-white/70 mb-1.5 uppercase tracking-wider">
-                  <span>Confidence</span>
-                  <span className="text-amber-400 flex items-center gap-1"><TrendingUp size={10}/> {confidenceScore}</span>
-                </div>
-                <div className="h-1.5 w-full bg-slate-700 rounded-full overflow-hidden">
-                  <div className="h-full bg-amber-400 transition-all duration-1000 ease-out rounded-full" style={{ width: `${confidenceScore}%` }} />
-                </div>
-              </div>
+                    <div className="flex justify-between items-center text-xs">
+                      <span className="text-slate-400 font-medium">Vision Input</span>
+                      <span className={cn("px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider", stream ? "bg-emerald-500/10 text-emerald-400" : "bg-slate-500/10 text-slate-400")}>
+                        {stream ? "VP8 Active" : "Disabled"}
+                      </span>
+                    </div>
 
-              <div>
-                <div className="flex justify-between text-[10px] font-bold text-white/70 mb-1.5 uppercase tracking-wider">
-                  <span>Market Fit</span>
-                  <span className="text-indigo-400 flex items-center gap-1"><TrendingUp size={10}/> {marketFitScore}</span>
+                    <div className="flex justify-between items-center text-xs">
+                      <span className="text-slate-400 font-medium">Interactive Sharing</span>
+                      <span className={cn("px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider", isCapturing ? "bg-sky-500/10 text-sky-400" : "bg-slate-500/10 text-slate-400")}>
+                        {isCapturing ? "Screen Casting" : "Inactive"}
+                      </span>
+                    </div>
+                  </div>
                 </div>
-                <div className="h-1.5 w-full bg-slate-700 rounded-full overflow-hidden">
-                  <div className="h-full bg-indigo-500 transition-all duration-1000 ease-out rounded-full" style={{ width: `${marketFitScore}%` }} />
+
+                {/* Conversation Dynamics */}
+                <div className="space-y-3 flex-1 flex flex-col justify-center">
+                  <h4 className="text-[10px] font-bold text-white/40 uppercase tracking-widest shrink-0">Dialogue Dynamics</h4>
+                  
+                  <div className="bg-slate-900/50 p-4 rounded-2xl border border-white/5 space-y-4 flex-1 flex flex-col justify-center">
+                    <div>
+                      <div className="flex justify-between text-[10px] font-bold text-white/70 mb-1.5 uppercase tracking-wider">
+                        <span>Dialogue Balance</span>
+                        <span className="text-sky-400 font-mono font-bold">{dialogueBalance}% Founder</span>
+                      </div>
+                      <div className="h-1.5 w-full bg-slate-700 rounded-full overflow-hidden flex">
+                        <div className="h-full bg-sky-500 transition-all duration-500 ease-out" style={{ width: `${dialogueBalance}%` }} />
+                        <div className="h-full bg-indigo-500 transition-all duration-500 ease-out" style={{ width: `${100 - dialogueBalance}%` }} />
+                      </div>
+                      <div className="flex justify-between text-[9px] text-white/40 mt-1 font-medium">
+                        <span>You speaking</span>
+                        <span>Panel speaking</span>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-3 pt-2">
+                      <div className="bg-slate-800/40 p-2.5 rounded-xl text-center border border-white/5">
+                        <span className="text-[9px] font-bold text-white/40 uppercase block mb-0.5">Your Turns</span>
+                        <span className="text-lg font-bold font-mono text-white">{userMsgCount}</span>
+                      </div>
+                      <div className="bg-slate-800/40 p-2.5 rounded-xl text-center border border-white/5">
+                        <span className="text-[9px] font-bold text-white/40 uppercase block mb-0.5">Panel Responses</span>
+                        <span className="text-lg font-bold font-mono text-white">{aiMsgCount}</span>
+                      </div>
+                    </div>
+                  </div>
                 </div>
               </div>
-            </div>
-          </div>
+            );
+          })()}
         </div>
       </div>
 

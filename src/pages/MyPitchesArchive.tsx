@@ -6,6 +6,7 @@ import {
 } from 'lucide-react';
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
 import { cn } from '../lib/utils';
+import { useAuth } from '../contexts/AuthContext';
 import { Skeleton } from '../components/Skeleton';
 
 const PitchRow = ({ id, name, date, duration, score, type, onDelete }: { id: number, name: string, date: string, duration: string, score: number, type: string, onDelete: (id: number) => void }) => {
@@ -98,6 +99,7 @@ function formatDuration(seconds: number): string {
 }
 
 export default function MyPitchesArchive() {
+  const { authFetch } = useAuth();
   const [sessions, setSessions] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
@@ -105,7 +107,7 @@ export default function MyPitchesArchive() {
   useEffect(() => {
     const fetchSessions = async () => {
       try {
-        const res = await fetch('/api/sessions');
+        const res = await authFetch('/api/sessions');
         if (res.ok) {
           const data = await res.json();
           setSessions(data);
@@ -123,7 +125,7 @@ export default function MyPitchesArchive() {
     if (!window.confirm("Are you sure you want to delete this pitch session?")) return;
 
     try {
-      const res = await fetch(`/api/sessions/${idToRemove}`, { method: 'DELETE' });
+      const res = await authFetch(`/api/sessions/${idToRemove}`, { method: 'DELETE' });
       if (res.ok) {
         setSessions(prev => prev.filter(s => s.id !== idToRemove));
       }

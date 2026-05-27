@@ -4,7 +4,7 @@ import AppLayout from './components/AppLayout';
 import LandingPage from './pages/LandingPage';
 import LoginPage from './pages/LoginPage';
 import SignupPage from './pages/SignupPage';
-import Onboarding from './pages/Onboarding'; // ✅ Imported the new Onboarding page
+import Onboarding from './pages/Onboarding';
 import Dashboard from './pages/Dashboard';
 import Analytics from './pages/Analytics';
 import SettingsPage from './pages/SettingsPage';
@@ -18,57 +18,68 @@ import { SocketProvider } from './contexts/SocketContext';
 import { AuthProvider } from './contexts/AuthContext';
 import { ProtectedRoute } from './components/ProtectedRoute';
 import { ThemeProvider } from './contexts/ThemeContext';
+import { ErrorBoundary } from './components/ErrorBoundary';
 
 export default function App() {
   return (
     <Router>
       <AuthProvider>
         <ThemeProvider>
-          <SocketProvider>
-            <Routes>
-              {/* Public Routes */}
-              <Route path="/" element={<LandingPage />} />
-              <Route path="/login" element={<LoginPage />} />
-              <Route path="/signup" element={<SignupPage />} />
+          <Routes>
+            {/* Public Routes */}
+            <Route path="/" element={<LandingPage />} />
+            <Route path="/login" element={<LoginPage />} />
+            <Route path="/signup" element={<SignupPage />} />
 
-              {/* Protected Routes (Wrapped in AppLayout with Sidebar) */}
-              <Route element={
-                <ProtectedRoute>
-                  <AppLayout />
-                </ProtectedRoute>
-              }>
-                <Route path="/dashboard" element={<Dashboard />} />
-                <Route path="/analytics" element={<Analytics />} />
-                <Route path="/settings" element={<SettingsPage />} />
-                <Route path="/report" element={<PostPitchReport />} />
-                <Route path="/setup" element={<PrePitchSetup />} />
-                <Route path="/decks" element={<PitchDecksManagement />} />
-                <Route path="/replay" element={<PitchReplayScreen />} />
-                <Route path="/archive" element={<MyPitchesArchive />} />
-              </Route>
-
-              {/* Special Full-screen Routes (No Sidebar) */}
-              
-              {/* ✅ Added the Onboarding route here */}
-              <Route path="/onboarding" element={
-                <ProtectedRoute>
-                  <Onboarding />
-                </ProtectedRoute>
+            {/* Protected Routes (Wrapped in AppLayout with Sidebar) */}
+            <Route element={
+              <ProtectedRoute>
+                <AppLayout />
+              </ProtectedRoute>
+            }>
+              <Route path="/dashboard" element={
+                <ErrorBoundary><Dashboard /></ErrorBoundary>
               } />
-
-              <Route path="/room" element={
-                <ProtectedRoute>
-                  <LivePitchRoom />
-                </ProtectedRoute>
+              <Route path="/analytics" element={
+                <ErrorBoundary><Analytics /></ErrorBoundary>
               } />
-              
-              {/* Safety Catch: Redirect old /live links to /room */}
-              <Route path="/live" element={<Navigate to="/room" replace />} />
+              <Route path="/settings" element={<SettingsPage />} />
+              <Route path="/report" element={
+                <ErrorBoundary><PostPitchReport /></ErrorBoundary>
+              } />
+              <Route path="/setup" element={<PrePitchSetup />} />
+              <Route path="/decks" element={<PitchDecksManagement />} />
+              <Route path="/replay" element={
+                <ErrorBoundary><PitchReplayScreen /></ErrorBoundary>
+              } />
+              <Route path="/archive" element={<MyPitchesArchive />} />
+            </Route>
 
-              {/* Fallback */}
-              <Route path="*" element={<Navigate to="/" replace />} />
-            </Routes>
-          </SocketProvider>
+            {/* Special Full-screen Routes (No Sidebar) */}
+            
+            <Route path="/onboarding" element={
+              <ProtectedRoute>
+                <Onboarding />
+              </ProtectedRoute>
+            } />
+
+            {/* LivePitchRoom — SocketProvider wraps ONLY this route, not the whole app */}
+            <Route path="/room" element={
+              <ProtectedRoute>
+                <ErrorBoundary>
+                  <SocketProvider>
+                    <LivePitchRoom />
+                  </SocketProvider>
+                </ErrorBoundary>
+              </ProtectedRoute>
+            } />
+            
+            {/* Safety Catch: Redirect old /live links to /room */}
+            <Route path="/live" element={<Navigate to="/room" replace />} />
+
+            {/* Fallback */}
+            <Route path="*" element={<Navigate to="/" replace />} />
+          </Routes>
         </ThemeProvider>
       </AuthProvider>
     </Router>

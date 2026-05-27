@@ -21,6 +21,7 @@ import {
   Area
 } from 'recharts';
 import { cn } from '../lib/utils';
+import { useAuth } from '../contexts/AuthContext';
 import { Skeleton } from '../components/Skeleton';
 
 const StatCard = ({ title, value, subtitle, trend, progress, tooltip, isLoading }: { title: string, value: string, subtitle?: string, trend?: string, progress?: number, tooltip?: string, isLoading?: boolean }) => (
@@ -141,13 +142,14 @@ function formatDate(timestamp: string): string {
 }
 
 export default function Analytics() {
+  const { authFetch } = useAuth();
   const [isLoading, setIsLoading] = useState(true);
   const [sessions, setSessions] = useState<any[]>([]);
 
   useEffect(() => {
     const fetchSessions = async () => {
       try {
-        const res = await fetch('/api/sessions');
+        const res = await authFetch('/api/sessions');
         if (res.ok) {
           const data = await res.json();
           setSessions(data);

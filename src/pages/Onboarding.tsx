@@ -23,8 +23,26 @@ export default function Onboarding() {
 
   const handleFinish = async () => {
     setIsSubmitting(true);
-    await new Promise(resolve => setTimeout(resolve, 1000));
     
+    // Persist onboarding data to the backend
+    const token = localStorage.getItem('token');
+    try {
+      await fetch('/api/profile', {
+        method: 'POST',
+        headers: { 
+          'Content-Type': 'application/json',
+          ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+        },
+        body: JSON.stringify({
+          startup_name: formData.startupName || "My Startup",
+          industry: formData.industry,
+          goal: formData.goal
+        })
+      });
+    } catch (err) {
+      console.warn("Failed to save profile to backend:", err);
+    }
+
     localStorage.setItem('pitchnest_onboarding_complete', 'true');
     localStorage.setItem('pitchnest_startup_name', formData.startupName || "My Startup");
     

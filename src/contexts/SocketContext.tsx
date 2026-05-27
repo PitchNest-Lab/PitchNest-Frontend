@@ -22,8 +22,9 @@ export const SocketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     // ✅ DYNAMIC URL FIX: Works seamlessly for both Localhost and Google Cloud!
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
     const host = window.location.host;
-    const WS_URL = window.location.hostname === 'localhost' 
-      ? 'ws://localhost:3000' 
+    const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+    const WS_URL = isLocal 
+      ? `ws://${window.location.hostname}:3000` 
       : `${protocol}//${host}`;
 
     const ws = new WebSocket(WS_URL);

@@ -96,14 +96,14 @@ function formatDate(timestamp: string): string {
 
 // --- Main Dashboard Component ---
 export default function Dashboard() {
-  const { user } = useAuth();
+  const { user, authFetch } = useAuth();
   const [isLoading, setIsLoading] = useState(true);
   const [sessions, setSessions] = useState<any[]>([]);
 
   useEffect(() => {
     const fetchSessions = async () => {
       try {
-        const res = await fetch('/api/sessions');
+        const res = await authFetch('/api/sessions');
         if (res.ok) {
           const data = await res.json();
           setSessions(data);

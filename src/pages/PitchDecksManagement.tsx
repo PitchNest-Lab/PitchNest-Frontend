@@ -7,6 +7,7 @@ import { useDropzone } from 'react-dropzone';
 import { cn } from '../lib/utils';
 import { Link } from 'react-router-dom';
 import { Skeleton } from '../components/Skeleton';
+import { useAuth } from '../contexts/AuthContext';
 
 // --- Subcomponents ---
 const DeckCard = ({ name, date, status, image, fileUrl, onRemove }: { name: string, date: string, status: string, image: string, fileUrl?: string, onRemove?: () => void }) => (
@@ -101,6 +102,7 @@ const DeckCard = ({ name, date, status, image, fileUrl, onRemove }: { name: stri
 
 // --- Main Component ---
 export default function PitchDecksManagement() {
+  const { authFetch } = useAuth();
   const [decks, setDecks] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [uploadedFiles, setUploadedFiles] = useState<File[]>([]);
@@ -110,7 +112,7 @@ export default function PitchDecksManagement() {
     const fetchDecks = async () => {
       try {
         // 🔥 FIX 2: Added cache-buster so deleted/uploaded decks sync perfectly
-        const response = await fetch(`/api/decks?t=${Date.now()}`, {
+        const response = await authFetch(`/api/decks?t=${Date.now()}`, {
           headers: {
             'Cache-Control': 'no-cache',
             'Pragma': 'no-cache'
@@ -159,7 +161,7 @@ export default function PitchDecksManagement() {
       formData.append('deck', tempDeck.file);
 
       try {
-        const res = await fetch('/api/upload-deck', {
+        const res = await authFetch('/api/upload-deck', {
           method: 'POST',
           body: formData
         });
@@ -185,7 +187,7 @@ export default function PitchDecksManagement() {
   const removeDeck = async (idToRemove: string) => {
     setDecks(prev => prev.filter(deck => deck.id !== idToRemove)); 
     try {
-      await fetch(`/api/decks/${idToRemove}`, { method: 'DELETE' });
+      await authFetch(`/api/decks/${idToRemove}`, { method: 'DELETE' });
     } catch (err) {}
   };
 

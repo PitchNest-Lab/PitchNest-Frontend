@@ -39,7 +39,10 @@ export const useSocket = () => {
   const connect = useCallback(async () => {
     if (sessionRef.current) return;
 
-    const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+    // WARNING: Direct client-side Gemini connection is deprecated.
+    // The live pitch room uses the backend WebSocket proxy instead.
+    // This hook is kept for reference but should not be used in production.
+    const ai = new GoogleGenAI({ apiKey: "" });
     
     try {
       const session = await ai.live.connect({

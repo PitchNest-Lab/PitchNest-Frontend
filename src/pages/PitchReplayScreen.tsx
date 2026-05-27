@@ -4,6 +4,7 @@ import {
   Play, ChevronLeft, MessageSquare, Sparkles, Target, Clock, FileText, Download, Share2, Loader2
 } from 'lucide-react';
 import { cn } from '../lib/utils';
+import { useAuth } from '../contexts/AuthContext';
 
 const TimelineEvent = ({ type, time, content, active = false }: { type: string, time: string, content: string, active?: boolean }) => (
   <div className={cn(
@@ -33,6 +34,7 @@ const TimelineEvent = ({ type, time, content, active = false }: { type: string, 
 export default function PitchReplayScreen() {
   const [searchParams] = useSearchParams();
   const sessionId = searchParams.get('session');
+  const { authFetch } = useAuth();
   const [session, setSession] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -43,7 +45,7 @@ export default function PitchReplayScreen() {
         if (sessionId) {
           url = `/api/sessions/${sessionId}`;
         }
-        const res = await fetch(url);
+        const res = await authFetch(url);
         if (res.ok) {
           const data = await res.json();
           if (Array.isArray(data)) {
