@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { Link } from 'react-router-dom';
-import { Rocket, PlayCircle, ArrowRight, Users, MessageSquare, BarChart3, ShieldCheck, HelpCircle, FileText, Target, TrendingUp, FileCheck, Star, ChevronDown, ChevronUp, Zap, Phone, Mail, ExternalLink } from 'lucide-react';
+import { Rocket, PlayCircle, ArrowRight, Users, MessageSquare, BarChart3, ShieldCheck, HelpCircle, FileText, Target, TrendingUp, FileCheck, Star, ChevronDown, ChevronUp, Zap, Phone, Mail, ExternalLink, Menu, X } from 'lucide-react';
 import { motion } from 'motion/react';
 import { cn } from '../lib/utils';
 import { ThemeToggle } from '../components/ThemeToggle';
@@ -51,6 +51,7 @@ export default function LandingPage() {
   const [footerLogoError, setFooterLogoError] = useState(false);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [showAllFeatures, setShowAllFeatures] = useState(false);
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   const [waitlistEmail, setWaitlistEmail] = useState('');
   const [waitlistStatus, setWaitlistStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
@@ -83,7 +84,7 @@ export default function LandingPage() {
     <div className="min-h-screen bg-white dark:bg-zinc-950 font-sans text-slate-900 dark:text-zinc-100 transition-colors duration-300 overflow-x-hidden">
 
       {/* ── Navbar ── */}
-      <nav className="max-w-7xl mx-auto px-4 sm:px-6 py-4 sm:py-6 flex justify-between items-center">
+      <nav className="max-w-7xl mx-auto px-4 sm:px-6 py-4 sm:py-6 flex justify-between items-center relative z-50">
         <div className="flex items-center gap-2 sm:gap-3">
           <div className={cn("w-8 h-8 sm:w-10 sm:h-10 flex items-center justify-center overflow-hidden rounded-xl", logoError && "bg-sky-500 text-white shadow-lg shadow-sky-200")}>
             {!logoError ? <img src="/PitchNest Logo.png" alt="PitchNest" className="w-full h-full object-contain" onError={() => setLogoError(true)} /> : <Rocket size={20} fill="currentColor" />}
@@ -99,16 +100,46 @@ export default function LandingPage() {
         </div>
         <div className="flex items-center gap-2 sm:gap-4">
           <ThemeToggle />
-          {isLoggedIn ? (
-            <Link to="/dashboard" className="px-3 py-2 sm:px-5 sm:py-2.5 bg-sky-500 text-white text-xs sm:text-sm font-bold rounded-xl shadow-lg shadow-sky-200 dark:shadow-sky-500/20 hover:bg-sky-600 transition-all">Dashboard</Link>
-          ) : (
-            <>
-              <Link to="/login" className="hidden sm:block text-sm font-bold hover:text-sky-600 dark:hover:text-sky-400 transition-colors">Login</Link>
-              <Link to="/signup" className="px-3 py-2 sm:px-5 sm:py-2.5 bg-sky-500 text-white text-xs sm:text-sm font-bold rounded-xl shadow-lg shadow-sky-200 dark:shadow-sky-500/20 hover:bg-sky-600 transition-all">Start Pitching</Link>
-            </>
-          )}
+          <div className="hidden md:flex items-center gap-4">
+            {isLoggedIn ? (
+              <Link to="/dashboard" className="px-5 py-2.5 bg-sky-500 text-white text-sm font-bold rounded-xl shadow-lg shadow-sky-200 dark:shadow-sky-500/20 hover:bg-sky-600 transition-all">Dashboard</Link>
+            ) : (
+              <>
+                <Link to="/login" className="text-sm font-bold hover:text-sky-600 dark:hover:text-sky-400 transition-colors">Login</Link>
+                <Link to="/signup" className="px-5 py-2.5 bg-sky-500 text-white text-sm font-bold rounded-xl shadow-lg shadow-sky-200 dark:shadow-sky-500/20 hover:bg-sky-600 transition-all">Start Pitching</Link>
+              </>
+            )}
+          </div>
+          <button 
+            className="md:hidden p-2 text-slate-600 dark:text-zinc-400"
+            onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+          >
+            {isMobileMenuOpen ? <X size={24} /> : <Menu size={24} />}
+          </button>
         </div>
       </nav>
+
+      {/* Mobile Menu Overlay */}
+      {isMobileMenuOpen && (
+        <div className="md:hidden absolute top-[72px] left-0 right-0 bg-white dark:bg-zinc-950 border-b border-slate-200 dark:border-zinc-800 shadow-xl z-40 p-4 flex flex-col gap-4">
+          <a href="#features" onClick={() => setIsMobileMenuOpen(false)} className="text-base font-medium text-slate-600 dark:text-zinc-400 py-2">Features</a>
+          <a href="#why-pitchnest" onClick={() => setIsMobileMenuOpen(false)} className="text-base font-medium text-slate-600 dark:text-zinc-400 py-2">Why PitchNest</a>
+          <a href="#insights" onClick={() => setIsMobileMenuOpen(false)} className="text-base font-medium text-slate-600 dark:text-zinc-400 py-2">Insights</a>
+          <a href="#stories" onClick={() => setIsMobileMenuOpen(false)} className="text-base font-medium text-slate-600 dark:text-zinc-400 py-2">Stories</a>
+          <a href="#faq" onClick={() => setIsMobileMenuOpen(false)} className="text-base font-medium text-slate-600 dark:text-zinc-400 py-2 border-b border-slate-100 dark:border-zinc-800/50 pb-4">FAQ</a>
+          
+          <div className="flex flex-col gap-3 pt-2">
+            {isLoggedIn ? (
+              <Link to="/dashboard" onClick={() => setIsMobileMenuOpen(false)} className="w-full text-center px-5 py-3 bg-sky-500 text-white text-base font-bold rounded-xl shadow-lg shadow-sky-200 dark:shadow-sky-500/20">Dashboard</Link>
+            ) : (
+              <>
+                <Link to="/login" onClick={() => setIsMobileMenuOpen(false)} className="w-full text-center px-5 py-3 border border-slate-200 dark:border-zinc-800 text-slate-700 dark:text-zinc-300 text-base font-bold rounded-xl">Login</Link>
+                <Link to="/signup" onClick={() => setIsMobileMenuOpen(false)} className="w-full text-center px-5 py-3 bg-sky-500 text-white text-base font-bold rounded-xl shadow-lg shadow-sky-200 dark:shadow-sky-500/20">Start Pitching</Link>
+              </>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* ── Hero ── */}
       <section className="max-w-7xl mx-auto px-4 sm:px-6 pt-6 sm:pt-12 pb-10 sm:pb-16 grid lg:grid-cols-2 gap-6 sm:gap-12 items-center">
