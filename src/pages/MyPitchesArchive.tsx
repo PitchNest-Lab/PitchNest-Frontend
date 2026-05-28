@@ -9,8 +9,16 @@ import { cn } from '../lib/utils';
 import { useAuth } from '../contexts/AuthContext';
 import { Skeleton } from '../components/Skeleton';
 
-const PitchRow = ({ id, name, date, duration, score, type, onDelete }: { id: number, name: string, date: string, duration: string, score: number, type: string, onDelete: (id: number) => void }) => {
+const PitchRow = ({ id, shareId, name, date, duration, score, type, onDelete }: { id: number, shareId?: string, name: string, date: string, duration: string, score: number, type: string, onDelete: (id: number) => void }) => {
   const isIncomplete = score === 0;
+
+  const handleShare = () => {
+    const targetId = shareId || id;
+    const url = `${window.location.origin}/replay?session=${targetId}`;
+    navigator.clipboard.writeText(url).then(() => {
+      alert("Share link copied to clipboard!");
+    });
+  };
 
   return (
     <div className="group flex items-center justify-between p-6 bg-white dark:bg-zinc-900 border border-slate-100 dark:border-zinc-800 rounded-2xl hover:border-sky-200 dark:hover:border-sky-500/50 hover:shadow-lg hover:shadow-sky-50 dark:hover:shadow-none transition-all">
@@ -65,7 +73,7 @@ const PitchRow = ({ id, name, date, duration, score, type, onDelete }: { id: num
                   <Play size={14} /> View Replay
                 </Link>
               </DropdownMenu.Item>
-              <DropdownMenu.Item className="flex items-center gap-2 px-3 py-2 text-xs font-bold text-slate-700 dark:text-zinc-300 hover:bg-slate-50 dark:hover:bg-zinc-800 rounded-lg cursor-pointer outline-none">
+              <DropdownMenu.Item onSelect={handleShare} className="flex items-center gap-2 px-3 py-2 text-xs font-bold text-slate-700 dark:text-zinc-300 hover:bg-slate-50 dark:hover:bg-zinc-800 rounded-lg cursor-pointer outline-none">
                 <Share2 size={14} /> Share Pitch
               </DropdownMenu.Item>
               <DropdownMenu.Separator className="h-px bg-slate-100 dark:bg-zinc-800 my-1" />
@@ -212,6 +220,7 @@ export default function MyPitchesArchive() {
                   <PitchRow 
                     key={session.id} 
                     id={session.id} 
+                    shareId={session.share_id}
                     name={name}
                     date={date}
                     duration={duration}

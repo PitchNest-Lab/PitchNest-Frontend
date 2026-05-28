@@ -68,7 +68,7 @@ export default function SignupPage() {
       
       await signup(data.name, data.email, data.password);
       // 🔥 FIX 2: Safely route to dashboard to prevent a 404 dead end
-      navigate('/dashboard');
+      navigate('/onboarding');
     } catch (error: any) {
       setServerError(error.message);
     } finally {
