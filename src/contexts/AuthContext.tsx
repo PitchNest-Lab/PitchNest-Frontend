@@ -26,13 +26,39 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     const storedUser = localStorage.getItem('user');
     const storedToken = localStorage.getItem('token');
-    if (storedUser && storedToken) {
-      try { 
-        setUser(JSON.parse(storedUser));
-        setToken(storedToken);
-      } catch (e) {}
+
+    if (!storedUser || !storedToken) {
+      setIsLoading(false);
+      return;
     }
-    setIsLoading(false);
+
+    // Verify token is still valid against the backend
+    fetch('/api/auth/me', {
+      headers: { Authorization: `Bearer ${storedToken}` }
+    })
+      .then(res => {
+        if (res.ok) {
+          try {
+            setUser(JSON.parse(storedUser));
+            setToken(storedToken);
+          } catch (e) {
+            localStorage.removeItem('user');
+            localStorage.removeItem('token');
+          }
+        } else {
+          // Token expired or invalid — clear everything
+          localStorage.removeItem('user');
+          localStorage.removeItem('token');
+        }
+      })
+      .catch(() => {
+        // Network error — trust local storage to avoid locking out offline users
+        try {
+          setUser(JSON.parse(storedUser));
+          setToken(storedToken);
+        } catch (e) {}
+      })
+      .finally(() => setIsLoading(false));
   }, []);
 
   const login = async (email: string, password: string) => {
@@ -96,6 +122,29 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     return res;
   }, [token]);
+
+  // Refetch user data when the window regains focus so pages show live data
+  useEffect(() => {
+    const onFocus = () => {
+      const currentToken = localStorage.getItem('token');
+      if (!currentToken) return;
+      fetch('/api/auth/me', {
+        headers: { Authorization: `Bearer ${currentToken}` }
+      })
+        .then(res => {
+          if (!res.ok) {
+            setUser(null);
+            setToken(null);
+            localStorage.removeItem('user');
+            localStorage.removeItem('token');
+          }
+        })
+        .catch(() => {}); // Ignore network errors silently
+    };
+
+    window.addEventListener('focus', onFocus);
+    return () => window.removeEventListener('focus', onFocus);
+  }, []);
 
   return (
     <AuthContext.Provider value={{ user, token, login, signup, logout, isLoading, authFetch }}>

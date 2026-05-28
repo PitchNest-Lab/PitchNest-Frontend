@@ -22,10 +22,7 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
     );
   }
 
-  // 🔥 FIX 2: Synchronous check! If React context is slow, check the browser storage directly.
-  const hasLocalUser = localStorage.getItem('user');
-
-  if (!user && !hasLocalUser) {
+  if (!isLoading && !user) {
     return <Navigate to="/login" state={{ from: location }} replace />;
   }
 

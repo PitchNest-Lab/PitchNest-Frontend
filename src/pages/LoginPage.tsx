@@ -103,8 +103,9 @@ export default function LoginPage() {
             <div className="space-y-2">
               <div className="flex justify-between items-center">
                 <label className="text-sm font-bold text-slate-700 dark:text-zinc-300">Password</label>
-                {/* 🔥 FIX 2: Safely handles "Forgot Password" click without jumping the page */}
-                <button type="button" onClick={(e) => e.preventDefault()} className="text-xs font-bold text-sky-500 hover:text-sky-600 outline-none">Forgot password?</button>
+                <Link to="/forgot-password" className="text-xs text-sky-500 hover:underline">
+                  Forgot password?
+                </Link>
               </div>
               <div className="relative">
                 <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 dark:text-zinc-500" size={18} />

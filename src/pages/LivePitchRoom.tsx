@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { 
   Rocket, Video, VideoOff, Sparkles, Mic, MicOff, 
   VolumeX, Monitor, MonitorOff, Send, ArrowRightLeft, Loader2, AlertTriangle, MessageSquare, Timer,
@@ -11,6 +11,29 @@ import { useMediaRecorder } from '../hooks/useMediaRecorder';
 import { useScreenCapture } from '../hooks/useScreenCapture';
 import { useSocketContext } from '../contexts/SocketContext'; 
 import { useAuth } from '../contexts/AuthContext';
+
+const TTS_LANG = 'en-US';
+const TTS_MAX_CHARS = 420;
+const TTS_MAX_SENTENCES = 2;
+const TTS_STREAM_FLUSH_MS = 650;
+const TTS_STREAM_SPEAK_MIN_CHARS = 120;
+
+function normalizeWhitespace(text: string) {
+  return (text || '').replace(/\s+/g, ' ').trim();
+}
+
+function trimToSentences(text: string, maxSentences: number) {
+  const t = normalizeWhitespace(text);
+  if (!t) return '';
+  const parts = t.split(/(?<=[.!?])\s+/);
+  return parts.slice(0, Math.max(1, maxSentences)).join(' ') || t;
+}
+
+function limitSpokenText(text: string) {
+  const t = trimToSentences(text, TTS_MAX_SENTENCES);
+  if (t.length <= TTS_MAX_CHARS) return t;
+  return t.slice(0, TTS_MAX_CHARS).replace(/\s+\S*$/, '').trimEnd() + '…';
+}
 
 const VoiceWaveform = ({ isActive }: { isActive?: boolean }) => (
   <div className="flex items-center gap-[3px] h-4 px-1">
@@ -88,6 +111,12 @@ export default function LivePitchRoom() {
   const [hasSentReady, setHasSentReady] = useState(false);
 
   const [userData, setUserData] = useState<{name: string, email?: string}>({ name: "Founder" });
+  const [scores, setScores] = useState<{
+    clarity: number | null;
+    confidence: number | null;
+    marketFit: number | null;
+    readiness: number | null;
+  }>({ clarity: null, confidence: null, marketFit: null, readiness: null });
 
 
 
@@ -104,6 +133,27 @@ export default function LivePitchRoom() {
   const pitchStartTimeRef = useRef<number>(0);
   const recognitionRef = useRef<any>(null);
   const recognitionActiveRef = useRef<boolean>(false);
+
+  const ttsStreamBufferRef = useRef<string>('');
+  const ttsStreamFlushTimerRef = useRef<number | null>(null);
+  const ttsDidStreamSpeakRef = useRef(false);
+  const isAiStreamingRef = useRef(false);
+  const preferredVoiceRef = useRef<SpeechSynthesisVoice | null>(null);
+
+  useEffect(() => {
+    if (!('speechSynthesis' in window)) return;
+    const pickVoice = () => {
+      const voices = window.speechSynthesis.getVoices() || [];
+      const isEn = (v: SpeechSynthesisVoice) => (v.lang || '').toLowerCase().startsWith('en');
+      preferredVoiceRef.current =
+        voices.find(v => isEn(v) && /google/i.test(v.name)) ||
+        voices.find(v => v.lang.toLowerCase() === TTS_LANG.toLowerCase()) ||
+        voices.find(isEn) || null;
+    };
+    pickVoice();
+    window.speechSynthesis.onvoiceschanged = pickVoice;
+    return () => { try { window.speechSynthesis.onvoiceschanged = null; } catch {} };
+  }, []);
 
   useEffect(() => {
     const storedUser = localStorage.getItem("user");
@@ -204,6 +254,40 @@ export default function LivePitchRoom() {
     const s = seconds % 60;
     return `${m}:${s < 10 ? '0' : ''}${s}`;
   };
+
+  const stopTts = useCallback(() => {
+    if (!('speechSynthesis' in window)) return;
+    try { window.speechSynthesis.cancel(); } catch {}
+    ttsStreamBufferRef.current = '';
+    ttsDidStreamSpeakRef.current = false;
+    isAiStreamingRef.current = false;
+    if (ttsStreamFlushTimerRef.current) {
+      window.clearTimeout(ttsStreamFlushTimerRef.current);
+      ttsStreamFlushTimerRef.current = null;
+    }
+  }, []);
+
+  const speakShort = useCallback((rawText: string) => {
+    if (!('speechSynthesis' in window)) return;
+    const text = limitSpokenText(rawText);
+    if (!text) return;
+    try { if (window.speechSynthesis.speaking) window.speechSynthesis.cancel(); } catch {}
+    const u = new SpeechSynthesisUtterance(text);
+    u.lang = TTS_LANG;
+    u.rate = 1.02;
+    u.pitch = 1;
+    if (preferredVoiceRef.current) u.voice = preferredVoiceRef.current;
+    try { window.speechSynthesis.speak(u); } catch {}
+  }, []);
+
+  const flushTtsStreamBuffer = useCallback((): boolean => {
+    const segment = normalizeWhitespace(ttsStreamBufferRef.current);
+    if (!segment) return false;
+    ttsStreamBufferRef.current = '';
+    ttsDidStreamSpeakRef.current = true;
+    speakShort(segment);
+    return true;
+  }, [speakShort]);
 
   const handleStartClick = async () => {
     try {
@@ -338,6 +422,32 @@ export default function LivePitchRoom() {
           
           if (cleanText) {
             setMessages(prev => [...prev, { id: Date.now().toString(), text: cleanText, type: 'ai', speaker: currentSpeaker }]);
+            
+            const chunk = cleanText;
+            if (chunk && isAiStreamingRef.current === false) {
+              stopTts();
+              ttsDidStreamSpeakRef.current = false;
+              isAiStreamingRef.current = true;
+            }
+            ttsStreamBufferRef.current += chunk;
+            const buf = ttsStreamBufferRef.current;
+            const hasSentenceEnd = /[.!?]\s*$/.test(buf) || normalizeWhitespace(buf).length >= TTS_STREAM_SPEAK_MIN_CHARS;
+            
+            if (hasSentenceEnd) {
+              if (ttsStreamFlushTimerRef.current) window.clearTimeout(ttsStreamFlushTimerRef.current);
+              ttsStreamFlushTimerRef.current = window.setTimeout(() => {
+                ttsStreamFlushTimerRef.current = null;
+                flushTtsStreamBuffer();
+              }, 120);
+            } else if (!ttsStreamFlushTimerRef.current) {
+              ttsStreamFlushTimerRef.current = window.setTimeout(() => {
+                ttsStreamFlushTimerRef.current = null;
+                flushTtsStreamBuffer();
+              }, TTS_STREAM_FLUSH_MS);
+            }
+            
+            // Note: because Gemini natively handles audio, we are only using TTS as a fallback or for transcript-only mode.
+            // The final flush is handled implicitly by the sentence end detection and timers.
           }
         }
 
@@ -374,6 +484,10 @@ export default function LivePitchRoom() {
           };
         }
         
+        if (data.type === "SCORE_UPDATE" && data.scores) {
+          setScores(data.scores);
+        }
+
         if (data.type === "idle_end") {
           setMessages(prev => [...prev, { 
             id: `idle-${Date.now()}`, 

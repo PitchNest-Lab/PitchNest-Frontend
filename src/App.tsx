@@ -4,6 +4,8 @@ import AppLayout from './components/AppLayout';
 import LandingPage from './pages/LandingPage';
 import LoginPage from './pages/LoginPage';
 import SignupPage from './pages/SignupPage';
+import ForgotPassword from './pages/ForgotPassword';
+import ResetPassword from './pages/ResetPassword';
 import Onboarding from './pages/Onboarding';
 import Dashboard from './pages/Dashboard';
 import Analytics from './pages/Analytics';
@@ -30,6 +32,8 @@ export default function App() {
             <Route path="/" element={<LandingPage />} />
             <Route path="/login" element={<LoginPage />} />
             <Route path="/signup" element={<SignupPage />} />
+            <Route path="/forgot-password" element={<ForgotPassword />} />
+            <Route path="/reset-password" element={<ResetPassword />} />
 
             {/* Protected Routes (Wrapped in AppLayout with Sidebar) */}
             <Route element={
