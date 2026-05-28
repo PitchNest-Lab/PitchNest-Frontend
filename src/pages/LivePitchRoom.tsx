@@ -374,6 +374,17 @@ export default function LivePitchRoom() {
           };
         }
         
+        if (data.type === "idle_end") {
+          setMessages(prev => [...prev, { 
+            id: `idle-${Date.now()}`, 
+            text: data.message || "Session ended due to inactivity.", 
+            type: 'ai', 
+            speaker: "System" 
+          }]);
+          // Auto-trigger end session after a brief delay
+          setTimeout(() => handleEndSession(), 1500);
+        }
+
         if (data.type === "report") {
           if (fallbackTimerRef.current) clearTimeout(fallbackTimerRef.current);
           if (statusIntervalRef.current) clearInterval(statusIntervalRef.current);
