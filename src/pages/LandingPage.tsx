@@ -69,6 +69,13 @@ export default function LandingPage() {
 
   useEffect(() => { if (localStorage.getItem('user')) setIsLoggedIn(true); }, []);
 
+  // Testimonial swipe carousel
+  const [testimonialIdx, setTestimonialIdx] = useState(0);
+  useEffect(() => {
+    const timer = setInterval(() => setTestimonialIdx(prev => (prev + 1) % testimonials.length), 4000);
+    return () => clearInterval(timer);
+  }, []);
+
   // On mobile show only 4 features; on desktop show all 8
   const visibleFeatures = showAllFeatures ? features : features.slice(0, 4);
 
@@ -111,10 +118,10 @@ export default function LandingPage() {
               <div className="w-1.5 h-1.5 bg-sky-500 rounded-full animate-pulse" /> Live AI Simulation
             </div>
           </motion.div>
-          <motion.h1 initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6, delay: 0.1 }} className="text-2xl sm:text-4xl lg:text-5xl font-bold leading-tight tracking-tight mb-3 sm:mb-5">
+          <motion.h1 initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6, delay: 0.1 }} className="text-2xl sm:text-5xl lg:text-6xl font-bold leading-tight tracking-tight mb-3 sm:mb-5">
             Pitch Your Startup to an <span className="text-transparent bg-clip-text bg-gradient-to-r from-sky-500 to-indigo-600">AI Investor Panel</span>
           </motion.h1>
-          <motion.p initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay: 0.2 }} className="text-sm sm:text-base text-slate-500 dark:text-zinc-400 leading-relaxed mb-4 sm:mb-6 max-w-xl">
+          <motion.p initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay: 0.2 }} className="text-sm sm:text-lg text-slate-500 dark:text-zinc-400 leading-relaxed mb-4 sm:mb-6 max-w-xl">
             Present your vision to AI investors that listen, ask questions, and debate your idea in real-time.
           </motion.p>
           <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay: 0.3 }} className="flex flex-wrap gap-2 sm:gap-3">
@@ -190,8 +197,8 @@ export default function LandingPage() {
             <div className="inline-flex items-center gap-2 px-3 py-1 mb-3 rounded-full bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 text-[10px] sm:text-xs font-bold text-slate-500 dark:text-zinc-400">
               <TrendingUp className="w-3 h-3 text-green-500" /> Trusted by 500+ startup founders
             </div>
-            <h2 className="text-xl sm:text-2xl font-bold mb-2">Founders are raising faster</h2>
-            <p className="text-xs sm:text-sm text-slate-500 dark:text-zinc-400 max-w-lg mx-auto">Join successful founders who perfected their pitch with AI</p>
+            <h2 className="text-xl sm:text-3xl font-bold mb-2">Founders are raising faster</h2>
+            <p className="text-xs sm:text-base text-slate-500 dark:text-zinc-400 max-w-lg mx-auto">Join successful founders who perfected their pitch with AI</p>
           </div>
 
           {/* Startup logos */}
@@ -201,27 +208,35 @@ export default function LandingPage() {
             ))}
           </div>
 
-          {/* Testimonials — horizontal marquee */}
+          {/* Testimonials — swipe carousel */}
           <div className="relative overflow-hidden">
-            {/* Fade edges */}
-            <div className="absolute left-0 top-0 bottom-0 w-8 sm:w-16 bg-gradient-to-r from-slate-50 dark:from-zinc-900/50 to-transparent z-10 pointer-events-none" />
-            <div className="absolute right-0 top-0 bottom-0 w-8 sm:w-16 bg-gradient-to-l from-slate-50 dark:from-zinc-900/50 to-transparent z-10 pointer-events-none" />
-            <div className="flex gap-3 sm:gap-4 animate-marquee hover:[animation-play-state:paused]">
-              {[...testimonials, ...testimonials].map((t, idx) => (
-                <div key={`${t.name}-${idx}`} className="bg-white dark:bg-zinc-900 rounded-xl border border-slate-100 dark:border-zinc-800 p-4 min-w-[260px] sm:min-w-[300px] shrink-0">
-                  <div className="flex items-center gap-2.5 mb-2">
-                    <div className={cn("w-8 h-8 rounded-full bg-gradient-to-br flex items-center justify-center text-white text-xs font-bold shrink-0", t.gradient)}>{t.initials}</div>
-                    <div className="min-w-0">
-                      <h4 className="font-semibold text-xs truncate">{t.name}</h4>
-                      <p className="text-[10px] text-slate-400 dark:text-zinc-500 truncate">{t.company}</p>
+            <div
+              className="flex transition-transform duration-700 ease-in-out"
+              style={{ transform: `translateX(-${testimonialIdx * (100 / 3)}%)` }}
+            >
+              {testimonials.map((t, idx) => (
+                <div key={t.name} className="w-full sm:w-1/3 shrink-0 px-1.5 sm:px-2">
+                  <div className="bg-white dark:bg-zinc-900 rounded-xl border border-slate-100 dark:border-zinc-800 p-4 sm:p-5 h-full">
+                    <div className="flex items-center gap-2.5 mb-2">
+                      <div className={cn("w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-gradient-to-br flex items-center justify-center text-white text-xs sm:text-sm font-bold shrink-0", t.gradient)}>{t.initials}</div>
+                      <div className="min-w-0">
+                        <h4 className="font-semibold text-xs sm:text-sm truncate">{t.name}</h4>
+                        <p className="text-[10px] sm:text-xs text-slate-400 dark:text-zinc-500 truncate">{t.company}</p>
+                      </div>
+                    </div>
+                    <div className="flex gap-0.5 mb-2">{[1,2,3,4,5].map(i => <Star key={i} className="w-3 h-3 sm:w-3.5 sm:h-3.5 fill-yellow-500 text-yellow-500" />)}</div>
+                    <p className="text-xs sm:text-sm text-slate-600 dark:text-zinc-300 leading-relaxed mb-3">"{t.quote}"</p>
+                    <div className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400">
+                      <TrendingUp className="w-2.5 h-2.5" /><span className="text-[9px] sm:text-xs font-medium">{t.result}</span>
                     </div>
                   </div>
-                  <div className="flex gap-0.5 mb-2">{[1,2,3,4,5].map(i => <Star key={i} className="w-3 h-3 fill-yellow-500 text-yellow-500" />)}</div>
-                  <p className="text-xs text-slate-600 dark:text-zinc-300 leading-relaxed mb-3">"{t.quote}"</p>
-                  <div className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400">
-                    <TrendingUp className="w-2.5 h-2.5" /><span className="text-[9px] sm:text-[10px] font-medium">{t.result}</span>
-                  </div>
                 </div>
+              ))}
+            </div>
+            {/* Dots */}
+            <div className="flex justify-center gap-1.5 mt-4">
+              {testimonials.map((_, i) => (
+                <button key={i} onClick={() => setTestimonialIdx(i)} className={cn("h-1.5 rounded-full transition-all duration-300", i === testimonialIdx ? "w-6 bg-sky-500" : "w-1.5 bg-slate-300 dark:bg-zinc-700")} />
               ))}
             </div>
           </div>
@@ -232,9 +247,9 @@ export default function LandingPage() {
       <section id="features" className="py-10 sm:py-16">
         <div className="max-w-7xl mx-auto px-4 sm:px-6">
           <div className="text-center mb-6 sm:mb-10">
-            <span className="text-sky-600 dark:text-sky-400 font-bold text-[10px] sm:text-xs uppercase tracking-widest">Capabilities</span>
-            <h2 className="text-xl sm:text-2xl font-bold mt-1.5 sm:mt-3 mb-2 sm:mb-3">Everything you need to nail your pitch</h2>
-            <p className="text-xs sm:text-sm text-slate-500 dark:text-zinc-400 max-w-lg mx-auto">Train with the most advanced AI-powered pitch simulation platform</p>
+            <span className="text-sky-600 dark:text-sky-400 font-bold text-[10px] sm:text-sm uppercase tracking-widest">Capabilities</span>
+            <h2 className="text-xl sm:text-3xl font-bold mt-1.5 sm:mt-3 mb-2 sm:mb-3">Everything you need to nail your pitch</h2>
+            <p className="text-xs sm:text-base text-slate-500 dark:text-zinc-400 max-w-lg mx-auto">Train with the most advanced AI-powered pitch simulation platform</p>
           </div>
 
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
@@ -243,8 +258,8 @@ export default function LandingPage() {
                 <div className={cn("w-8 h-8 sm:w-10 sm:h-10 rounded-lg flex items-center justify-center mb-2.5 sm:mb-3", f.color)}>
                   <f.icon size={16} />
                 </div>
-                <h3 className="text-xs sm:text-sm font-bold mb-1">{f.title}</h3>
-                <p className="text-[10px] sm:text-xs text-slate-500 dark:text-zinc-400 leading-relaxed">{f.desc}</p>
+                <h3 className="text-xs sm:text-base font-bold mb-1">{f.title}</h3>
+                <p className="text-[10px] sm:text-sm text-slate-500 dark:text-zinc-400 leading-relaxed">{f.desc}</p>
               </motion.div>
             ))}
           </div>
@@ -266,7 +281,7 @@ export default function LandingPage() {
       {/* ── How It Works — 3 columns ── */}
       <section id="how-it-works" className="py-10 sm:py-14 bg-slate-50 dark:bg-zinc-900/50 transition-colors">
         <div className="max-w-7xl mx-auto px-4 sm:px-6">
-          <h2 className="text-xl sm:text-2xl font-bold text-center mb-6 sm:mb-10">Master your pitch in 3 steps</h2>
+          <h2 className="text-xl sm:text-3xl font-bold text-center mb-6 sm:mb-10">Master your pitch in 3 steps</h2>
           <div className="grid grid-cols-3 gap-4 sm:gap-8 relative">
             <div className="hidden sm:block absolute top-6 left-[15%] right-[15%] h-px bg-slate-200 dark:bg-zinc-800 -z-10" />
             {[
@@ -276,8 +291,8 @@ export default function LandingPage() {
             ].map(item => (
               <div key={item.step} className="text-center">
                 <div className="w-10 h-10 sm:w-14 sm:h-14 bg-white dark:bg-zinc-900 border-2 border-sky-500 text-sky-500 rounded-full flex items-center justify-center text-sm sm:text-lg font-bold mx-auto mb-2.5 sm:mb-5 shadow-md shadow-sky-100 dark:shadow-sky-500/10">{item.step}</div>
-                <h3 className="text-xs sm:text-sm font-bold mb-1 sm:mb-2">{item.title}</h3>
-                <p className="text-[10px] sm:text-xs text-slate-500 dark:text-zinc-400 leading-relaxed">{item.desc}</p>
+                <h3 className="text-xs sm:text-base font-bold mb-1 sm:mb-2">{item.title}</h3>
+                <p className="text-[10px] sm:text-sm text-slate-500 dark:text-zinc-400 leading-relaxed">{item.desc}</p>
               </div>
             ))}
           </div>
@@ -288,9 +303,9 @@ export default function LandingPage() {
       <section id="why-pitchnest" className="py-10 sm:py-14">
         <div className="max-w-7xl mx-auto px-4 sm:px-6">
           <div className="text-center mb-6 sm:mb-10">
-            <span className="text-sky-600 dark:text-sky-400 font-bold text-[10px] sm:text-xs uppercase tracking-widest">Why PitchNest</span>
-            <h2 className="text-xl sm:text-2xl font-bold mt-1.5 sm:mt-3 mb-2 sm:mb-3">The unfair advantage for founders</h2>
-            <p className="text-xs sm:text-sm text-slate-500 dark:text-zinc-400 max-w-lg mx-auto">Most founders walk into their first real pitch unprepared. PitchNest changes that.</p>
+            <span className="text-sky-600 dark:text-sky-400 font-bold text-[10px] sm:text-sm uppercase tracking-widest">Why PitchNest</span>
+            <h2 className="text-xl sm:text-3xl font-bold mt-1.5 sm:mt-3 mb-2 sm:mb-3">The unfair advantage for founders</h2>
+            <p className="text-xs sm:text-base text-slate-500 dark:text-zinc-400 max-w-lg mx-auto">Most founders walk into their first real pitch unprepared. PitchNest changes that.</p>
           </div>
           <div className="grid grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
             {[
@@ -305,8 +320,8 @@ export default function LandingPage() {
                 <div className={cn("w-8 h-8 rounded-lg flex items-center justify-center mb-2.5", item.accent)}>
                   <item.icon size={16} />
                 </div>
-                <h3 className="text-xs sm:text-sm font-bold mb-1">{item.title}</h3>
-                <p className="text-[10px] sm:text-xs text-slate-500 dark:text-zinc-400 leading-relaxed">{item.desc}</p>
+                <h3 className="text-xs sm:text-base font-bold mb-1">{item.title}</h3>
+                <p className="text-[10px] sm:text-sm text-slate-500 dark:text-zinc-400 leading-relaxed">{item.desc}</p>
               </motion.div>
             ))}
           </div>
@@ -318,8 +333,8 @@ export default function LandingPage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6">
           <div className="text-center mb-6 sm:mb-8">
             <span className="text-sky-600 dark:text-sky-400 font-bold text-[10px] sm:text-xs uppercase tracking-widest">Analytics</span>
-            <h2 className="text-xl sm:text-2xl font-bold mt-1.5 sm:mt-3 mb-2">Data-driven insights</h2>
-            <p className="text-xs sm:text-sm text-slate-500 dark:text-zinc-400 max-w-lg mx-auto">Beautiful analytics that help you understand your pitch performance</p>
+            <h2 className="text-xl sm:text-3xl font-bold mt-1.5 sm:mt-3 mb-2">Data-driven insights</h2>
+            <p className="text-xs sm:text-base text-slate-500 dark:text-zinc-400 max-w-lg mx-auto">Beautiful analytics that help you understand your pitch performance</p>
           </div>
 
           {/* Readiness metrics — 4 columns on desktop, 2 on mobile */}
@@ -352,8 +367,8 @@ export default function LandingPage() {
       <section className="py-10 sm:py-14 bg-slate-50 dark:bg-zinc-900/50 transition-colors">
         <div className="max-w-xl mx-auto px-4 sm:px-6 text-center">
           <span className="text-sky-600 dark:text-sky-400 font-bold text-[10px] sm:text-xs uppercase tracking-widest">Limited Early Access</span>
-          <h2 className="text-xl sm:text-2xl font-bold mt-1.5 sm:mt-3 mb-2 sm:mb-3">Be Among the First Founders</h2>
-          <p className="text-xs sm:text-sm text-slate-500 dark:text-zinc-400 mb-4 sm:mb-6">Join the waitlist and get exclusive early access to practice pitching with our AI investor panel</p>
+          <h2 className="text-xl sm:text-3xl font-bold mt-1.5 sm:mt-3 mb-2 sm:mb-3">Be Among the First Founders</h2>
+          <p className="text-xs sm:text-base text-slate-500 dark:text-zinc-400 mb-4 sm:mb-6">Join the waitlist and get exclusive early access to practice pitching with our AI investor panel</p>
 
           {waitlistStatus === 'success' ? (
             <div className="bg-emerald-50 dark:bg-emerald-950/20 border border-emerald-200 dark:border-emerald-900/30 text-emerald-600 dark:text-emerald-400 px-3 py-2 rounded-xl flex items-center justify-center gap-2">
@@ -383,7 +398,7 @@ export default function LandingPage() {
         <div className="max-w-5xl mx-auto px-4 sm:px-6">
           <div className="text-center mb-6 sm:mb-8">
             <span className="text-sky-600 dark:text-sky-400 font-bold text-[10px] sm:text-xs uppercase tracking-widest">FAQ</span>
-            <h2 className="text-xl sm:text-2xl font-bold mt-1.5 sm:mt-3 mb-2">Frequently asked questions</h2>
+            <h2 className="text-xl sm:text-3xl font-bold mt-1.5 sm:mt-3 mb-2">Frequently asked questions</h2>
           </div>
           <div className="grid sm:grid-cols-2 gap-2.5 sm:gap-3">
             {faqs.map((faq, i) => (
@@ -397,8 +412,8 @@ export default function LandingPage() {
       <section className="max-w-7xl mx-auto px-4 sm:px-6 py-10 sm:py-16">
         <div className="bg-gradient-to-br from-indigo-600 to-sky-500 rounded-2xl sm:rounded-3xl p-6 sm:p-10 text-center text-white relative overflow-hidden shadow-2xl shadow-sky-500/20">
           <div className="relative z-10 max-w-2xl mx-auto">
-            <h2 className="text-xl sm:text-3xl font-bold mb-3 sm:mb-5 leading-tight">Ready to face the panel? Start your first pitch today.</h2>
-            <p className="text-xs sm:text-sm text-white/80 mb-4 sm:mb-6">Don't wait for a real board meeting to find the flaws in your pitch. Iterate faster with PitchNest.</p>
+            <h2 className="text-xl sm:text-4xl font-bold mb-3 sm:mb-5 leading-tight">Ready to face the panel? Start your first pitch today.</h2>
+            <p className="text-xs sm:text-base text-white/80 mb-4 sm:mb-6">Don't wait for a real board meeting to find the flaws in your pitch. Iterate faster with PitchNest.</p>
             <Link to={isLoggedIn ? "/dashboard" : "/signup"} className="px-5 py-2.5 sm:px-8 sm:py-3.5 bg-white text-sky-600 text-xs sm:text-sm font-bold rounded-xl shadow-2xl hover:bg-sky-50 transition-all inline-flex items-center gap-2">
               Start Pitching Now
             </Link>

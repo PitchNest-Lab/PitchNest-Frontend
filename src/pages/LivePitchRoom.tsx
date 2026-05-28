@@ -112,6 +112,13 @@ export default function LivePitchRoom() {
     }
   }, []);
 
+  // Auto-scroll chat to bottom when new messages arrive
+  useEffect(() => {
+    if (scrollRef.current) {
+      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+    }
+  }, [messages]);
+
   // Web Speech API SpeechRecognition to transcribe spoken text for visual logging and evaluation
   useEffect(() => {
     if (!isPitching) {
@@ -302,16 +309,36 @@ export default function LivePitchRoom() {
         
         if (data.type === "transcript" || data.text) {
           const rawText = data.text || data.transcript;
-          let currentSpeaker = "Panelist";
           let cleanText = rawText;
-
-          if (rawText.includes(':')) {
-            const parts = rawText.split(':');
-            currentSpeaker = parts[0].trim();
-            cleanText = parts.slice(1).join(':').trim();
-            setActiveSpeakerName(currentSpeaker); 
+          
+          // Determine speaker: use backend-detected speaker, or parse from text
+          let currentSpeaker = data.speaker || "";
+          
+          if (!currentSpeaker) {
+            // Try to detect speaker from text patterns
+            const nameMatch = cleanText.match(/^(Marcus|Sarah|Chen|Riley|Taylor|Elena|David|James)\s+here[,.\s\u2014-]/i)
+              || cleanText.match(/(?:I'm|I am|This is|It's)\s+(Marcus|Sarah|Chen|Riley|Taylor|Elena|David|James)/i);
+            
+            if (nameMatch && nameMatch[1]) {
+              currentSpeaker = nameMatch[1].charAt(0).toUpperCase() + nameMatch[1].slice(1).toLowerCase();
+            }
           }
-          setMessages(prev => [...prev, { id: Date.now().toString(), text: cleanText, type: 'ai', speaker: currentSpeaker }]);
+          
+          // Strip the speaker intro from the displayed text to avoid redundancy
+          cleanText = cleanText.replace(/^(Marcus|Sarah|Chen|Riley|Taylor|Elena|David|James)\s+here[,.\s\u2014-]+/i, '').trim();
+          cleanText = cleanText.replace(/^(?:I'm|I am|This is|It's)\s+(?:Marcus|Sarah|Chen|Riley|Taylor|Elena|David|James)[,.\s\u2014-]+/i, '').trim();
+          
+          // Use last known speaker if we couldn't detect one
+          if (!currentSpeaker) {
+            currentSpeaker = activeSpeakerName || "Marcus";
+          }
+          
+          // Update active speaker for pulse animation
+          setActiveSpeakerName(currentSpeaker);
+          
+          if (cleanText) {
+            setMessages(prev => [...prev, { id: Date.now().toString(), text: cleanText, type: 'ai', speaker: currentSpeaker }]);
+          }
         }
 
         if (data.type === "audio") {
