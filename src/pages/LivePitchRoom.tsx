@@ -131,14 +131,13 @@ export default function LivePitchRoom() {
   const fallbackTimerRef = useRef<NodeJS.Timeout | null>(null);
   const statusIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const pitchStartTimeRef = useRef<number>(0);
-  const recognitionRef = useRef<any>(null);
-  const recognitionActiveRef = useRef<boolean>(false);
 
   const ttsStreamBufferRef = useRef<string>('');
   const ttsStreamFlushTimerRef = useRef<number | null>(null);
   const ttsDidStreamSpeakRef = useRef(false);
   const isAiStreamingRef = useRef(false);
   const preferredVoiceRef = useRef<SpeechSynthesisVoice | null>(null);
+  const uploadPromiseRef = useRef<Promise<any> | null>(null);
 
   useEffect(() => {
     if (!('speechSynthesis' in window)) return;
@@ -172,76 +171,6 @@ export default function LivePitchRoom() {
   // Web Speech API SpeechRecognition to transcribe spoken text for visual logging and evaluation
   useEffect(() => {
     if (!isPitching) {
-      if (recognitionRef.current) {
-        try { recognitionRef.current.stop(); } catch (e) {}
-        recognitionRef.current = null;
-      }
-      recognitionActiveRef.current = false;
-      return;
-    }
-
-    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
-    if (!SpeechRecognition) {
-      console.warn("SpeechRecognition not supported in this browser");
-      return;
-    }
-
-    const rec = new SpeechRecognition();
-    rec.continuous = true;
-    rec.interimResults = false;
-    rec.lang = 'en-US';
-
-    rec.onstart = () => {
-      console.log("Speech recognition started");
-      recognitionActiveRef.current = true;
-    };
-
-    rec.onresult = (event: any) => {
-      const result = event.results[event.results.length - 1];
-      if (result.isFinal) {
-        const transcript = result[0].transcript.trim();
-        if (transcript) {
-          setMessages(prev => [
-            ...prev,
-            {
-              id: `voice-${Date.now()}`,
-              text: transcript,
-              type: 'user',
-              speaker: userData.name,
-              inputMethod: 'voice'
-            }
-          ]);
-        }
-      }
-    };
-
-    rec.onerror = (event: any) => {
-      console.error("Speech Recognition Error:", event.error);
-      if (event.error === 'network' || event.error === 'not-allowed') {
-        recognitionActiveRef.current = false;
-      }
-    };
-
-    rec.onend = () => {
-      console.log("Speech recognition ended");
-      // Only restart if active and not errored out permanently
-      if (isPitching && !isMicMuted && recognitionActiveRef.current) {
-        try { rec.start(); } catch (e) {}
-      }
-    };
-
-    recognitionRef.current = rec;
-
-    if (!isMicMuted) {
-      try { rec.start(); } catch (e) {}
-    }
-
-    return () => {
-      recognitionActiveRef.current = false;
-      try { rec.stop(); } catch (e) {}
-    };
-  }, [isPitching, isMicMuted, userData.name]);
-
   useEffect(() => {
     if (!isPitching || isEvaluatingPitch) return;
     
@@ -506,7 +435,17 @@ export default function LivePitchRoom() {
         if (data.type === "report") {
           if (fallbackTimerRef.current) clearTimeout(fallbackTimerRef.current);
           if (statusIntervalRef.current) clearInterval(statusIntervalRef.current);
-          navigate(`/report${data.sessionId ? `?session=${data.sessionId}` : ''}`); 
+          
+          const finalizeNavigation = () => {
+            navigate(`/report${data.sessionId ? `?session=${data.sessionId}` : ''}`); 
+          };
+
+          if (uploadPromiseRef.current) {
+            setLoadingStatus("Finalizing video upload...");
+            uploadPromiseRef.current.finally(finalizeNavigation);
+          } else {
+            finalizeNavigation();
+          }
         }
       } catch (err) {}
     };
@@ -588,24 +527,8 @@ export default function LivePitchRoom() {
       if (screenStream) { screenStream.getTracks().forEach(track => track.stop()); }
       if (isCapturing) stopCapture();
 
-      setLoadingStatus("Uploading video to secure cloud vault...");
-      if (chunksRef.current && chunksRef.current.length > 0) {
-        const blob = new Blob(chunksRef.current, { type: 'video/webm' });
-        const formData = new FormData();
-        formData.append('video', blob, `pitch_${Date.now()}.webm`);
-        try {
-          const res = await authFetch('/api/upload-video', { method: 'POST', body: formData });
-          const data = await res.json();
-          if (data.videoUrl && socket && socket.readyState === WebSocket.OPEN) {
-            socket.send(JSON.stringify({ type: "set_video_url", url: data.videoUrl }));
-          }
-        } catch (err) {}
-      }
-      
-      // 🔥 FIX 3: Clear chunks from memory to prevent browser memory leak
-      chunksRef.current = [];
-      
-      setLoadingStatus("Panel is grading your pitch...");
+      // 1. Immediately send end_session so AI can start grading without waiting for large video upload
+      setLoadingStatus("Panel is grading your pitch while video uploads...");
       if (socket && socket.readyState === WebSocket.OPEN) {
         const finalDuration = Math.floor((Date.now() - pitchStartTimeRef.current) / 1000);
         socket.send(JSON.stringify({ 
@@ -614,6 +537,29 @@ export default function LivePitchRoom() {
           transcript: messages
         }));
       }
+
+      // 2. Upload video in parallel
+      if (chunksRef.current && chunksRef.current.length > 0) {
+        const blob = new Blob(chunksRef.current, { type: 'video/webm' });
+        const formData = new FormData();
+        formData.append('video', blob, `pitch_${Date.now()}.webm`);
+        
+        uploadPromiseRef.current = new Promise<void>(async (resolve) => {
+          try {
+            const res = await authFetch('/api/upload-video', { method: 'POST', body: formData });
+            const data = await res.json();
+            if (data.videoUrl && socket && socket.readyState === WebSocket.OPEN) {
+              socket.send(JSON.stringify({ type: "set_video_url", url: data.videoUrl }));
+            }
+          } catch (err) {
+            console.error("Video upload failed:", err);
+          } finally {
+            resolve();
+          }
+        });
+      }
+      
+      chunksRef.current = [];
     };
 
     if (mediaRecorderRef.current && mediaRecorderRef.current.state !== "inactive") {
