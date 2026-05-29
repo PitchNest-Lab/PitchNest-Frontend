@@ -25,7 +25,7 @@ export const SocketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
     const WS_URL = isLocal 
       ? `ws://${window.location.hostname}:3000` 
-      : `${protocol}//${host}`;
+      : `wss://pitchnest-live.onrender.com`;
 
     const ws = new WebSocket(WS_URL);
 
