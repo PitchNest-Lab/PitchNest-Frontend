@@ -49,28 +49,49 @@ const VoiceWaveform = ({ isActive }: { isActive?: boolean }) => (
   </div>
 );
 
+const PANELISTS_AVATARS: Record<string, string> = {
+  marcus: "https://images.unsplash.com/photo-1560250097-0b93528c311a?auto=format&fit=crop&q=80&w=300&h=300",
+  sarah: "https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&q=80&w=300&h=300",
+  chen: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&q=80&w=300&h=300",
+  elena: "https://images.unsplash.com/photo-1580489944761-15a19d654956?auto=format&fit=crop&q=80&w=300&h=300",
+  david: "https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?auto=format&fit=crop&q=80&w=300&h=300",
+  james: "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?auto=format&fit=crop&q=80&w=300&h=300",
+  riley: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=300&h=300",
+  taylor: "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&q=80&w=300&h=300",
+};
+
+function getPanelistAvatar(name: string): string {
+  const normalized = name.toLowerCase().trim();
+  for (const [key, url] of Object.entries(PANELISTS_AVATARS)) {
+    if (normalized.includes(key)) {
+      return url;
+    }
+  }
+  return `https://i.pravatar.cc/300?u=${normalized}`;
+}
+
 const AIPanelist = ({ name, role, isActive }: { name: string, role: string, isActive?: boolean }) => (
   <div className={cn(
-    "relative overflow-hidden bg-slate-900/60 backdrop-blur-md rounded-[20px] transition-all duration-500 group flex flex-col border",
-    isActive ? "border-sky-500 shadow-[0_0_20px_rgba(14,165,233,0.3)] bg-slate-800" : "border-white/5"
+    "relative overflow-hidden bg-white/80 dark:bg-zinc-900/60 backdrop-blur-md rounded-[20px] transition-all duration-500 group flex flex-col border",
+    isActive ? "border-sky-500 shadow-[0_0_20px_rgba(14,165,233,0.15)] bg-sky-50/50 dark:bg-zinc-800" : "border-slate-200 dark:border-white/5"
   )}>
     {isActive && <div className="absolute inset-0 bg-gradient-to-b from-sky-500/10 to-transparent pointer-events-none" />}
     
-    <div className="relative aspect-[4/3] w-full bg-slate-800 overflow-hidden">
+    <div className="relative aspect-[4/3] w-full bg-slate-100 dark:bg-slate-800 overflow-hidden">
        {/* Realistic Avatar for Dashboard look */}
-      <img src={`https://i.pravatar.cc/300?u=${name.toLowerCase()}investor`} alt={name} className={cn("w-full h-full object-cover transition-transform duration-700", isActive ? "scale-110" : "scale-100")} />
+      <img src={getPanelistAvatar(name)} alt={name} className={cn("w-full h-full object-cover transition-transform duration-700", isActive ? "scale-110" : "scale-100")} />
       
       {/* Active Recording Icon top right */}
-      <div className="absolute top-3 right-3 flex items-center gap-1.5 bg-black/40 backdrop-blur-md px-2 py-1 rounded-md border border-white/10">
-        <Video size={10} className={isActive ? "text-sky-400" : "text-white/40"} />
+      <div className="absolute top-3 right-3 flex items-center gap-1.5 bg-white/60 dark:bg-black/40 backdrop-blur-md px-2 py-1 rounded-md border border-slate-200/60 dark:border-white/10">
+        <Video size={10} className={isActive ? "text-sky-400" : "text-slate-500 dark:text-white/40"} />
         {isActive && <span className="w-1.5 h-1.5 rounded-full bg-rose-500 animate-pulse" />}
       </div>
     </div>
 
-    <div className="p-3 flex items-center justify-between border-t border-white/5 relative bg-slate-900">
+    <div className="p-3 flex items-center justify-between border-t border-slate-200/65 dark:border-white/5 relative bg-slate-50 dark:bg-slate-900">
       <div className="relative z-10">
-        <p className="text-[11px] font-bold text-white uppercase tracking-wider">{name}</p>
-        <span className="text-[9px] font-bold text-sky-400/80 uppercase tracking-widest">{role}</span>
+        <p className="text-[11px] font-bold text-slate-800 dark:text-white uppercase tracking-wider">{name}</p>
+        <span className="text-[9px] font-bold text-sky-600 dark:text-sky-400/80 uppercase tracking-widest">{role}</span>
       </div>
       <div className="opacity-70 group-hover:opacity-100 transition-opacity">
         <VoiceWaveform isActive={isActive} />
@@ -209,16 +230,8 @@ export default function LivePitchRoom() {
   }, []);
 
   const speakShort = useCallback((rawText: string) => {
-    if (!('speechSynthesis' in window)) return;
-    const text = limitSpokenText(rawText);
-    if (!text) return;
-    try { if (window.speechSynthesis.speaking) window.speechSynthesis.cancel(); } catch {}
-    const u = new SpeechSynthesisUtterance(text);
-    u.lang = TTS_LANG;
-    u.rate = 1.02;
-    u.pitch = 1;
-    if (preferredVoiceRef.current) u.voice = preferredVoiceRef.current;
-    try { window.speechSynthesis.speak(u); } catch {}
+    // Disabled to prevent double-voice bug and clash with native Gemini audio
+    return;
   }, []);
 
   const flushTtsStreamBuffer = useCallback((): boolean => {
@@ -600,7 +613,7 @@ export default function LivePitchRoom() {
   };
 
   return (
-    <div className="h-screen max-h-screen bg-slate-900 dark:bg-zinc-950 text-white font-sans flex flex-col relative overflow-hidden transition-colors">
+    <div className="h-screen max-h-screen bg-slate-50 dark:bg-zinc-950 text-slate-800 dark:text-white font-sans flex flex-col relative overflow-hidden transition-colors">
       
       <AnimatePresence>
         {roomState !== 'live' && (
@@ -631,15 +644,15 @@ export default function LivePitchRoom() {
         )}
       </AnimatePresence>
 
-      <header className="px-6 py-3 flex justify-between items-center border-b border-white/5 bg-slate-900/50 dark:bg-zinc-950/50 backdrop-blur-md shrink-0 z-20">
+      <header className="px-6 py-3 flex justify-between items-center border-b border-slate-200 dark:border-white/5 bg-white/80 dark:bg-zinc-950/50 backdrop-blur-md shrink-0 z-20 transition-colors">
         <div className="flex items-center gap-4">
           <div className={cn("w-8 h-8 flex items-center justify-center overflow-hidden rounded-lg", logoError && "bg-sky-500 text-white")}>
             {!logoError ? <img src="/PitchNest Logo.png" alt="Logo" className="w-full h-full object-contain" onError={() => setLogoError(true)} /> : <Rocket size={20} fill="currentColor" />}
           </div>
-          <span className="text-lg font-bold tracking-tight">PitchNest</span>
-          <div className="h-6 w-px bg-white/10 mx-2" />
+          <span className="text-lg font-bold tracking-tight text-slate-900 dark:text-white">PitchNest</span>
+          <div className="h-6 w-px bg-slate-200 dark:bg-white/10 mx-2" />
           <ThemeToggle />
-          <div className="h-6 w-px bg-white/10 mx-2" />
+          <div className="h-6 w-px bg-slate-200 dark:bg-white/10 mx-2" />
           <div className={cn("flex items-center gap-2 px-3 py-1 rounded-full border transition-all", isConnected ? "bg-emerald-500/10 text-emerald-500 border-emerald-500/20" : "bg-rose-500/10 text-rose-500 border-rose-500/20")}>
             <div className={cn("w-2 h-2 rounded-full", isConnected ? "bg-emerald-500 animate-pulse" : "bg-rose-500")} />
             <span className="text-[10px] font-bold uppercase tracking-widest">{isConnected ? "Brain Connected" : "Offline"}</span>
@@ -648,35 +661,35 @@ export default function LivePitchRoom() {
 
         <div className={cn(
           "flex items-center gap-2 px-4 py-1.5 rounded-full font-mono text-sm font-bold border transition-colors",
-          timeLeft < 180 ? "bg-rose-500/20 text-rose-500 border-rose-500/50 animate-pulse" : "bg-slate-800 text-white border-slate-700"
+          timeLeft < 180 ? "bg-rose-500/20 text-rose-500 border-rose-500/50 animate-pulse" : "bg-slate-100 dark:bg-zinc-900 text-slate-800 dark:text-white border-slate-200 dark:border-zinc-800"
         )}>
           <Timer size={16} />
           {formatTime(timeLeft)}
         </div>
 
-        <div className="flex items-center gap-4 pl-6 border-l border-white/10">
+        <div className="flex items-center gap-4 pl-6 border-l border-slate-200 dark:border-white/10">
           <div className="flex items-center gap-3">
             <div className="text-right">
-              <p className="text-sm font-bold">{userData.name}</p>
-              <p className="text-[10px] text-white/40 font-medium">Founder</p>
+              <p className="text-sm font-bold text-slate-800 dark:text-white">{userData.name}</p>
+              <p className="text-[10px] text-slate-400 dark:text-white/40 font-medium">Founder</p>
             </div>
             <div className="relative">
-              <img src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${userData.name}`} alt="Avatar" className="w-10 h-10 rounded-full border-2 border-white/10 relative z-10 bg-sky-100" />
+              <img src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${userData.name}`} alt="Avatar" className="w-10 h-10 rounded-full border-2 border-slate-200 dark:border-white/10 relative z-10 bg-sky-100" />
             </div>
           </div>
         </div>
       </header>
 
-      <div className="flex-1 flex flex-col lg:flex-row p-4 gap-6 min-h-0 overflow-hidden bg-slate-950">
+      <div className="flex-1 flex flex-col lg:flex-row p-3.5 gap-4 min-h-0 overflow-hidden bg-slate-100/50 dark:bg-zinc-950 transition-colors">
         
         {/* LEFT COLUMN: AI Panelists */}
-        <div className="w-64 lg:w-72 shrink-0 bg-slate-900/40 backdrop-blur-xl rounded-[24px] p-4 flex flex-col border border-white/5 shadow-2xl min-h-0">
+        <div className="w-64 lg:w-72 shrink-0 bg-white/70 dark:bg-zinc-900/40 backdrop-blur-xl rounded-[24px] p-4 flex flex-col border border-slate-200 dark:border-white/5 shadow-xl dark:shadow-2xl min-h-0 transition-colors">
           <div className="mb-4 shrink-0">
-            <h3 className="text-xs font-bold text-white flex items-center gap-2 uppercase tracking-widest">
+            <h3 className="text-xs font-bold text-slate-700 dark:text-white flex items-center gap-2 uppercase tracking-widest">
               {pitchConfig.mode === 'solo' ? 'Solo Practice' : 'AI Investor Panel'}
               {isSpeaking && <Sparkles className="text-sky-500 animate-pulse" size={14} />}
             </h3>
-            <p className="text-[10px] font-bold text-sky-400 uppercase mt-1 tracking-wider">
+            <p className="text-[10px] font-bold text-sky-600 dark:text-sky-400 uppercase mt-1 tracking-wider">
               {pitchConfig.mode === 'solo' ? "No interruptions" : pitchConfig.investorArchetype}
             </p>
           </div>
@@ -692,7 +705,7 @@ export default function LivePitchRoom() {
             ))}
             
             {pitchConfig.mode === 'solo' && (
-              <div className="p-4 border border-dashed border-white/10 rounded-2xl text-center text-slate-500 text-xs mt-2">
+              <div className="p-4 border border-dashed border-slate-200 dark:border-white/10 rounded-2xl text-center text-slate-500 text-xs mt-2">
                 AI Interruption Disabled.<br/> Record your pitch uninterrupted.
               </div>
             )}
@@ -700,10 +713,10 @@ export default function LivePitchRoom() {
         </div>
 
         {/* CENTER COLUMN: Main Screen, Controls, Chat */}
-        <div className="flex-1 flex flex-col gap-4 min-h-0">
+        <div className="flex-1 flex flex-col gap-3.5 min-h-0">
           
           {/* Main Viewing Area */}
-          <div className="flex-1 relative border border-white/10 shadow-2xl group rounded-[24px] min-h-0 bg-slate-900/80 overflow-hidden backdrop-blur-lg">
+          <div className="flex-1 relative border border-slate-200 dark:border-white/10 shadow-xl dark:shadow-2xl group rounded-[24px] min-h-0 bg-white dark:bg-zinc-900/80 overflow-hidden backdrop-blur-lg transition-colors">
             {mainView === 'slide' ? (
               <div className="w-full h-full relative flex items-center justify-center rounded-[24px] overflow-hidden">
                 {isCapturing ? (
@@ -711,41 +724,41 @@ export default function LivePitchRoom() {
                 ) : pitchConfig.selectedDeck ? (
                   <iframe src={getDeckUrl(pitchConfig.selectedDeck.file_url)} className="w-full h-full border-none" title="Pitch Deck" />
                 ) : (
-                  <div className="text-slate-400 text-center bg-slate-900 w-full h-full flex flex-col items-center justify-center"><MonitorOff size={64} className="mx-auto mb-2 opacity-50" /><p className="text-xs font-bold uppercase tracking-widest opacity-50">No deck selected</p></div>
+                  <div className="text-slate-400 dark:text-slate-500 text-center bg-slate-100 dark:bg-slate-900 w-full h-full flex flex-col items-center justify-center"><MonitorOff size={64} className="mx-auto mb-2 opacity-50" /><p className="text-xs font-bold uppercase tracking-widest opacity-50">No deck selected</p></div>
                 )}
               </div>
             ) : (
               <div className="w-full h-full relative flex items-center justify-center rounded-[24px] overflow-hidden">
-                {stream ? <video ref={videoRef} autoPlay muted playsInline className="w-full h-full object-cover" /> : <VideoOff size={64} className="text-white/20" />}
-                {isPitching && <div className="absolute top-4 right-4 bg-rose-500 px-3 py-1 rounded-full text-[9px] font-bold animate-pulse shadow-lg z-10 uppercase tracking-widest">Vision On</div>}
+                {stream ? <video ref={videoRef} autoPlay muted playsInline className="w-full h-full object-cover" /> : <VideoOff size={64} className="text-slate-300 dark:text-white/20" />}
+                {isPitching && <div className="absolute top-4 right-4 bg-rose-500 px-3 py-1 rounded-full text-[9px] font-bold animate-pulse shadow-lg z-10 uppercase tracking-widest text-white">Vision On</div>}
               </div>
             )}
 
             <button 
               onClick={() => setMainView(v => v === 'slide' ? 'camera' : 'slide')}
-              className="absolute top-4 left-4 px-4 py-2 bg-black/60 hover:bg-black/80 backdrop-blur-md border border-white/10 rounded-xl text-white transition-all z-20 flex items-center gap-2 shadow-lg"
+              className="absolute top-4 left-4 px-4 py-2 bg-black/60 hover:bg-black/80 backdrop-blur-md border border-white/10 rounded-xl text-white transition-all z-20 flex items-center gap-2 shadow-lg cursor-pointer"
             >
               <ArrowRightLeft size={14} /> <span className="text-[10px] font-bold uppercase tracking-widest">Swap View</span>
             </button>
             
             {/* Control Bar Overlay (Bottom Center) */}
-            <div className="absolute bottom-6 left-1/2 -translate-x-1/2 flex items-center gap-3 bg-slate-900/80 backdrop-blur-xl border border-white/10 p-2 rounded-2xl shadow-2xl z-20">
-              <button onClick={toggleCamera} className={cn("w-12 h-12 rounded-xl transition-all flex items-center justify-center", stream ? "bg-slate-800 text-white hover:bg-slate-700" : "bg-rose-500/20 text-rose-500 hover:bg-rose-500/30")}>
+            <div className="absolute bottom-6 left-1/2 -translate-x-1/2 flex items-center gap-3 bg-white/95 dark:bg-zinc-900/90 backdrop-blur-xl border border-slate-200 dark:border-white/10 p-2 rounded-2xl shadow-xl dark:shadow-2xl z-20 transition-colors">
+              <button onClick={toggleCamera} className={cn("w-12 h-12 rounded-xl transition-all flex items-center justify-center cursor-pointer", stream ? "bg-slate-100 dark:bg-zinc-800 text-slate-800 dark:text-white hover:bg-slate-200 dark:hover:bg-zinc-700" : "bg-rose-500/20 text-rose-500 hover:bg-rose-500/30")}>
                 {stream ? <Video size={20} /> : <VideoOff size={20} />}
               </button>
-              <button onClick={toggleMic} className={cn("w-12 h-12 rounded-xl transition-all flex items-center justify-center", !isMicMuted ? "bg-sky-500 text-white hover:bg-sky-600 shadow-lg shadow-sky-500/20" : "bg-rose-500/20 text-rose-500 hover:bg-rose-500/30")}>
+              <button onClick={toggleMic} className={cn("w-12 h-12 rounded-xl transition-all flex items-center justify-center cursor-pointer", !isMicMuted ? "bg-sky-500 text-white hover:bg-sky-600 shadow-lg shadow-sky-500/20" : "bg-rose-500/20 text-rose-500 hover:bg-rose-500/30")}>
                 {!isMicMuted ? <Mic size={20} /> : <MicOff size={20} />}
               </button>
               {canScreenShare && (
-                <button onClick={toggleScreenShare} className={cn("w-12 h-12 rounded-xl transition-all flex items-center justify-center", isCapturing ? "bg-emerald-500 text-white shadow-lg shadow-emerald-500/20 hover:bg-emerald-600" : "bg-slate-800 text-white hover:bg-slate-700")}>
+                <button onClick={toggleScreenShare} className={cn("w-12 h-12 rounded-xl transition-all flex items-center justify-center cursor-pointer", isCapturing ? "bg-emerald-500 text-white shadow-lg shadow-emerald-500/20 hover:bg-emerald-600" : "bg-slate-100 dark:bg-zinc-800 text-slate-800 dark:text-white hover:bg-slate-200 dark:hover:bg-zinc-700")}>
                   {isCapturing ? <Monitor size={20} /> : <MonitorOff size={20} />}
                 </button>
               )}
-              <div className="w-px h-8 bg-white/10 mx-2" />
+              <div className="w-px h-8 bg-slate-200 dark:bg-white/10 mx-2" />
               <button 
                 onClick={handleEndSession}
                 disabled={!isConnected && !isPitching}
-                className="px-6 h-12 bg-rose-500 text-white text-sm font-bold rounded-xl hover:bg-rose-600 transition-all disabled:bg-slate-700 disabled:opacity-50 shadow-lg shadow-rose-500/20 flex items-center justify-center gap-2"
+                className="px-6 h-12 bg-rose-500 text-white text-sm font-bold rounded-xl hover:bg-rose-600 transition-all disabled:bg-slate-200 dark:disabled:bg-slate-700 disabled:opacity-50 shadow-lg shadow-rose-500/20 flex items-center justify-center gap-2 cursor-pointer"
               >
                 <VolumeX size={18} /> End Pitch
               </button>
@@ -753,22 +766,22 @@ export default function LivePitchRoom() {
           </div>
 
           {/* Transcript / Chat Area */}
-          <div className="h-40 lg:h-48 shrink-0 bg-slate-900/60 backdrop-blur-xl rounded-[24px] p-4 flex flex-col border border-white/5 shadow-2xl">
-            <div className="flex items-center gap-2 text-white/50 text-[10px] font-bold uppercase tracking-widest mb-2 shrink-0">
+          <div className="h-40 lg:h-48 shrink-0 bg-white/70 dark:bg-zinc-900/60 backdrop-blur-xl rounded-[24px] p-4 flex flex-col border border-slate-200 dark:border-white/5 shadow-xl dark:shadow-2xl transition-colors">
+            <div className="flex items-center gap-2 text-slate-500 dark:text-white/50 text-[10px] font-bold uppercase tracking-widest mb-2 shrink-0">
               <MessageSquare size={14} /> Chatbox & Transcript
-              {isSpeaking && <span className="text-sky-400 animate-pulse ml-auto font-medium">AI is responding...</span>}
+              {isSpeaking && <span className="text-sky-500 dark:text-sky-400 animate-pulse ml-auto font-medium">AI is responding...</span>}
             </div>
             
             <div ref={scrollRef} className="flex-1 overflow-y-auto space-y-4 pr-2 custom-scrollbar mb-3">
-              {messages.length === 0 ? <p className="text-white/30 text-xs text-center mt-4 font-medium tracking-wide">AI Panel is ready. Start your pitch.</p> : 
+              {messages.length === 0 ? <p className="text-slate-400 dark:text-white/30 text-xs text-center mt-4 font-medium tracking-wide">AI Panel is ready. Start your pitch.</p> : 
                 messages.map((m) => (
                   <div key={m.id} className={cn("flex flex-col max-w-[80%]", m.type === 'user' ? "ml-auto items-end" : "mr-auto items-start")}>
-                    <span className="text-[9px] font-bold uppercase text-white/40 mb-1 px-1 tracking-widest">
+                    <span className="text-[9px] font-bold uppercase text-slate-450 dark:text-white/40 mb-1 px-1 tracking-widest">
                       {m.speaker || (m.type === 'user' ? userData.name : "Panelist")}
                     </span>
                     <div className={cn(
                       "p-3.5 text-sm leading-relaxed",
-                      m.type === 'user' ? "bg-sky-500 text-white rounded-2xl rounded-tr-sm shadow-md" : "bg-slate-800 text-slate-100 rounded-2xl rounded-tl-sm border border-slate-700 shadow-sm"
+                      m.type === 'user' ? "bg-sky-500 text-white rounded-2xl rounded-tr-sm shadow-md" : "bg-slate-100 dark:bg-zinc-800 text-slate-800 dark:text-slate-100 rounded-2xl rounded-tl-sm border border-slate-200 dark:border-zinc-700 shadow-sm"
                     )}>
                       {m.text}
                     </div>
@@ -777,13 +790,13 @@ export default function LivePitchRoom() {
               }
             </div>
 
-            <form onSubmit={handleSendChat} className="flex items-center gap-3 shrink-0 mt-auto bg-slate-950/50 border border-white/10 rounded-xl p-1.5 shadow-inner">
+            <form onSubmit={handleSendChat} className="flex items-center gap-3 shrink-0 mt-auto bg-slate-100/50 dark:bg-zinc-950/50 border border-slate-200 dark:border-white/10 rounded-xl p-1.5 shadow-inner">
               <input 
                 type="text" value={chatInput} onChange={e => setChatInput(e.target.value)}
                 placeholder="Type a message to the panel..."
-                className="flex-1 bg-transparent border-none focus:ring-0 text-sm text-white placeholder:text-slate-500 px-3 outline-none"
+                className="flex-1 bg-transparent border-none focus:ring-0 text-sm text-slate-800 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500 px-3 outline-none"
               />
-              <button type="submit" disabled={!isConnected} className="px-4 py-2 bg-sky-500 text-white font-bold text-xs uppercase tracking-wider rounded-lg hover:bg-sky-600 transition-colors disabled:opacity-50 shadow-md">
+              <button type="submit" disabled={!isConnected} className="px-4 py-2 bg-sky-500 text-white font-bold text-slate-100 hover:text-white text-xs uppercase tracking-wider rounded-lg hover:bg-sky-600 transition-colors disabled:opacity-50 shadow-md cursor-pointer">
                 Send
               </button>
             </form>
@@ -791,19 +804,19 @@ export default function LivePitchRoom() {
         </div>
 
         {/* RIGHT COLUMN: Deck, Vitals, Analytics */}
-        <div className="w-80 lg:w-96 shrink-0 flex flex-col gap-4 min-h-0">
+        <div className="w-80 lg:w-96 shrink-0 flex flex-col gap-3.5 min-h-0 overflow-y-auto custom-scrollbar pr-1">
           
           {/* Deck Preview Box */}
-          <div className="h-40 lg:h-48 shrink-0 relative shadow-2xl border-4 border-white/10 rounded-[24px] overflow-hidden bg-slate-900 cursor-pointer group transition-transform hover:scale-[1.02]" onClick={() => setMainView(v => v === 'slide' ? 'camera' : 'slide')}>
+          <div className="h-32 lg:h-36 shrink-0 relative shadow-xl dark:shadow-2xl border-4 border-slate-250 dark:border-white/10 rounded-[24px] overflow-hidden bg-white dark:bg-zinc-900 cursor-pointer group transition-transform hover:scale-[1.02]" onClick={() => setMainView(v => v === 'slide' ? 'camera' : 'slide')}>
             {mainView === 'camera' ? (
-              <div className="w-full h-full relative flex items-center justify-center bg-slate-900 pointer-events-none">
+              <div className="w-full h-full relative flex items-center justify-center bg-slate-100 dark:bg-zinc-900 pointer-events-none">
                 {isCapturing ? <video ref={screenRef} autoPlay muted playsInline className="w-full h-full object-contain" /> : 
                  pitchConfig.selectedDeck ? <iframe src={getDeckUrl(pitchConfig.selectedDeck.file_url)} className="w-full h-full border-none opacity-90 scale-105" title="Pitch Deck" /> :
-                 <div className="text-white/20 text-center"><MonitorOff size={32} className="mx-auto mb-2" /><p className="text-[10px] font-bold uppercase tracking-widest">No Deck</p></div>}
+                 <div className="text-slate-400 dark:text-white/20 text-center"><MonitorOff size={32} className="mx-auto mb-2" /><p className="text-[10px] font-bold uppercase tracking-widest">No Deck</p></div>}
               </div>
             ) : (
               <div className="w-full h-full relative flex items-center justify-center pointer-events-none">
-                {stream ? <video ref={videoRef} autoPlay muted playsInline className="w-full h-full object-cover" /> : <VideoOff size={32} className="text-white/20" />}
+                {stream ? <video ref={videoRef} autoPlay muted playsInline className="w-full h-full object-cover" /> : <VideoOff size={32} className="text-slate-300 dark:text-white/20" />}
               </div>
             )}
             
@@ -814,38 +827,38 @@ export default function LivePitchRoom() {
           </div>
 
           {/* Live Session Monitor / Boardroom Vitals */}
-          <div className="bg-slate-900/40 backdrop-blur-xl rounded-[24px] p-5 border border-white/5 shadow-xl flex flex-col shrink-0">
-            <div className="flex items-center gap-2 text-white/50 text-[10px] font-bold uppercase tracking-widest shrink-0 mb-4">
+          <div className="bg-white/70 dark:bg-zinc-900/40 backdrop-blur-xl rounded-[24px] p-4 border border-slate-200 dark:border-white/5 shadow-xl flex flex-col shrink-0 transition-colors">
+            <div className="flex items-center gap-2 text-slate-500 dark:text-white/50 text-[10px] font-bold uppercase tracking-widest shrink-0 mb-2.5">
               <Activity size={14} /> Live Session Monitor
             </div>
             
-            <h4 className="text-[11px] font-bold text-white/80 uppercase tracking-widest mb-3">Boardroom Vitals</h4>
+            <h4 className="text-[11px] font-bold text-slate-700 dark:text-white/80 uppercase tracking-widest mb-3">Boardroom Vitals</h4>
             
-            <div className="space-y-4">
+            <div className="space-y-2.5">
               <div className="flex justify-between items-center text-sm">
-                <span className="text-slate-400 font-medium">Brain Link</span>
-                <span className={cn("text-[10px] font-bold uppercase tracking-wider", isConnected ? "text-emerald-400" : "text-rose-400")}>
+                <span className="text-slate-500 dark:text-slate-400 font-medium">Brain Link</span>
+                <span className={cn("text-[10px] font-bold uppercase tracking-wider", isConnected ? "text-emerald-500 dark:text-emerald-400" : "text-rose-500 dark:text-rose-400")}>
                   {isConnected ? "Connected" : "Offline"}
                 </span>
               </div>
               
               <div className="flex justify-between items-center text-sm">
-                <span className="text-slate-400 font-medium">Audio Pipeline</span>
-                <span className={cn("text-[10px] font-bold uppercase tracking-wider", stream && !isMicMuted ? "text-sky-400" : "text-rose-400")}>
+                <span className="text-slate-500 dark:text-slate-400 font-medium">Audio Pipeline</span>
+                <span className={cn("text-[10px] font-bold uppercase tracking-wider", stream && !isMicMuted ? "text-sky-600 dark:text-sky-400" : "text-rose-500 dark:text-rose-400")}>
                   {stream && !isMicMuted ? "Active" : "Muted"}
                 </span>
               </div>
 
               <div className="flex justify-between items-center text-sm">
-                <span className="text-slate-400 font-medium">Vision Input</span>
-                <span className={cn("text-[10px] font-bold uppercase tracking-wider", stream ? "text-sky-400" : "text-slate-500")}>
+                <span className="text-slate-500 dark:text-slate-400 font-medium">Vision Input</span>
+                <span className={cn("text-[10px] font-bold uppercase tracking-wider", stream ? "text-sky-600 dark:text-sky-400" : "text-slate-400 dark:text-slate-500")}>
                   {stream ? "Active" : "Disabled"}
                 </span>
               </div>
 
               <div className="flex justify-between items-center text-sm">
-                <span className="text-slate-400 font-medium">Interactive Sharing</span>
-                <span className={cn("text-[10px] font-bold uppercase tracking-wider", isCapturing ? "text-amber-400" : "text-slate-500")}>
+                <span className="text-slate-500 dark:text-slate-400 font-medium">Interactive Sharing</span>
+                <span className={cn("text-[10px] font-bold uppercase tracking-wider", isCapturing ? "text-amber-500 dark:text-amber-400" : "text-slate-400 dark:text-slate-500")}>
                   {isCapturing ? "Casting" : "Inactive"}
                 </span>
               </div>
@@ -860,13 +873,13 @@ export default function LivePitchRoom() {
             const dialogueBalance = totalMsgCount > 0 ? Math.round((userMsgCount / totalMsgCount) * 100) : 50;
 
             return (
-              <div className="flex-1 bg-slate-900/40 backdrop-blur-xl rounded-[24px] p-4 border border-white/5 flex flex-col justify-between shadow-xl min-h-[150px]">
-                <h4 className="text-[11px] font-bold text-white/80 uppercase tracking-widest mb-3">Data Chart</h4>
+              <div className="bg-white/70 dark:bg-zinc-900/40 backdrop-blur-xl rounded-[24px] p-4 border border-slate-200 dark:border-white/5 flex flex-col justify-between shadow-xl min-h-[120px] transition-colors">
+                <h4 className="text-[11px] font-bold text-slate-700 dark:text-white/80 uppercase tracking-widest mb-3">Data Chart</h4>
                 
-                <div className="flex items-end justify-between h-20 gap-3 pb-2 border-b border-white/10">
+                <div className="flex items-end justify-between h-14 gap-3 pb-2 border-b border-slate-200 dark:border-white/10">
                   {/* Mocking the data chart bars for aesthetics, binding to dialogue balance */}
                   {[dialogueBalance, 100-dialogueBalance, Math.max(20, dialogueBalance-10), Math.min(90, dialogueBalance+20), 60, 45].map((val, i) => (
-                    <div key={i} className="flex-1 flex flex-col justify-end group">
+                    <div key={i} className="flex-1 flex flex-col justify-end group animate-all">
                       <div 
                         className="w-full rounded-t-sm transition-all duration-500 bg-gradient-to-t from-sky-600 to-sky-400 opacity-80 group-hover:opacity-100" 
                         style={{ height: `${val}%` }} 
@@ -874,7 +887,7 @@ export default function LivePitchRoom() {
                     </div>
                   ))}
                 </div>
-                <div className="flex justify-between text-[9px] font-bold text-white/40 uppercase tracking-widest mt-3">
+                <div className="flex justify-between text-[9px] font-bold text-slate-400 dark:text-white/40 uppercase tracking-widest mt-3">
                   <span>Founder</span>
                   <span>Dynamics</span>
                   <span>Panel</span>
