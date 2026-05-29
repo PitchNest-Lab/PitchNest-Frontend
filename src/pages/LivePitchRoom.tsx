@@ -611,6 +611,8 @@ export default function LivePitchRoom() {
       return `${baseUrl}${url}`;
     }
     return url;
+  };
+
   return (
     <div className="h-screen max-h-screen bg-slate-50 dark:bg-zinc-950 text-slate-800 dark:text-white font-sans flex flex-col relative overflow-hidden transition-colors">
       
@@ -1185,7 +1187,5 @@ export default function LivePitchRoom() {
         )}
       </AnimatePresence>
     </div>
-  );
-}v>
   );
 }
