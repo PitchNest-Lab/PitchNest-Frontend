@@ -177,9 +177,7 @@ export default function LivePitchRoom() {
     }
   }, [messages]);
 
-  // Web Speech API SpeechRecognition to transcribe spoken text for visual logging and evaluation
-  useEffect(() => {
-    if (!isPitching) {
+
   useEffect(() => {
     if (!isPitching || isEvaluatingPitch) return;
     
