@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { 
   Rocket, Video, VideoOff, Sparkles, Mic, MicOff, 
   VolumeX, Monitor, MonitorOff, Send, ArrowRightLeft, Loader2, AlertTriangle, MessageSquare, Timer,
-  Activity, TrendingUp
+  Activity, TrendingUp, Users
 } from 'lucide-react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -72,7 +72,7 @@ function getPanelistAvatar(name: string): string {
 
 const AIPanelist = ({ name, role, isActive }: { name: string, role: string, isActive?: boolean }) => (
   <div className={cn(
-    "w-[190px] lg:w-full shrink-0 relative overflow-hidden bg-white/80 dark:bg-zinc-900/60 backdrop-blur-md rounded-[20px] transition-all duration-500 group flex flex-col border",
+    "w-full max-w-[190px] lg:max-w-none lg:w-full shrink-0 relative overflow-hidden bg-white/80 dark:bg-zinc-900/60 backdrop-blur-md rounded-[20px] transition-all duration-500 group flex flex-col border",
     isActive ? "border-sky-500 shadow-[0_0_20px_rgba(14,165,233,0.15)] bg-sky-50/50 dark:bg-zinc-800" : "border-slate-200 dark:border-white/5"
   )}>
     {isActive && <div className="absolute inset-0 bg-gradient-to-b from-sky-500/10 to-transparent pointer-events-none" />}
@@ -149,7 +149,8 @@ export default function LivePitchRoom() {
     readiness: number | null;
   }>({ clarity: null, confidence: null, marketFit: null, readiness: null });
 
-
+  // Responsive Tab State for mobile screen viewports
+  const [activeMobileTab, setActiveMobileTab] = useState<'room' | 'panelists' | 'chat' | 'vitals'>('room');
 
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<BlobPart[]>([]);
@@ -610,8 +611,6 @@ export default function LivePitchRoom() {
       return `${baseUrl}${url}`;
     }
     return url;
-  };
-
   return (
     <div className="h-screen max-h-screen bg-slate-50 dark:bg-zinc-950 text-slate-800 dark:text-white font-sans flex flex-col relative overflow-hidden transition-colors">
       
@@ -627,7 +626,7 @@ export default function LivePitchRoom() {
                 <p className="text-slate-400 mb-8 max-w-md">Your camera and microphone will activate securely when you start the session.</p>
                 <button 
                   onClick={handleStartClick}
-                  className="px-10 py-4 bg-sky-500 text-white font-bold rounded-2xl hover:bg-sky-600 transition-all text-xl shadow-[0_0_40px_rgba(14,165,233,0.3)] flex items-center gap-3"
+                  className="px-10 py-4 bg-sky-500 text-white font-bold rounded-2xl hover:bg-sky-600 transition-all text-xl shadow-[0_0_40px_rgba(14,165,233,0.3)] flex items-center gap-3 cursor-pointer"
                 >
                   <Sparkles size={24} /> Enter Live Room
                 </button>
@@ -644,46 +643,52 @@ export default function LivePitchRoom() {
         )}
       </AnimatePresence>
 
-      <header className="px-6 py-3 flex justify-between items-center border-b border-slate-200 dark:border-white/5 bg-white/80 dark:bg-zinc-950/50 backdrop-blur-md shrink-0 z-20 transition-colors">
-        <div className="flex items-center gap-4">
-          <div className={cn("w-8 h-8 flex items-center justify-center overflow-hidden rounded-lg", logoError && "bg-sky-500 text-white")}>
-            {!logoError ? <img src="/PitchNest Logo.png" alt="Logo" className="w-full h-full object-contain" onError={() => setLogoError(true)} /> : <Rocket size={20} fill="currentColor" />}
+      {/* Header */}
+      <header className="px-4 md:px-6 py-2.5 md:py-3 flex justify-between items-center border-b border-slate-200 dark:border-white/5 bg-white/80 dark:bg-zinc-950/50 backdrop-blur-md shrink-0 z-20 transition-colors">
+        <div className="flex items-center gap-2 md:gap-4">
+          <div className={cn("w-8 h-8 flex items-center justify-center overflow-hidden rounded-lg bg-sky-500 text-white shadow-md", logoError && "bg-sky-500")}>
+            {!logoError ? <img src="/PitchNest Logo.png" alt="Logo" className="w-full h-full object-contain" onError={() => setLogoError(true)} /> : <Rocket size={18} className="text-white" fill="currentColor" />}
           </div>
-          <span className="text-lg font-bold tracking-tight text-slate-900 dark:text-white">PitchNest</span>
-          <div className="h-6 w-px bg-slate-200 dark:bg-white/10 mx-2" />
+          <span className="text-base md:text-lg font-bold tracking-tight text-slate-900 dark:text-white hidden xs:inline-block">PitchNest</span>
+          
+          <div className="h-5 w-px bg-slate-200 dark:bg-white/10 mx-1 hidden sm:block" />
           <ThemeToggle />
-          <div className="h-6 w-px bg-slate-200 dark:bg-white/10 mx-2" />
-          <div className={cn("flex items-center gap-2 px-3 py-1 rounded-full border transition-all", isConnected ? "bg-emerald-500/10 text-emerald-500 border-emerald-500/20" : "bg-rose-500/10 text-rose-500 border-rose-500/20")}>
-            <div className={cn("w-2 h-2 rounded-full", isConnected ? "bg-emerald-500 animate-pulse" : "bg-rose-500")} />
-            <span className="text-[10px] font-bold uppercase tracking-widest">{isConnected ? "Brain Connected" : "Offline"}</span>
+          
+          <div className="h-5 w-px bg-slate-200 dark:bg-white/10 mx-1 hidden sm:block" />
+          <div className={cn("flex items-center gap-1.5 px-2.5 py-1 rounded-full border transition-all", isConnected ? "bg-emerald-500/10 text-emerald-500 border-emerald-500/20" : "bg-rose-500/10 text-rose-500 border-rose-500/20")}>
+            <div className={cn("w-1.5 h-1.5 rounded-full", isConnected ? "bg-emerald-500 animate-pulse" : "bg-rose-500")} />
+            <span className="text-[9px] font-bold uppercase tracking-widest hidden sm:inline-block">{isConnected ? "Brain Connected" : "Offline"}</span>
           </div>
         </div>
 
         <div className={cn(
-          "flex items-center gap-2 px-4 py-1.5 rounded-full font-mono text-sm font-bold border transition-colors",
-          timeLeft < 180 ? "bg-rose-500/20 text-rose-500 border-rose-500/50 animate-pulse" : "bg-slate-100 dark:bg-zinc-900 text-slate-800 dark:text-white border-slate-200 dark:border-zinc-800"
+          "flex items-center gap-1.5 px-3 py-1.5 rounded-full font-mono text-xs md:text-sm font-bold border transition-colors",
+          timeLeft < 180 ? "bg-rose-500/20 text-rose-500 border-rose-500/50 animate-pulse" : "bg-slate-100 dark:bg-zinc-900 text-slate-800 dark:text-white border-slate-200 dark:border-zinc-850"
         )}>
-          <Timer size={16} />
+          <Timer size={14} />
           {formatTime(timeLeft)}
         </div>
 
-        <div className="flex items-center gap-4 pl-6 border-l border-slate-200 dark:border-white/10">
-          <div className="flex items-center gap-3">
-            <div className="text-right">
-              <p className="text-sm font-bold text-slate-800 dark:text-white">{userData.name}</p>
+        <div className="flex items-center gap-3 pl-3 md:pl-6 border-l border-slate-200 dark:border-white/10">
+          <div className="flex items-center gap-2 md:gap-3">
+            <div className="text-right hidden md:block">
+              <p className="text-sm font-bold text-slate-800 dark:text-white truncate max-w-[120px]">{userData.name}</p>
               <p className="text-[10px] text-slate-400 dark:text-white/40 font-medium">Founder</p>
             </div>
             <div className="relative">
-              <img src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${userData.name}`} alt="Avatar" className="w-10 h-10 rounded-full border-2 border-slate-200 dark:border-white/10 relative z-10 bg-sky-100" />
+              <img src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${userData.name}`} alt="Avatar" className="w-8 h-8 md:w-10 md:h-10 rounded-full border-2 border-slate-200 dark:border-white/10 bg-sky-100" />
             </div>
           </div>
         </div>
       </header>
 
-      <div className="flex-1 flex flex-col lg:flex-row p-3.5 gap-4 min-h-0 overflow-y-auto lg:overflow-hidden bg-slate-100/50 dark:bg-zinc-950 transition-colors">
+      {/* ============================================================== */}
+      {/* DESKTOP LAYOUT (Full grid structure, perfectly locked on lg+) */}
+      {/* ============================================================== */}
+      <div className="hidden lg:flex flex-1 flex-row p-3.5 gap-4 min-h-0 overflow-hidden bg-slate-100/50 dark:bg-zinc-950 transition-colors">
         
         {/* LEFT COLUMN: AI Panelists */}
-        <div className="w-full lg:w-72 shrink-0 bg-white/70 dark:bg-zinc-900/40 backdrop-blur-xl rounded-[24px] p-4 flex flex-col border border-slate-200 dark:border-white/5 shadow-xl dark:shadow-2xl min-h-0 transition-colors">
+        <div className="w-72 shrink-0 bg-white/70 dark:bg-zinc-900/40 backdrop-blur-xl rounded-[24px] p-4 flex flex-col border border-slate-200 dark:border-white/5 shadow-xl dark:shadow-2xl min-h-0 transition-colors">
           <div className="mb-4 shrink-0">
             <h3 className="text-xs font-bold text-slate-700 dark:text-white flex items-center gap-2 uppercase tracking-widest">
               {pitchConfig.mode === 'solo' ? 'Solo Practice' : 'AI Investor Panel'}
@@ -694,7 +699,7 @@ export default function LivePitchRoom() {
             </p>
           </div>
           
-          <div className="flex flex-row lg:flex-col gap-3 overflow-x-auto lg:overflow-y-auto flex-1 pr-2 custom-scrollbar pb-2 lg:pb-0">
+          <div className="flex flex-col gap-3 overflow-y-auto flex-1 pr-2 custom-scrollbar">
             {pitchConfig.mode !== 'solo' && visiblePersonas.map((persona, idx) => (
               <AIPanelist 
                 key={idx}
@@ -716,7 +721,7 @@ export default function LivePitchRoom() {
         <div className="flex-1 flex flex-col gap-3.5 min-h-0">
           
           {/* Main Viewing Area */}
-          <div className="flex-1 min-h-[320px] lg:min-h-0 relative border border-slate-200 dark:border-white/10 shadow-xl dark:shadow-2xl group rounded-[24px] min-h-0 bg-white dark:bg-zinc-900/80 overflow-hidden backdrop-blur-lg transition-colors">
+          <div className="flex-1 relative border border-slate-200 dark:border-white/10 shadow-xl dark:shadow-2xl group rounded-[24px] min-h-0 bg-white dark:bg-zinc-900/80 overflow-hidden backdrop-blur-lg transition-colors">
             {mainView === 'slide' ? (
               <div className="w-full h-full relative flex items-center justify-center rounded-[24px] overflow-hidden">
                 {isCapturing ? (
@@ -766,7 +771,7 @@ export default function LivePitchRoom() {
           </div>
 
           {/* Transcript / Chat Area */}
-          <div className="h-40 lg:h-48 shrink-0 bg-white/70 dark:bg-zinc-900/60 backdrop-blur-xl rounded-[24px] p-4 flex flex-col border border-slate-200 dark:border-white/5 shadow-xl dark:shadow-2xl transition-colors">
+          <div className="h-48 shrink-0 bg-white/70 dark:bg-zinc-900/60 backdrop-blur-xl rounded-[24px] p-4 flex flex-col border border-slate-200 dark:border-white/5 shadow-xl dark:shadow-2xl transition-colors">
             <div className="flex items-center gap-2 text-slate-500 dark:text-white/50 text-[10px] font-bold uppercase tracking-widest mb-2 shrink-0">
               <MessageSquare size={14} /> Chatbox & Transcript
               {isSpeaking && <span className="text-sky-500 dark:text-sky-400 animate-pulse ml-auto font-medium">AI is responding...</span>}
@@ -804,10 +809,10 @@ export default function LivePitchRoom() {
         </div>
 
         {/* RIGHT COLUMN: Deck, Vitals, Analytics */}
-        <div className="w-full lg:w-96 shrink-0 flex flex-col gap-3.5 min-h-0 lg:overflow-y-auto lg:custom-scrollbar pr-1">
+        <div className="w-96 shrink-0 flex flex-col gap-3.5 min-h-0 overflow-y-auto custom-scrollbar pr-1">
           
           {/* Deck Preview Box */}
-          <div className="h-32 lg:h-36 shrink-0 relative shadow-xl dark:shadow-2xl border-4 border-slate-250 dark:border-white/10 rounded-[24px] overflow-hidden bg-white dark:bg-zinc-900 cursor-pointer group transition-transform hover:scale-[1.02]" onClick={() => setMainView(v => v === 'slide' ? 'camera' : 'slide')}>
+          <div className="h-36 shrink-0 relative shadow-xl dark:shadow-2xl border-4 border-slate-250 dark:border-white/10 rounded-[24px] overflow-hidden bg-white dark:bg-zinc-900 cursor-pointer group transition-transform hover:scale-[1.02]" onClick={() => setMainView(v => v === 'slide' ? 'camera' : 'slide')}>
             {mainView === 'camera' ? (
               <div className="w-full h-full relative flex items-center justify-center bg-slate-100 dark:bg-zinc-900 pointer-events-none">
                 {isCapturing ? <video ref={screenRef} autoPlay muted playsInline className="w-full h-full object-contain" /> : 
@@ -826,7 +831,7 @@ export default function LivePitchRoom() {
             </div>
           </div>
 
-          {/* Live Session Monitor / Boardroom Vitals */}
+          {/* Live Session Monitor */}
           <div className="bg-white/70 dark:bg-zinc-900/40 backdrop-blur-xl rounded-[24px] p-4 border border-slate-200 dark:border-white/5 shadow-xl flex flex-col shrink-0 transition-colors">
             <div className="flex items-center gap-2 text-slate-500 dark:text-white/50 text-[10px] font-bold uppercase tracking-widest shrink-0 mb-2.5">
               <Activity size={14} /> Live Session Monitor
@@ -837,27 +842,27 @@ export default function LivePitchRoom() {
             <div className="space-y-2.5">
               <div className="flex justify-between items-center text-sm">
                 <span className="text-slate-500 dark:text-slate-400 font-medium">Brain Link</span>
-                <span className={cn("text-[10px] font-bold uppercase tracking-wider", isConnected ? "text-emerald-500 dark:text-emerald-400" : "text-rose-500 dark:text-rose-400")}>
+                <span className={cn("text-[10px] font-bold uppercase tracking-wider", isConnected ? "text-emerald-500 dark:text-emerald-450" : "text-rose-500 dark:text-rose-455")}>
                   {isConnected ? "Connected" : "Offline"}
                 </span>
               </div>
               
               <div className="flex justify-between items-center text-sm">
-                <span className="text-slate-500 dark:text-slate-400 font-medium">Audio Pipeline</span>
-                <span className={cn("text-[10px] font-bold uppercase tracking-wider", stream && !isMicMuted ? "text-sky-600 dark:text-sky-400" : "text-rose-500 dark:text-rose-400")}>
+                <span className="text-slate-500 dark:text-slate-455 font-medium">Audio Pipeline</span>
+                <span className={cn("text-[10px] font-bold uppercase tracking-wider", stream && !isMicMuted ? "text-sky-600 dark:text-sky-400" : "text-rose-500 dark:text-rose-455")}>
                   {stream && !isMicMuted ? "Active" : "Muted"}
                 </span>
               </div>
 
               <div className="flex justify-between items-center text-sm">
-                <span className="text-slate-500 dark:text-slate-400 font-medium">Vision Input</span>
+                <span className="text-slate-500 dark:text-slate-455 font-medium">Vision Input</span>
                 <span className={cn("text-[10px] font-bold uppercase tracking-wider", stream ? "text-sky-600 dark:text-sky-400" : "text-slate-400 dark:text-slate-500")}>
                   {stream ? "Active" : "Disabled"}
                 </span>
               </div>
 
               <div className="flex justify-between items-center text-sm">
-                <span className="text-slate-500 dark:text-slate-400 font-medium">Interactive Sharing</span>
+                <span className="text-slate-500 dark:text-slate-455 font-medium">Interactive Sharing</span>
                 <span className={cn("text-[10px] font-bold uppercase tracking-wider", isCapturing ? "text-amber-500 dark:text-amber-400" : "text-slate-400 dark:text-slate-500")}>
                   {isCapturing ? "Casting" : "Inactive"}
                 </span>
@@ -873,11 +878,10 @@ export default function LivePitchRoom() {
             const dialogueBalance = totalMsgCount > 0 ? Math.round((userMsgCount / totalMsgCount) * 100) : 50;
 
             return (
-              <div className="bg-white/70 dark:bg-zinc-900/40 backdrop-blur-xl rounded-[24px] p-4 border border-slate-200 dark:border-white/5 flex flex-col justify-between shadow-xl min-h-[120px] transition-colors">
+              <div className="bg-white/70 dark:bg-zinc-900/40 backdrop-blur-xl rounded-[24px] p-4 border border-slate-200 dark:border-white/5 flex flex-col justify-between shadow-xl min-h-[125px] transition-colors">
                 <h4 className="text-[11px] font-bold text-slate-700 dark:text-white/80 uppercase tracking-widest mb-3">Data Chart</h4>
                 
                 <div className="flex items-end justify-between h-14 gap-3 pb-2 border-b border-slate-200 dark:border-white/10">
-                  {/* Mocking the data chart bars for aesthetics, binding to dialogue balance */}
                   {[dialogueBalance, 100-dialogueBalance, Math.max(20, dialogueBalance-10), Math.min(90, dialogueBalance+20), 60, 45].map((val, i) => (
                     <div key={i} className="flex-1 flex flex-col justify-end group animate-all">
                       <div 
@@ -898,6 +902,279 @@ export default function LivePitchRoom() {
         </div>
       </div>
 
+      {/* ============================================================== */}
+      {/* MOBILE & TABLET LAYOUT (Toggleable tab tray Zoom/Meet style)   */}
+      {/* ============================================================== */}
+      <div className="flex lg:hidden flex-1 flex-col p-3 md:p-4 min-h-0 overflow-hidden bg-slate-100/50 dark:bg-zinc-950 transition-colors">
+        
+        {/* Tab 1: Room Workspace (Main Pitching Screen & PIP Overlays) */}
+        {activeMobileTab === 'room' && (
+          <div className="flex-1 flex flex-col min-h-0 justify-center">
+            
+            {/* Screen Container with locked 16:9 Aspect Ratio to guarantee no distortion */}
+            <div className="w-full aspect-video md:flex-1 relative border border-slate-200 dark:border-zinc-800 shadow-xl rounded-[20px] bg-slate-900 overflow-hidden shrink-0 flex items-center justify-center">
+              
+              {mainView === 'slide' ? (
+                // --- SLIDE VIEW (Active) ---
+                <div className="w-full h-full relative flex items-center justify-center">
+                  {isCapturing ? (
+                    <video ref={screenRef} autoPlay muted playsInline className="w-full h-full object-contain" />
+                  ) : pitchConfig.selectedDeck ? (
+                    <iframe src={getDeckUrl(pitchConfig.selectedDeck.file_url)} className="w-full h-full border-none" title="Pitch Deck" />
+                  ) : (
+                    <div className="text-slate-500 text-center"><MonitorOff size={40} className="mx-auto mb-2 opacity-50" /><p className="text-[10px] font-bold uppercase tracking-widest opacity-50">No deck selected</p></div>
+                  )}
+
+                  {/* Camera PIP Thumbnail Overlay (Absolute Floating zoomed Zoom-style) */}
+                  {stream && (
+                    <div 
+                      onClick={() => setMainView('camera')}
+                      className="absolute bottom-3 right-3 w-28 h-20 sm:w-36 sm:h-24 rounded-xl border border-white/20 shadow-2xl overflow-hidden cursor-pointer z-20 hover:scale-105 transition-all bg-black/80"
+                    >
+                      <video ref={videoRef} autoPlay muted playsInline className="w-full h-full object-cover animate-fade-in" />
+                      {isPitching && <div className="absolute top-1.5 right-1.5 bg-rose-500 w-1.5 h-1.5 rounded-full animate-pulse" />}
+                    </div>
+                  )}
+                </div>
+              ) : (
+                // --- CAMERA VIEW (Active) ---
+                <div className="w-full h-full relative flex items-center justify-center">
+                  {stream ? <video ref={videoRef} autoPlay muted playsInline className="w-full h-full object-cover" /> : <VideoOff size={48} className="text-slate-650" />}
+                  {isPitching && <div className="absolute top-3 left-3 bg-rose-500 px-2 py-0.5 rounded-full text-[8px] font-bold animate-pulse text-white uppercase tracking-widest z-10">Vision</div>}
+
+                  {/* Slides PIP Thumbnail Overlay */}
+                  <div 
+                    onClick={() => setMainView('slide')}
+                    className="absolute bottom-3 right-3 w-28 h-20 sm:w-36 sm:h-24 rounded-xl border border-white/20 shadow-2xl overflow-hidden cursor-pointer z-20 hover:scale-105 transition-all bg-black/80 flex items-center justify-center"
+                  >
+                    {isCapturing ? (
+                      <video ref={screenRef} autoPlay muted playsInline className="w-full h-full object-contain pointer-events-none" />
+                    ) : pitchConfig.selectedDeck ? (
+                      <iframe src={getDeckUrl(pitchConfig.selectedDeck.file_url)} className="w-full h-full border-none pointer-events-none opacity-80" title="Pitch Deck Preview" />
+                    ) : (
+                      <MonitorOff size={18} className="text-white/40" />
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Google Meet & Zoom Style bottom tray controls */}
+            <div className="flex items-center justify-center gap-3.5 bg-white dark:bg-zinc-900/90 backdrop-blur-md border border-slate-200 dark:border-zinc-805 p-2.5 rounded-2xl shadow-lg max-w-sm w-full mx-auto mt-4 shrink-0 transition-colors">
+              <button onClick={toggleCamera} className={cn("w-11 h-11 rounded-xl transition-all flex items-center justify-center cursor-pointer", stream ? "bg-slate-100 dark:bg-zinc-800 text-slate-800 dark:text-white hover:bg-slate-200 dark:hover:bg-zinc-700" : "bg-rose-500/20 text-rose-500")}>
+                {stream ? <Video size={18} /> : <VideoOff size={18} />}
+              </button>
+              <button onClick={toggleMic} className={cn("w-11 h-11 rounded-xl transition-all flex items-center justify-center cursor-pointer", !isMicMuted ? "bg-sky-500 text-white shadow-md shadow-sky-500/20 hover:bg-sky-600" : "bg-rose-500/20 text-rose-500")}>
+                {!isMicMuted ? <Mic size={18} /> : <MicOff size={18} />}
+              </button>
+              {canScreenShare && (
+                <button onClick={toggleScreenShare} className={cn("w-11 h-11 rounded-xl transition-all flex items-center justify-center cursor-pointer", isCapturing ? "bg-emerald-500 text-white shadow-lg" : "bg-slate-100 dark:bg-zinc-800 text-slate-800 dark:text-white")}>
+                  {isCapturing ? <Monitor size={18} /> : <MonitorOff size={18} />}
+                </button>
+              )}
+              <div className="w-px h-6 bg-slate-200 dark:bg-white/10 mx-1" />
+              <button 
+                onClick={handleEndSession}
+                disabled={!isConnected && !isPitching}
+                className="px-5 h-11 bg-rose-500 text-white text-xs font-bold rounded-xl hover:bg-rose-600 shadow-md flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-50"
+              >
+                <VolumeX size={16} /> End Pitch
+              </button>
+            </div>
+
+            {/* Small informative prompt below controls */}
+            <div className="text-center mt-3 text-[10px] text-slate-400 dark:text-zinc-500 font-bold uppercase tracking-widest animate-pulse shrink-0">
+              {mainView === 'slide' ? "Tap Floating camera feed to switch screen" : "Tap Floating deck to view slides"}
+            </div>
+          </div>
+        )}
+
+        {/* Tab 2: AI Investor Panelists List (Full viewport, clean and spacious) */}
+        {activeMobileTab === 'panelists' && (
+          <div className="flex-1 flex flex-col min-h-0 bg-white/70 dark:bg-zinc-900/40 backdrop-blur-xl border border-slate-200 dark:border-zinc-800/50 rounded-3xl p-5 shadow-xl transition-colors">
+            <div className="mb-5 shrink-0">
+              <h3 className="text-xs font-bold text-slate-700 dark:text-white flex items-center gap-2 uppercase tracking-widest">
+                {pitchConfig.mode === 'solo' ? 'Solo Practice' : 'AI Investor Panel'}
+                {isSpeaking && <Sparkles className="text-sky-500 animate-pulse" size={14} />}
+              </h3>
+              <p className="text-[10px] font-bold text-sky-600 dark:text-sky-400 uppercase mt-1 tracking-wider">
+                {pitchConfig.mode === 'solo' ? "No interruptions" : pitchConfig.investorArchetype}
+              </p>
+            </div>
+            
+            <div className="flex-1 overflow-y-auto custom-scrollbar pr-1 min-h-0">
+              {pitchConfig.mode !== 'solo' ? (
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 justify-items-center pb-4">
+                  {visiblePersonas.map((persona, idx) => (
+                    <AIPanelist 
+                      key={idx}
+                      name={persona.name} 
+                      role={persona.role} 
+                      isActive={isSpeaking && activeSpeakerName.toLowerCase().includes(persona.name.toLowerCase())} 
+                    />
+                  ))}
+                </div>
+              ) : (
+                <div className="p-12 border border-dashed border-slate-200 dark:border-white/10 rounded-2xl text-center text-slate-500 text-xs mt-10">
+                  AI Interruption Disabled.<br/> Record your pitch uninterrupted.
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Tab 3: Message / Chat Transcript (Native messaging layout style) */}
+        {activeMobileTab === 'chat' && (
+          <div className="flex-1 flex flex-col min-h-0 bg-white/70 dark:bg-zinc-900/60 backdrop-blur-xl border border-slate-200 dark:border-zinc-800/50 rounded-3xl p-4 shadow-xl transition-colors">
+            <div className="flex items-center gap-2 text-slate-500 dark:text-white/50 text-[10px] font-bold uppercase tracking-widest mb-3 shrink-0">
+              <MessageSquare size={14} /> Chatbox & Transcript
+              {isSpeaking && <span className="text-sky-500 dark:text-sky-400 animate-pulse ml-auto font-medium">AI is speaking...</span>}
+            </div>
+            
+            <div ref={scrollRef} className="flex-1 overflow-y-auto space-y-4 pr-1 custom-scrollbar mb-3 min-h-0">
+              {messages.length === 0 ? <p className="text-slate-400 dark:text-white/30 text-xs text-center mt-8 font-medium tracking-wide">AI Panel is ready. Start your pitch.</p> : 
+                messages.map((m) => (
+                  <div key={m.id} className={cn("flex flex-col max-w-[85%]", m.type === 'user' ? "ml-auto items-end" : "mr-auto items-start")}>
+                    <span className="text-[9px] font-bold uppercase text-slate-400 dark:text-white/30 mb-1 px-1 tracking-widest">
+                      {m.speaker || (m.type === 'user' ? userData.name : "Panelist")}
+                    </span>
+                    <div className={cn(
+                      "p-3 text-sm leading-relaxed",
+                      m.type === 'user' ? "bg-sky-500 text-white rounded-2xl rounded-tr-sm shadow-md" : "bg-slate-100 dark:bg-zinc-800 text-slate-800 dark:text-slate-100 rounded-2xl rounded-tl-sm border border-slate-200 dark:border-zinc-700 shadow-sm"
+                    )}>
+                      {m.text}
+                    </div>
+                  </div>
+                ))
+              }
+            </div>
+
+            <form onSubmit={handleSendChat} className="flex items-center gap-3 shrink-0 mt-auto bg-slate-100/50 dark:bg-zinc-950/50 border border-slate-200 dark:border-white/10 rounded-xl p-1.5 shadow-inner">
+              <input 
+                type="text" value={chatInput} onChange={e => setChatInput(e.target.value)}
+                placeholder="Type a message to the panel..."
+                className="flex-1 bg-transparent border-none focus:ring-0 text-sm text-slate-800 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500 px-3 outline-none"
+              />
+              <button type="submit" disabled={!isConnected} className="px-4 py-2 bg-sky-500 text-white font-bold text-slate-100 hover:text-white text-xs uppercase tracking-wider rounded-lg hover:bg-sky-600 transition-colors disabled:opacity-50 shadow-md cursor-pointer">
+                Send
+              </button>
+            </form>
+          </div>
+        )}
+
+        {/* Tab 4: Vitals and Charts Monitor (Clean metrics display) */}
+        {activeMobileTab === 'vitals' && (
+          <div className="flex-1 flex flex-col gap-4 overflow-y-auto pr-1 custom-scrollbar min-h-0">
+            
+            {/* Live Boardroom Vitals */}
+            <div className="bg-white/70 dark:bg-zinc-900/45 backdrop-blur-xl rounded-[24px] p-5 border border-slate-200 dark:border-zinc-850 shadow-xl flex flex-col shrink-0 transition-colors">
+              <div className="flex items-center gap-2 text-slate-500 dark:text-white/50 text-[10px] font-bold uppercase tracking-widest shrink-0 mb-3.5">
+                <Activity size={14} /> Live Session Monitor
+              </div>
+              <h4 className="text-[11px] font-bold text-slate-700 dark:text-white/80 uppercase tracking-widest mb-3.5">Boardroom Vitals</h4>
+              
+              <div className="space-y-3">
+                <div className="flex justify-between items-center text-sm">
+                  <span className="text-slate-500 dark:text-slate-455 font-medium">Brain Link</span>
+                  <span className={cn("text-[10px] font-bold uppercase tracking-wider", isConnected ? "text-emerald-500 dark:text-emerald-450" : "text-rose-500 dark:text-rose-455")}>
+                    {isConnected ? "Connected" : "Offline"}
+                  </span>
+                </div>
+                
+                <div className="flex justify-between items-center text-sm">
+                  <span className="text-slate-500 dark:text-slate-455 font-medium">Audio Pipeline</span>
+                  <span className={cn("text-[10px] font-bold uppercase tracking-wider", stream && !isMicMuted ? "text-sky-600 dark:text-sky-400" : "text-rose-500 dark:text-rose-455")}>
+                    {stream && !isMicMuted ? "Active" : "Muted"}
+                  </span>
+                </div>
+
+                <div className="flex justify-between items-center text-sm">
+                  <span className="text-slate-500 dark:text-slate-455 font-medium">Vision Input</span>
+                  <span className={cn("text-[10px] font-bold uppercase tracking-wider", stream ? "text-sky-600 dark:text-sky-400" : "text-slate-400 dark:text-slate-500")}>
+                    {stream ? "Active" : "Disabled"}
+                  </span>
+                </div>
+
+                <div className="flex justify-between items-center text-sm">
+                  <span className="text-slate-500 dark:text-slate-455 font-medium">Interactive Sharing</span>
+                  <span className={cn("text-[10px] font-bold uppercase tracking-wider", isCapturing ? "text-amber-500 dark:text-amber-400" : "text-slate-400 dark:text-slate-500")}>
+                    {isCapturing ? "Casting" : "Inactive"}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            {/* Dialogue Analytics Data Chart */}
+            {(() => {
+              const userMsgCount = messages.filter(m => m.type === 'user').length;
+              const aiMsgCount = messages.filter(m => m.type === 'ai').length;
+              const totalMsgCount = userMsgCount + aiMsgCount;
+              const dialogueBalance = totalMsgCount > 0 ? Math.round((userMsgCount / totalMsgCount) * 100) : 50;
+
+              return (
+                <div className="bg-white/70 dark:bg-zinc-900/45 backdrop-blur-xl rounded-[24px] p-5 border border-slate-200 dark:border-zinc-850 flex flex-col justify-between shadow-xl min-h-[140px] shrink-0 transition-colors">
+                  <h4 className="text-[11px] font-bold text-slate-700 dark:text-white/80 uppercase tracking-widest mb-3.5">Data Chart</h4>
+                  
+                  <div className="flex items-end justify-between h-20 gap-3.5 pb-2 border-b border-slate-200 dark:border-white/10">
+                    {[dialogueBalance, 100-dialogueBalance, Math.max(20, dialogueBalance-10), Math.min(90, dialogueBalance+20), 60, 45].map((val, i) => (
+                      <div key={i} className="flex-1 flex flex-col justify-end group animate-all">
+                        <div 
+                          className="w-full rounded-t-sm transition-all duration-500 bg-gradient-to-t from-sky-600 to-sky-400 opacity-80 group-hover:opacity-100" 
+                          style={{ height: `${val}%` }} 
+                        />
+                      </div>
+                    ))}
+                  </div>
+                  <div className="flex justify-between text-[9px] font-bold text-slate-400 dark:text-white/40 uppercase tracking-widest mt-3.5">
+                    <span>Founder</span>
+                    <span>Dynamics</span>
+                    <span>Panel</span>
+                  </div>
+                </div>
+              );
+            })()}
+          </div>
+        )}
+
+      </div>
+
+      {/* ============================================================== */}
+      {/* MOBILE BOTTOM TAB BAR TRAY (Google Meet / Zoom responsive bar) */}
+      {/* ============================================================== */}
+      <div className="lg:hidden flex justify-around items-center bg-white dark:bg-zinc-900 border-t border-slate-200 dark:border-zinc-800 py-3 px-4 shrink-0 shadow-lg z-30 transition-colors">
+        <button 
+          onClick={() => setActiveMobileTab('room')}
+          className={cn("flex flex-col items-center gap-1 cursor-pointer transition-all", activeMobileTab === 'room' ? "text-sky-500 scale-105" : "text-slate-400 dark:text-zinc-500")}
+        >
+          <Video size={19} />
+          <span className="text-[9px] font-bold uppercase tracking-wider">Room</span>
+        </button>
+        <button 
+          onClick={() => setActiveMobileTab('panelists')}
+          className={cn("flex flex-col items-center gap-1 cursor-pointer transition-all", activeMobileTab === 'panelists' ? "text-sky-500 scale-105" : "text-slate-400 dark:text-zinc-500")}
+        >
+          <Users size={19} />
+          <span className="text-[9px] font-bold uppercase tracking-wider">Panelists</span>
+        </button>
+        <button 
+          onClick={() => setActiveMobileTab('chat')}
+          className={cn("flex flex-col items-center gap-1 cursor-pointer relative transition-all", activeMobileTab === 'chat' ? "text-sky-500 scale-105" : "text-slate-400 dark:text-zinc-500")}
+        >
+          <MessageSquare size={19} />
+          <span className="text-[9px] font-bold uppercase tracking-wider">Chat</span>
+          {messages.length > 0 && activeMobileTab !== 'chat' && (
+            <span className="absolute top-0 right-2 w-2 h-2 rounded-full bg-rose-500 border border-white dark:border-zinc-900 animate-pulse" />
+          )}
+        </button>
+        <button 
+          onClick={() => setActiveMobileTab('vitals')}
+          className={cn("flex flex-col items-center gap-1 cursor-pointer transition-all", activeMobileTab === 'vitals' ? "text-sky-500 scale-105" : "text-slate-400 dark:text-zinc-500")}
+        >
+          <Activity size={19} />
+          <span className="text-[9px] font-bold uppercase tracking-wider">Monitor</span>
+        </button>
+      </div>
+
       <AnimatePresence>
         {isEvaluatingPitch && (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="absolute inset-0 z-[100] bg-slate-900/95 backdrop-blur-md flex flex-col items-center justify-center">
@@ -908,5 +1185,7 @@ export default function LivePitchRoom() {
         )}
       </AnimatePresence>
     </div>
+  );
+}v>
   );
 }
