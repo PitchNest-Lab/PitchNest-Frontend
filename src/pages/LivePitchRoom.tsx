@@ -217,10 +217,14 @@ export default function LivePitchRoom() {
 
     rec.onerror = (event: any) => {
       console.error("Speech Recognition Error:", event.error);
+      if (event.error === 'network' || event.error === 'not-allowed') {
+        recognitionActiveRef.current = false;
+      }
     };
 
     rec.onend = () => {
       console.log("Speech recognition ended");
+      // Only restart if active and not errored out permanently
       if (isPitching && !isMicMuted && recognitionActiveRef.current) {
         try { rec.start(); } catch (e) {}
       }
@@ -577,7 +581,7 @@ export default function LivePitchRoom() {
     fallbackTimerRef.current = setTimeout(() => {
       if (statusIntervalRef.current) clearInterval(statusIntervalRef.current);
       navigate('/report');
-    }, 35000);
+    }, 300000); // 5 minute fallback in case of slow video upload
 
     const stopAndEvaluate = async () => {
       if (stream) { stream.getTracks().forEach(track => track.stop()); stopStream(); }
