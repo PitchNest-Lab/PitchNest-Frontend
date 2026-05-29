@@ -606,11 +606,11 @@ export default function LivePitchRoom() {
 
   const getDeckUrl = (url: string) => {
     if (!url) return "";
-    if (url.startsWith('/uploads')) {
-      const baseUrl = window.location.hostname === 'localhost' ? 'http://localhost:3000' : window.location.origin;
-      return `${baseUrl}${url}`;
-    }
-    return url;
+    if (url.startsWith('http://') || url.startsWith('https://')) return url;
+    const apiBase = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
+      ? 'http://localhost:3000'
+      : 'https://pitchnest-live.onrender.com';
+    return `${apiBase}${url.startsWith('/') ? url : `/${url}`}`;
   };
 
   return (

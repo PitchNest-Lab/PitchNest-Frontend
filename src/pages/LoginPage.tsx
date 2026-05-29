@@ -133,6 +133,13 @@ export default function LoginPage() {
           <p className="text-center mt-10 text-sm text-slate-500 dark:text-zinc-500">
             Don't have an account? <Link to="/signup" className="text-sky-500 font-bold hover:text-sky-600">Sign up</Link>
           </p>
+          <p className="text-center mt-4 text-[10px] text-slate-400 dark:text-zinc-600 leading-relaxed">
+            <Link to="/privacy" className="hover:underline">Privacy</Link>
+            {' · '}
+            <Link to="/terms" className="hover:underline">Terms</Link>
+            {' · '}
+            <Link to="/support" className="hover:underline">Support</Link>
+          </p>
         </div>
 
         {/* Right Side: Image Carousel */}

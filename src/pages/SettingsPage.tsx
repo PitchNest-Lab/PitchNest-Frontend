@@ -11,11 +11,17 @@ import {
   Globe,
   Edit3,
   Users,
-  LogOut
+  LogOut,
+  Trash2,
+  AlertTriangle,
+  Loader2,
+  ExternalLink
 } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import * as Switch from '@radix-ui/react-switch';
 import * as Tabs from '@radix-ui/react-tabs';
 import { cn } from '../lib/utils';
+import { useAuth } from '../contexts/AuthContext';
 
 // --- Subcomponents ---
 const SettingSection = ({ title, children }: { title: string, children: React.ReactNode }) => (
@@ -38,6 +44,7 @@ const SettingItem = ({ label, description, children }: { label: string, descript
 // --- Main Component ---
 export default function SettingsPage() {
   const navigate = useNavigate();
+  const { logout, authFetch } = useAuth();
   const [notifications, setNotifications] = useState({
     pitchAlerts: true,
     weeklyReport: false,
@@ -53,6 +60,12 @@ export default function SettingsPage() {
     email: "founder@pitchnest.io" 
   });
 
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [deletePassword, setDeletePassword] = useState('');
+  const [deleteConfirmed, setDeleteConfirmed] = useState(false);
+  const [deleteError, setDeleteError] = useState('');
+  const [isDeleting, setIsDeleting] = useState(false);
+
   useEffect(() => {
     const storedUser = localStorage.getItem("user");
     if (storedUser) {
@@ -62,10 +75,38 @@ export default function SettingsPage() {
     }
   }, []);
 
-  // 🔥 FIX: Added full Logout handler to clear local storage and redirect
   const handleLogout = () => {
-    localStorage.removeItem("user");
-    navigate('/login');
+    logout();
+    navigate('/login', { replace: true });
+  };
+
+  const handleDeleteAccount = async () => {
+    setDeleteError('');
+    if (!deleteConfirmed) {
+      setDeleteError('Please confirm you understand this is permanent.');
+      return;
+    }
+    if (!deletePassword) {
+      setDeleteError('Enter your password to confirm deletion.');
+      return;
+    }
+
+    setIsDeleting(true);
+    try {
+      const res = await authFetch('/api/auth/account', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ password: deletePassword }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || 'Failed to delete account.');
+      logout();
+      navigate('/', { replace: true });
+    } catch (err: unknown) {
+      setDeleteError(err instanceof Error ? err.message : 'Failed to delete account.');
+    } finally {
+      setIsDeleting(false);
+    }
   };
 
   return (
@@ -162,9 +203,12 @@ export default function SettingsPage() {
                       <p className="text-xs text-slate-500 dark:text-zinc-500">Last changed 3 months ago</p>
                     </div>
                   </div>
-                  <button className="px-4 py-2 bg-slate-50 dark:bg-zinc-800 text-slate-700 dark:text-zinc-300 text-xs font-bold rounded-lg hover:bg-slate-100 dark:hover:bg-zinc-700 transition-colors w-full sm:w-auto active:scale-95">
+                  <Link
+                    to="/forgot-password"
+                    className="px-4 py-2 bg-slate-50 dark:bg-zinc-800 text-slate-700 dark:text-zinc-300 text-xs font-bold rounded-lg hover:bg-slate-100 dark:hover:bg-zinc-700 transition-colors w-full sm:w-auto active:scale-95 inline-block text-center"
+                  >
                     Change Password
-                  </button>
+                  </Link>
                 </div>
 
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between p-4 border border-slate-100 dark:border-zinc-800 rounded-2xl gap-4">
@@ -194,6 +238,52 @@ export default function SettingsPage() {
                     {twoFactorEnabled ? "Disable" : "Enable"}
                   </button>
                 </div>
+              </div>
+            </SettingSection>
+
+            <SettingSection title="Privacy & Legal">
+              <div className="space-y-2">
+                {[
+                  { to: '/privacy', label: 'Privacy Policy' },
+                  { to: '/terms', label: 'Terms of Service' },
+                  { to: '/support', label: 'Support' },
+                  { to: '/delete-account', label: 'Delete Account (web)' },
+                ].map((item) => (
+                  <Link
+                    key={item.to}
+                    to={item.to}
+                    className="flex items-center justify-between p-4 border border-slate-100 dark:border-zinc-800 rounded-2xl hover:border-sky-200 dark:hover:border-sky-700 transition-colors"
+                  >
+                    <span className="text-sm font-bold text-slate-900 dark:text-zinc-100">{item.label}</span>
+                    <ExternalLink size={16} className="text-slate-400" />
+                  </Link>
+                ))}
+              </div>
+            </SettingSection>
+
+            <SettingSection title="Delete Account">
+              <div className="p-5 border border-rose-100 dark:border-rose-900/40 bg-rose-50/50 dark:bg-rose-900/10 rounded-2xl space-y-4">
+                <div className="flex gap-3">
+                  <AlertTriangle className="text-rose-500 shrink-0" size={20} />
+                  <div>
+                    <p className="text-sm font-bold text-slate-900 dark:text-zinc-100">Permanently delete your account</p>
+                    <p className="text-xs text-slate-500 dark:text-zinc-500 mt-1 leading-relaxed">
+                      Removes your profile, pitch sessions, decks, and recordings. Active App Store / Play subscriptions must be cancelled separately in your device settings.
+                    </p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowDeleteModal(true);
+                    setDeletePassword('');
+                    setDeleteConfirmed(false);
+                    setDeleteError('');
+                  }}
+                  className="px-5 py-2.5 bg-rose-600 hover:bg-rose-700 text-white text-sm font-bold rounded-xl flex items-center gap-2 transition-colors"
+                >
+                  <Trash2 size={16} /> Delete Account
+                </button>
               </div>
             </SettingSection>
           </Tabs.Content>
@@ -357,6 +447,57 @@ export default function SettingsPage() {
 
         </div>
       </Tabs.Root>
+
+      {showDeleteModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+          <div className="w-full max-w-md bg-white dark:bg-zinc-900 rounded-2xl border border-slate-200 dark:border-zinc-800 p-6 shadow-2xl">
+            <h3 className="text-lg font-bold text-slate-900 dark:text-zinc-100 mb-2">Delete Account</h3>
+            <p className="text-sm text-slate-500 dark:text-zinc-500 mb-4">
+              This cannot be undone. All your pitch data will be permanently removed.
+            </p>
+            {deleteError && (
+              <p className="text-sm text-rose-600 font-medium mb-3">{deleteError}</p>
+            )}
+            <label className="block text-xs font-bold text-slate-700 dark:text-zinc-300 mb-1.5">Password</label>
+            <input
+              type="password"
+              value={deletePassword}
+              onChange={(e) => setDeletePassword(e.target.value)}
+              className="w-full px-4 py-3 mb-4 rounded-xl border border-slate-200 dark:border-zinc-700 bg-slate-50 dark:bg-zinc-800 text-sm"
+              placeholder="Confirm your password"
+              autoComplete="current-password"
+            />
+            <label className="flex items-start gap-2 mb-6 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={deleteConfirmed}
+                onChange={(e) => setDeleteConfirmed(e.target.checked)}
+                className="mt-0.5"
+              />
+              <span className="text-xs text-slate-600 dark:text-zinc-400">
+                I understand this permanently deletes my account and data.
+              </span>
+            </label>
+            <div className="flex gap-3">
+              <button
+                type="button"
+                onClick={() => setShowDeleteModal(false)}
+                className="flex-1 py-3 border border-slate-200 dark:border-zinc-700 rounded-xl text-sm font-bold text-slate-700 dark:text-zinc-300"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleDeleteAccount}
+                disabled={isDeleting}
+                className="flex-1 py-3 bg-rose-600 hover:bg-rose-700 disabled:opacity-50 text-white rounded-xl text-sm font-bold flex items-center justify-center gap-2"
+              >
+                {isDeleting ? <Loader2 className="animate-spin" size={16} /> : 'Delete'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

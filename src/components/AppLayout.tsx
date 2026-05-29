@@ -14,9 +14,10 @@ import {
   Menu,
   X
 } from 'lucide-react';
-import { Link, useLocation, Outlet } from 'react-router-dom';
+import { Link, useLocation, Outlet, useNavigate } from 'react-router-dom';
 import { cn } from '../lib/utils';
 import { ThemeToggle } from './ThemeToggle';
+import { useAuth } from '../contexts/AuthContext';
 
 const SidebarItem = ({ icon: Icon, label, path, active, onClick }: { icon: any, label: string, path: string, active: boolean, onClick?: () => void }) => (
   <Link to={path} onClick={onClick} className={cn(
@@ -32,6 +33,8 @@ const SidebarItem = ({ icon: Icon, label, path, active, onClick }: { icon: any, 
 
 export default function AppLayout() {
   const location = useLocation();
+  const navigate = useNavigate();
+  const { logout } = useAuth();
   const [logoError, setLogoError] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   
@@ -60,7 +63,8 @@ export default function AppLayout() {
   ];
 
   const handleLogout = () => {
-    localStorage.removeItem("user");
+    logout();
+    navigate('/login', { replace: true });
   };
 
   return (
@@ -154,9 +158,9 @@ export default function AppLayout() {
             <p className="text-xs font-bold text-slate-900 dark:text-zinc-100 truncate">{userData.name}</p>
             <p className="text-[10px] text-slate-400 dark:text-zinc-500 font-medium truncate">Founder Plan</p>
           </div>
-          <Link to="/login" onClick={handleLogout} className="p-2 text-slate-400 dark:text-zinc-500 hover:text-rose-500 transition-colors">
+          <button type="button" onClick={handleLogout} className="p-2 text-slate-400 dark:text-zinc-500 hover:text-rose-500 transition-colors cursor-pointer" aria-label="Log out">
             <LogOut size={16} />
-          </Link>
+          </button>
         </div>
       </aside>
 

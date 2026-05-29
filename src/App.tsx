@@ -16,6 +16,10 @@ import PrePitchSetup from './pages/PrePitchSetup';
 import PitchDecksManagement from './pages/PitchDecksManagement';
 import PitchReplayScreen from './pages/PitchReplayScreen';
 import MyPitchesArchive from './pages/MyPitchesArchive';
+import PrivacyPolicy from './pages/legal/PrivacyPolicy';
+import TermsOfService from './pages/legal/TermsOfService';
+import DeleteAccount from './pages/legal/DeleteAccount';
+import Support from './pages/legal/Support';
 import { SocketProvider } from './contexts/SocketContext';
 import { AuthProvider } from './contexts/AuthContext';
 import { ProtectedRoute } from './components/ProtectedRoute';
@@ -34,6 +38,10 @@ export default function App() {
             <Route path="/signup" element={<SignupPage />} />
             <Route path="/forgot-password" element={<ForgotPassword />} />
             <Route path="/reset-password" element={<ResetPassword />} />
+            <Route path="/privacy" element={<PrivacyPolicy />} />
+            <Route path="/terms" element={<TermsOfService />} />
+            <Route path="/delete-account" element={<DeleteAccount />} />
+            <Route path="/support" element={<Support />} />
 
             {/* Protected Routes (Wrapped in AppLayout with Sidebar) */}
             <Route element={

@@ -156,7 +156,14 @@ export default function SignupPage() {
             </button>
           </form>
 
-          <p className="text-center mt-6 text-xs text-slate-500 dark:text-zinc-500">
+          <p className="text-center mt-4 text-[11px] text-slate-500 dark:text-zinc-500 leading-relaxed px-2">
+            By creating an account, you agree to our{' '}
+            <Link to="/terms" className="text-sky-500 font-bold hover:underline">Terms of Service</Link>
+            {' '}and{' '}
+            <Link to="/privacy" className="text-sky-500 font-bold hover:underline">Privacy Policy</Link>.
+          </p>
+
+          <p className="text-center mt-4 text-xs text-slate-500 dark:text-zinc-500">
             Already have an account? <Link to="/login" className="text-sky-500 font-bold hover:text-sky-600">Log in</Link>
           </p>
         </div>
