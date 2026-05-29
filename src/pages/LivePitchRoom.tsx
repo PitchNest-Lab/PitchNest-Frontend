@@ -11,6 +11,7 @@ import { useMediaRecorder } from '../hooks/useMediaRecorder';
 import { useScreenCapture } from '../hooks/useScreenCapture';
 import { useSocketContext } from '../contexts/SocketContext'; 
 import { useAuth } from '../contexts/AuthContext';
+import { ThemeToggle } from '../components/ThemeToggle';
 
 const TTS_LANG = 'en-US';
 const TTS_MAX_CHARS = 420;
@@ -56,8 +57,8 @@ const AIPanelist = ({ name, role, isActive }: { name: string, role: string, isAc
     {isActive && <div className="absolute inset-0 bg-gradient-to-b from-sky-500/10 to-transparent pointer-events-none" />}
     
     <div className="relative aspect-[4/3] w-full bg-slate-800 overflow-hidden">
-       {/* Mock Avatar for Dashboard look */}
-      <img src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${name}&backgroundColor=0e111a`} alt={name} className={cn("w-full h-full object-cover transition-transform duration-700", isActive ? "scale-110" : "scale-100")} />
+       {/* Realistic Avatar for Dashboard look */}
+      <img src={`https://i.pravatar.cc/300?u=${name.toLowerCase()}investor`} alt={name} className={cn("w-full h-full object-cover transition-transform duration-700", isActive ? "scale-110" : "scale-100")} />
       
       {/* Active Recording Icon top right */}
       <div className="absolute top-3 right-3 flex items-center gap-1.5 bg-black/40 backdrop-blur-md px-2 py-1 rounded-md border border-white/10">
@@ -637,6 +638,8 @@ export default function LivePitchRoom() {
           </div>
           <span className="text-lg font-bold tracking-tight">PitchNest</span>
           <div className="h-6 w-px bg-white/10 mx-2" />
+          <ThemeToggle />
+          <div className="h-6 w-px bg-white/10 mx-2" />
           <div className={cn("flex items-center gap-2 px-3 py-1 rounded-full border transition-all", isConnected ? "bg-emerald-500/10 text-emerald-500 border-emerald-500/20" : "bg-rose-500/10 text-rose-500 border-rose-500/20")}>
             <div className={cn("w-2 h-2 rounded-full", isConnected ? "bg-emerald-500 animate-pulse" : "bg-rose-500")} />
             <span className="text-[10px] font-bold uppercase tracking-widest">{isConnected ? "Brain Connected" : "Offline"}</span>
@@ -750,7 +753,7 @@ export default function LivePitchRoom() {
           </div>
 
           {/* Transcript / Chat Area */}
-          <div className="h-56 shrink-0 bg-slate-900/60 backdrop-blur-xl rounded-[24px] p-4 flex flex-col border border-white/5 shadow-2xl">
+          <div className="h-40 lg:h-48 shrink-0 bg-slate-900/60 backdrop-blur-xl rounded-[24px] p-4 flex flex-col border border-white/5 shadow-2xl">
             <div className="flex items-center gap-2 text-white/50 text-[10px] font-bold uppercase tracking-widest mb-2 shrink-0">
               <MessageSquare size={14} /> Chatbox & Transcript
               {isSpeaking && <span className="text-sky-400 animate-pulse ml-auto font-medium">AI is responding...</span>}
@@ -791,7 +794,7 @@ export default function LivePitchRoom() {
         <div className="w-80 lg:w-96 shrink-0 flex flex-col gap-4 min-h-0">
           
           {/* Deck Preview Box */}
-          <div className="h-56 shrink-0 relative shadow-2xl border-4 border-white/10 rounded-[24px] overflow-hidden bg-slate-900 cursor-pointer group transition-transform hover:scale-[1.02]" onClick={() => setMainView(v => v === 'slide' ? 'camera' : 'slide')}>
+          <div className="h-40 lg:h-48 shrink-0 relative shadow-2xl border-4 border-white/10 rounded-[24px] overflow-hidden bg-slate-900 cursor-pointer group transition-transform hover:scale-[1.02]" onClick={() => setMainView(v => v === 'slide' ? 'camera' : 'slide')}>
             {mainView === 'camera' ? (
               <div className="w-full h-full relative flex items-center justify-center bg-slate-900 pointer-events-none">
                 {isCapturing ? <video ref={screenRef} autoPlay muted playsInline className="w-full h-full object-contain" /> : 
@@ -857,10 +860,10 @@ export default function LivePitchRoom() {
             const dialogueBalance = totalMsgCount > 0 ? Math.round((userMsgCount / totalMsgCount) * 100) : 50;
 
             return (
-              <div className="flex-1 bg-slate-900/40 backdrop-blur-xl rounded-[24px] p-5 border border-white/5 flex flex-col justify-between shadow-xl min-h-[200px]">
-                <h4 className="text-[11px] font-bold text-white/80 uppercase tracking-widest mb-4">Data Chart</h4>
+              <div className="flex-1 bg-slate-900/40 backdrop-blur-xl rounded-[24px] p-4 border border-white/5 flex flex-col justify-between shadow-xl min-h-[150px]">
+                <h4 className="text-[11px] font-bold text-white/80 uppercase tracking-widest mb-3">Data Chart</h4>
                 
-                <div className="flex items-end justify-between h-32 gap-3 pb-2 border-b border-white/10">
+                <div className="flex items-end justify-between h-20 gap-3 pb-2 border-b border-white/10">
                   {/* Mocking the data chart bars for aesthetics, binding to dialogue balance */}
                   {[dialogueBalance, 100-dialogueBalance, Math.max(20, dialogueBalance-10), Math.min(90, dialogueBalance+20), 60, 45].map((val, i) => (
                     <div key={i} className="flex-1 flex flex-col justify-end group">
