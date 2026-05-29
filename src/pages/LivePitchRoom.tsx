@@ -50,22 +50,31 @@ const VoiceWaveform = ({ isActive }: { isActive?: boolean }) => (
 
 const AIPanelist = ({ name, role, isActive }: { name: string, role: string, isActive?: boolean }) => (
   <div className={cn(
-    "p-3 bg-white dark:bg-zinc-900/80 border rounded-2xl shadow-sm transition-all duration-300 relative overflow-hidden flex items-center justify-between",
-    isActive ? "border-sky-500 ring-1 ring-sky-500/20 shadow-md shadow-sky-100 dark:shadow-sky-900/10 scale-[1.02] bg-sky-50/50 dark:bg-sky-900/10" : "border-slate-100 dark:border-zinc-800"
+    "relative overflow-hidden bg-slate-900/60 backdrop-blur-md rounded-[20px] transition-all duration-500 group flex flex-col border",
+    isActive ? "border-sky-500 shadow-[0_0_20px_rgba(14,165,233,0.3)] bg-slate-800" : "border-white/5"
   )}>
-    <div className="flex items-center gap-3 relative z-10">
-      <div className="relative">
-        {isActive && <span className="absolute inset-0 rounded-full bg-sky-500 opacity-40 animate-ping" />}
-        <div className={cn("relative w-10 h-10 rounded-full overflow-hidden border-2 transition-colors z-10 object-cover", isActive ? "border-sky-500" : "border-transparent")}>
-          <img src={`https://i.pravatar.cc/150?u=${name}`} alt={name} className="w-full h-full object-cover" />
-        </div>
-      </div>
-      <div>
-        <p className={cn("text-xs font-bold", isActive ? "text-sky-600 dark:text-sky-400" : "text-slate-900 dark:text-zinc-100")}>{name}</p>
-        <span className="text-[9px] font-bold text-slate-400 dark:text-zinc-500 uppercase tracking-wider">{role}</span>
+    {isActive && <div className="absolute inset-0 bg-gradient-to-b from-sky-500/10 to-transparent pointer-events-none" />}
+    
+    <div className="relative aspect-[4/3] w-full bg-slate-800 overflow-hidden">
+       {/* Mock Avatar for Dashboard look */}
+      <img src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${name}&backgroundColor=0e111a`} alt={name} className={cn("w-full h-full object-cover transition-transform duration-700", isActive ? "scale-110" : "scale-100")} />
+      
+      {/* Active Recording Icon top right */}
+      <div className="absolute top-3 right-3 flex items-center gap-1.5 bg-black/40 backdrop-blur-md px-2 py-1 rounded-md border border-white/10">
+        <Video size={10} className={isActive ? "text-sky-400" : "text-white/40"} />
+        {isActive && <span className="w-1.5 h-1.5 rounded-full bg-rose-500 animate-pulse" />}
       </div>
     </div>
-    <VoiceWaveform isActive={isActive} />
+
+    <div className="p-3 flex items-center justify-between border-t border-white/5 relative bg-slate-900">
+      <div className="relative z-10">
+        <p className="text-[11px] font-bold text-white uppercase tracking-wider">{name}</p>
+        <span className="text-[9px] font-bold text-sky-400/80 uppercase tracking-widest">{role}</span>
+      </div>
+      <div className="opacity-70 group-hover:opacity-100 transition-opacity">
+        <VoiceWaveform isActive={isActive} />
+      </div>
+    </div>
   </div>
 );
 
@@ -657,88 +666,108 @@ export default function LivePitchRoom() {
         </div>
       </header>
 
-      <div className="flex-1 flex flex-col lg:flex-row p-4 gap-4 min-h-0 overflow-hidden">
+      <div className="flex-1 flex flex-col lg:flex-row p-4 gap-6 min-h-0 overflow-hidden bg-slate-950">
         
-        {/* Main Left Column */}
+        {/* LEFT COLUMN: AI Panelists */}
+        <div className="w-64 lg:w-72 shrink-0 bg-slate-900/40 backdrop-blur-xl rounded-[24px] p-4 flex flex-col border border-white/5 shadow-2xl min-h-0">
+          <div className="mb-4 shrink-0">
+            <h3 className="text-xs font-bold text-white flex items-center gap-2 uppercase tracking-widest">
+              {pitchConfig.mode === 'solo' ? 'Solo Practice' : 'AI Investor Panel'}
+              {isSpeaking && <Sparkles className="text-sky-500 animate-pulse" size={14} />}
+            </h3>
+            <p className="text-[10px] font-bold text-sky-400 uppercase mt-1 tracking-wider">
+              {pitchConfig.mode === 'solo' ? "No interruptions" : pitchConfig.investorArchetype}
+            </p>
+          </div>
+          
+          <div className="space-y-4 overflow-y-auto flex-1 pr-2 custom-scrollbar">
+            {pitchConfig.mode !== 'solo' && visiblePersonas.map((persona, idx) => (
+              <AIPanelist 
+                key={idx}
+                name={persona.name} 
+                role={persona.role} 
+                isActive={isSpeaking && activeSpeakerName.toLowerCase().includes(persona.name.toLowerCase())} 
+              />
+            ))}
+            
+            {pitchConfig.mode === 'solo' && (
+              <div className="p-4 border border-dashed border-white/10 rounded-2xl text-center text-slate-500 text-xs mt-2">
+                AI Interruption Disabled.<br/> Record your pitch uninterrupted.
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* CENTER COLUMN: Main Screen, Controls, Chat */}
         <div className="flex-1 flex flex-col gap-4 min-h-0">
           
-          {/* Top Row: Main Screen + AI Panel */}
-          <div className="flex-1 flex gap-4 min-h-0">
-            {/* Main Viewing Area */}
-            <div className="flex-1 relative border border-white/5 shadow-2xl group rounded-[24px] min-h-0 bg-white">
-              {mainView === 'slide' ? (
-                <div className="w-full h-full relative flex items-center justify-center rounded-[24px] overflow-hidden">
-                  {isCapturing ? (
-                    <video ref={screenRef} autoPlay muted playsInline className="w-full h-full object-contain bg-black/40" />
-                  ) : pitchConfig.selectedDeck ? (
-                    <iframe src={getDeckUrl(pitchConfig.selectedDeck.file_url)} className="w-full h-full border-none" title="Pitch Deck" />
-                  ) : (
-                    <div className="text-slate-400 text-center bg-slate-900 w-full h-full flex flex-col items-center justify-center"><MonitorOff size={64} className="mx-auto mb-2 opacity-50" /><p className="text-xs font-bold uppercase tracking-widest opacity-50">No deck selected</p></div>
-                  )}
-                </div>
-              ) : (
-                <div className="w-full h-full relative flex items-center justify-center bg-slate-900 rounded-[24px] overflow-hidden">
-                  {stream ? <video ref={videoRef} autoPlay muted playsInline className="w-full h-full object-cover" /> : <VideoOff size={48} className="text-white/20" />}
-                  {isPitching && <div className="absolute top-4 right-4 bg-rose-500 px-3 py-1 rounded-full text-[9px] font-bold animate-pulse shadow-lg z-10">VISION ON</div>}
-                </div>
-              )}
-
-              <button 
-                onClick={() => setMainView(v => v === 'slide' ? 'camera' : 'slide')}
-                className="absolute top-4 left-4 p-2 bg-black/40 hover:bg-black/60 backdrop-blur-md border border-white/10 rounded-xl text-white transition-all z-20 flex items-center gap-2 shadow-lg"
-              >
-                <ArrowRightLeft size={14} /> <span className="text-[10px] font-bold uppercase tracking-widest">Swap View</span>
-              </button>
-            </div>
-
-            {/* AI Panel */}
-            <div className="w-64 shrink-0 bg-white dark:bg-zinc-900 rounded-[24px] p-4 shadow-xl flex flex-col border border-slate-100 dark:border-zinc-800 min-h-0">
-              <div className="mb-3 shrink-0">
-                <h3 className="text-xs font-bold text-slate-900 dark:text-zinc-100 flex items-center gap-2">
-                  {pitchConfig.mode === 'solo' ? 'Solo Practice' : 'AI Investor Panel'}
-                  {isSpeaking && <Sparkles className="text-sky-500 animate-pulse" size={14} />}
-                </h3>
-                <p className="text-[9px] font-bold text-slate-400 uppercase mt-0.5">
-                  {pitchConfig.mode === 'solo' ? "No interruptions" : pitchConfig.investorArchetype}
-                </p>
-              </div>
-              
-              <div className="space-y-3 overflow-y-auto flex-1 pr-1 custom-scrollbar">
-                {pitchConfig.mode !== 'solo' && visiblePersonas.map((persona, idx) => (
-                  <AIPanelist 
-                    key={idx}
-                    name={persona.name} 
-                    role={persona.role} 
-                    isActive={isSpeaking && activeSpeakerName.toLowerCase().includes(persona.name.toLowerCase())} 
-                  />
-                ))}
-                
-                {pitchConfig.mode === 'solo' && (
-                  <div className="p-3 border border-dashed border-slate-200 dark:border-zinc-800 rounded-xl text-center text-slate-500 text-xs mt-2">
-                    AI Interruption Disabled.<br/> Record your pitch uninterrupted.
-                  </div>
+          {/* Main Viewing Area */}
+          <div className="flex-1 relative border border-white/10 shadow-2xl group rounded-[24px] min-h-0 bg-slate-900/80 overflow-hidden backdrop-blur-lg">
+            {mainView === 'slide' ? (
+              <div className="w-full h-full relative flex items-center justify-center rounded-[24px] overflow-hidden">
+                {isCapturing ? (
+                  <video ref={screenRef} autoPlay muted playsInline className="w-full h-full object-contain bg-black/40" />
+                ) : pitchConfig.selectedDeck ? (
+                  <iframe src={getDeckUrl(pitchConfig.selectedDeck.file_url)} className="w-full h-full border-none" title="Pitch Deck" />
+                ) : (
+                  <div className="text-slate-400 text-center bg-slate-900 w-full h-full flex flex-col items-center justify-center"><MonitorOff size={64} className="mx-auto mb-2 opacity-50" /><p className="text-xs font-bold uppercase tracking-widest opacity-50">No deck selected</p></div>
                 )}
               </div>
+            ) : (
+              <div className="w-full h-full relative flex items-center justify-center rounded-[24px] overflow-hidden">
+                {stream ? <video ref={videoRef} autoPlay muted playsInline className="w-full h-full object-cover" /> : <VideoOff size={64} className="text-white/20" />}
+                {isPitching && <div className="absolute top-4 right-4 bg-rose-500 px-3 py-1 rounded-full text-[9px] font-bold animate-pulse shadow-lg z-10 uppercase tracking-widest">Vision On</div>}
+              </div>
+            )}
+
+            <button 
+              onClick={() => setMainView(v => v === 'slide' ? 'camera' : 'slide')}
+              className="absolute top-4 left-4 px-4 py-2 bg-black/60 hover:bg-black/80 backdrop-blur-md border border-white/10 rounded-xl text-white transition-all z-20 flex items-center gap-2 shadow-lg"
+            >
+              <ArrowRightLeft size={14} /> <span className="text-[10px] font-bold uppercase tracking-widest">Swap View</span>
+            </button>
+            
+            {/* Control Bar Overlay (Bottom Center) */}
+            <div className="absolute bottom-6 left-1/2 -translate-x-1/2 flex items-center gap-3 bg-slate-900/80 backdrop-blur-xl border border-white/10 p-2 rounded-2xl shadow-2xl z-20">
+              <button onClick={toggleCamera} className={cn("w-12 h-12 rounded-xl transition-all flex items-center justify-center", stream ? "bg-slate-800 text-white hover:bg-slate-700" : "bg-rose-500/20 text-rose-500 hover:bg-rose-500/30")}>
+                {stream ? <Video size={20} /> : <VideoOff size={20} />}
+              </button>
+              <button onClick={toggleMic} className={cn("w-12 h-12 rounded-xl transition-all flex items-center justify-center", !isMicMuted ? "bg-sky-500 text-white hover:bg-sky-600 shadow-lg shadow-sky-500/20" : "bg-rose-500/20 text-rose-500 hover:bg-rose-500/30")}>
+                {!isMicMuted ? <Mic size={20} /> : <MicOff size={20} />}
+              </button>
+              {canScreenShare && (
+                <button onClick={toggleScreenShare} className={cn("w-12 h-12 rounded-xl transition-all flex items-center justify-center", isCapturing ? "bg-emerald-500 text-white shadow-lg shadow-emerald-500/20 hover:bg-emerald-600" : "bg-slate-800 text-white hover:bg-slate-700")}>
+                  {isCapturing ? <Monitor size={20} /> : <MonitorOff size={20} />}
+                </button>
+              )}
+              <div className="w-px h-8 bg-white/10 mx-2" />
+              <button 
+                onClick={handleEndSession}
+                disabled={!isConnected && !isPitching}
+                className="px-6 h-12 bg-rose-500 text-white text-sm font-bold rounded-xl hover:bg-rose-600 transition-all disabled:bg-slate-700 disabled:opacity-50 shadow-lg shadow-rose-500/20 flex items-center justify-center gap-2"
+              >
+                <VolumeX size={18} /> End Pitch
+              </button>
             </div>
           </div>
 
           {/* Transcript / Chat Area */}
-          <div className="h-48 shrink-0 bg-slate-800/50 backdrop-blur-md rounded-[24px] p-4 flex flex-col border border-white/5">
-            <div className="flex items-center gap-2 text-white/50 text-[10px] font-bold uppercase tracking-widest mb-2">
-              <MessageSquare size={14} /> Live Transcript
-              {isSpeaking && <span className="text-sky-400 animate-pulse ml-auto">AI is speaking...</span>}
+          <div className="h-56 shrink-0 bg-slate-900/60 backdrop-blur-xl rounded-[24px] p-4 flex flex-col border border-white/5 shadow-2xl">
+            <div className="flex items-center gap-2 text-white/50 text-[10px] font-bold uppercase tracking-widest mb-2 shrink-0">
+              <MessageSquare size={14} /> Chatbox & Transcript
+              {isSpeaking && <span className="text-sky-400 animate-pulse ml-auto font-medium">AI is responding...</span>}
             </div>
             
             <div ref={scrollRef} className="flex-1 overflow-y-auto space-y-4 pr-2 custom-scrollbar mb-3">
-              {messages.length === 0 ? <p className="text-white/30 text-xs text-center mt-4 font-medium">Panel is ready. Start your pitch.</p> : 
+              {messages.length === 0 ? <p className="text-white/30 text-xs text-center mt-4 font-medium tracking-wide">AI Panel is ready. Start your pitch.</p> : 
                 messages.map((m) => (
                   <div key={m.id} className={cn("flex flex-col max-w-[80%]", m.type === 'user' ? "ml-auto items-end" : "mr-auto items-start")}>
-                    <span className="text-[9px] font-bold uppercase text-white/40 mb-1 px-1 tracking-wider">
+                    <span className="text-[9px] font-bold uppercase text-white/40 mb-1 px-1 tracking-widest">
                       {m.speaker || (m.type === 'user' ? userData.name : "Panelist")}
                     </span>
                     <div className={cn(
-                      "p-3 text-[13px] leading-relaxed",
-                      m.type === 'user' ? "bg-sky-500 text-white rounded-2xl rounded-tr-sm shadow-md" : "bg-slate-700 text-slate-100 rounded-2xl rounded-tl-sm border border-slate-600 shadow-sm"
+                      "p-3.5 text-sm leading-relaxed",
+                      m.type === 'user' ? "bg-sky-500 text-white rounded-2xl rounded-tr-sm shadow-md" : "bg-slate-800 text-slate-100 rounded-2xl rounded-tl-sm border border-slate-700 shadow-sm"
                     )}>
                       {m.text}
                     </div>
@@ -747,67 +776,82 @@ export default function LivePitchRoom() {
               }
             </div>
 
-            <form onSubmit={handleSendChat} className="flex items-center gap-2 shrink-0 mt-auto bg-slate-900 border border-slate-700 rounded-xl p-1.5 shadow-inner">
-              <button 
-                type="button" 
-                onClick={toggleMic} 
-                className={cn("p-2 rounded-lg transition-colors flex items-center justify-center", !isMicMuted ? "text-sky-400 hover:bg-slate-800" : "bg-rose-500/20 text-rose-500 hover:bg-rose-500/30")}
-                title={!isMicMuted ? "Mute Microphone" : "Unmute Microphone"}
-              >
-                {!isMicMuted ? <Mic size={18} /> : <MicOff size={18} />}
-              </button>
+            <form onSubmit={handleSendChat} className="flex items-center gap-3 shrink-0 mt-auto bg-slate-950/50 border border-white/10 rounded-xl p-1.5 shadow-inner">
               <input 
                 type="text" value={chatInput} onChange={e => setChatInput(e.target.value)}
-                placeholder="Type a message or use your microphone..."
-                className="flex-1 bg-transparent border-none focus:ring-0 text-sm text-white placeholder:text-slate-500 px-2 outline-none"
+                placeholder="Type a message to the panel..."
+                className="flex-1 bg-transparent border-none focus:ring-0 text-sm text-white placeholder:text-slate-500 px-3 outline-none"
               />
-              <button type="submit" disabled={!isConnected} className="p-2 bg-sky-500 text-white rounded-lg hover:bg-sky-600 transition-colors disabled:opacity-50 shadow-md">
-                <Send size={16} />
+              <button type="submit" disabled={!isConnected} className="px-4 py-2 bg-sky-500 text-white font-bold text-xs uppercase tracking-wider rounded-lg hover:bg-sky-600 transition-colors disabled:opacity-50 shadow-md">
+                Send
               </button>
             </form>
           </div>
         </div>
 
-        {/* Right Sidebar */}
-        <div className="w-80 shrink-0 flex flex-col gap-4 min-h-0">
+        {/* RIGHT COLUMN: Deck, Vitals, Analytics */}
+        <div className="w-80 lg:w-96 shrink-0 flex flex-col gap-4 min-h-0">
           
-          <div className="aspect-video shrink-0 relative shadow-2xl border border-white/5 rounded-[24px] overflow-hidden bg-slate-800">
+          {/* Deck Preview Box */}
+          <div className="h-56 shrink-0 relative shadow-2xl border-4 border-white/10 rounded-[24px] overflow-hidden bg-slate-900 cursor-pointer group transition-transform hover:scale-[1.02]" onClick={() => setMainView(v => v === 'slide' ? 'camera' : 'slide')}>
             {mainView === 'camera' ? (
-              <div className="w-full h-full relative flex items-center justify-center bg-white overflow-hidden pointer-events-none">
+              <div className="w-full h-full relative flex items-center justify-center bg-slate-900 pointer-events-none">
                 {isCapturing ? <video ref={screenRef} autoPlay muted playsInline className="w-full h-full object-contain" /> : 
-                 pitchConfig.selectedDeck ? <iframe src={getDeckUrl(pitchConfig.selectedDeck.file_url)} className="w-full h-full border-none" title="Pitch Deck" /> :
-                 <div className="text-white/20 text-center"><MonitorOff size={32} className="mx-auto mb-1" /><p className="text-[9px] font-bold uppercase tracking-widest">No Screen</p></div>}
+                 pitchConfig.selectedDeck ? <iframe src={getDeckUrl(pitchConfig.selectedDeck.file_url)} className="w-full h-full border-none opacity-90 scale-105" title="Pitch Deck" /> :
+                 <div className="text-white/20 text-center"><MonitorOff size={32} className="mx-auto mb-2" /><p className="text-[10px] font-bold uppercase tracking-widest">No Deck</p></div>}
               </div>
             ) : (
-              <div className="w-full h-full relative flex items-center justify-center rounded-[24px] overflow-hidden">
+              <div className="w-full h-full relative flex items-center justify-center pointer-events-none">
                 {stream ? <video ref={videoRef} autoPlay muted playsInline className="w-full h-full object-cover" /> : <VideoOff size={32} className="text-white/20" />}
               </div>
             )}
+            
+            <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center backdrop-blur-sm">
+               <ArrowRightLeft className="text-white drop-shadow-xl" size={32} />
+               <span className="absolute bottom-4 text-[10px] font-bold uppercase tracking-widest text-white shadow-black drop-shadow-lg">Switch to Main Screen</span>
+            </div>
           </div>
 
-          <div className="flex gap-2 shrink-0">
-            <button onClick={toggleCamera} className={cn("flex-1 py-2.5 rounded-xl border transition-all flex items-center justify-center", stream ? "bg-slate-800 border-slate-700 text-white hover:bg-slate-700" : "bg-rose-500/20 border-rose-500/50 text-rose-500 hover:bg-rose-500/30")}>
-              {stream ? <Video size={16} /> : <VideoOff size={16} />}
-            </button>
-            <button onClick={toggleMic} className={cn("flex-1 py-2.5 rounded-xl border transition-all flex items-center justify-center", !isMicMuted ? "bg-slate-800 border-slate-700 text-white hover:bg-slate-700" : "bg-rose-500/20 border-rose-500/50 text-rose-500 hover:bg-rose-500/30")}>
-              {!isMicMuted ? <Mic size={16} /> : <MicOff size={16} />}
-            </button>
-            {canScreenShare && (
-              <button onClick={toggleScreenShare} className={cn("flex-1 py-2.5 rounded-xl border transition-all flex items-center justify-center", isCapturing ? "bg-sky-500 text-white border-sky-500 hover:bg-sky-600" : "bg-slate-800 border-slate-700 text-white hover:bg-slate-700")}>
-                {isCapturing ? <Monitor size={16} /> : <MonitorOff size={16} />}
-              </button>
-            )}
+          {/* Live Session Monitor / Boardroom Vitals */}
+          <div className="bg-slate-900/40 backdrop-blur-xl rounded-[24px] p-5 border border-white/5 shadow-xl flex flex-col shrink-0">
+            <div className="flex items-center gap-2 text-white/50 text-[10px] font-bold uppercase tracking-widest shrink-0 mb-4">
+              <Activity size={14} /> Live Session Monitor
+            </div>
+            
+            <h4 className="text-[11px] font-bold text-white/80 uppercase tracking-widest mb-3">Boardroom Vitals</h4>
+            
+            <div className="space-y-4">
+              <div className="flex justify-between items-center text-sm">
+                <span className="text-slate-400 font-medium">Brain Link</span>
+                <span className={cn("text-[10px] font-bold uppercase tracking-wider", isConnected ? "text-emerald-400" : "text-rose-400")}>
+                  {isConnected ? "Connected" : "Offline"}
+                </span>
+              </div>
+              
+              <div className="flex justify-between items-center text-sm">
+                <span className="text-slate-400 font-medium">Audio Pipeline</span>
+                <span className={cn("text-[10px] font-bold uppercase tracking-wider", stream && !isMicMuted ? "text-sky-400" : "text-rose-400")}>
+                  {stream && !isMicMuted ? "Active" : "Muted"}
+                </span>
+              </div>
+
+              <div className="flex justify-between items-center text-sm">
+                <span className="text-slate-400 font-medium">Vision Input</span>
+                <span className={cn("text-[10px] font-bold uppercase tracking-wider", stream ? "text-sky-400" : "text-slate-500")}>
+                  {stream ? "Active" : "Disabled"}
+                </span>
+              </div>
+
+              <div className="flex justify-between items-center text-sm">
+                <span className="text-slate-400 font-medium">Interactive Sharing</span>
+                <span className={cn("text-[10px] font-bold uppercase tracking-wider", isCapturing ? "text-amber-400" : "text-slate-500")}>
+                  {isCapturing ? "Casting" : "Inactive"}
+                </span>
+              </div>
+            </div>
           </div>
 
-          <button 
-            onClick={handleEndSession}
-            disabled={!isConnected && !isPitching}
-            className="w-full shrink-0 py-3 bg-rose-500 text-white text-sm font-bold rounded-xl hover:bg-rose-600 transition-all disabled:bg-slate-700 disabled:opacity-50 shadow-lg flex items-center justify-center gap-2"
-          >
-            <VolumeX size={16} /> End Pitch Session
-          </button>
-
-          {/* Live Session Monitor Panel */}
+          {/* Data Chart Area */}
           {(() => {
             const userMsgCount = messages.filter(m => m.type === 'user').length;
             const aiMsgCount = messages.filter(m => m.type === 'ai').length;
@@ -815,77 +859,24 @@ export default function LivePitchRoom() {
             const dialogueBalance = totalMsgCount > 0 ? Math.round((userMsgCount / totalMsgCount) * 100) : 50;
 
             return (
-              <div className="flex-1 bg-slate-800/40 rounded-[24px] p-5 border border-white/5 flex flex-col gap-5 min-h-0 overflow-y-auto custom-scrollbar">
-                <div className="flex items-center gap-2 text-white/50 text-[10px] font-bold uppercase tracking-widest shrink-0">
-                  <Activity size={14} /> Live Session Monitor
-                </div>
+              <div className="flex-1 bg-slate-900/40 backdrop-blur-xl rounded-[24px] p-5 border border-white/5 flex flex-col justify-between shadow-xl min-h-[200px]">
+                <h4 className="text-[11px] font-bold text-white/80 uppercase tracking-widest mb-4">Data Chart</h4>
                 
-                {/* Boardroom Vitals */}
-                <div className="space-y-3 shrink-0">
-                  <h4 className="text-[10px] font-bold text-white/40 uppercase tracking-widest">Boardroom Vitals</h4>
-                  
-                  <div className="bg-slate-900/50 p-3.5 rounded-2xl border border-white/5 space-y-3">
-                    <div className="flex justify-between items-center text-xs">
-                      <span className="text-slate-400 font-medium">Brain Link</span>
-                      <span className={cn("px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider", isConnected ? "bg-emerald-500/10 text-emerald-400" : "bg-rose-500/10 text-rose-400")}>
-                        {isConnected ? "Connected" : "Offline"}
-                      </span>
+                <div className="flex items-end justify-between h-32 gap-3 pb-2 border-b border-white/10">
+                  {/* Mocking the data chart bars for aesthetics, binding to dialogue balance */}
+                  {[dialogueBalance, 100-dialogueBalance, Math.max(20, dialogueBalance-10), Math.min(90, dialogueBalance+20), 60, 45].map((val, i) => (
+                    <div key={i} className="flex-1 flex flex-col justify-end group">
+                      <div 
+                        className="w-full rounded-t-sm transition-all duration-500 bg-gradient-to-t from-sky-600 to-sky-400 opacity-80 group-hover:opacity-100" 
+                        style={{ height: `${val}%` }} 
+                      />
                     </div>
-                    
-                    <div className="flex justify-between items-center text-xs">
-                      <span className="text-slate-400 font-medium">Audio Pipeline</span>
-                      <span className={cn("px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider", stream && !isMicMuted ? "bg-emerald-500/10 text-emerald-400" : "bg-rose-500/10 text-rose-400")}>
-                        {stream && !isMicMuted ? "PCM 16kHz" : "Muted"}
-                      </span>
-                    </div>
-
-                    <div className="flex justify-between items-center text-xs">
-                      <span className="text-slate-400 font-medium">Vision Input</span>
-                      <span className={cn("px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider", stream ? "bg-emerald-500/10 text-emerald-400" : "bg-slate-500/10 text-slate-400")}>
-                        {stream ? "VP8 Active" : "Disabled"}
-                      </span>
-                    </div>
-
-                    <div className="flex justify-between items-center text-xs">
-                      <span className="text-slate-400 font-medium">Interactive Sharing</span>
-                      <span className={cn("px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider", isCapturing ? "bg-sky-500/10 text-sky-400" : "bg-slate-500/10 text-slate-400")}>
-                        {isCapturing ? "Screen Casting" : "Inactive"}
-                      </span>
-                    </div>
-                  </div>
+                  ))}
                 </div>
-
-                {/* Conversation Dynamics */}
-                <div className="space-y-3 flex-1 flex flex-col justify-center">
-                  <h4 className="text-[10px] font-bold text-white/40 uppercase tracking-widest shrink-0">Dialogue Dynamics</h4>
-                  
-                  <div className="bg-slate-900/50 p-4 rounded-2xl border border-white/5 space-y-4 flex-1 flex flex-col justify-center">
-                    <div>
-                      <div className="flex justify-between text-[10px] font-bold text-white/70 mb-1.5 uppercase tracking-wider">
-                        <span>Dialogue Balance</span>
-                        <span className="text-sky-400 font-mono font-bold">{dialogueBalance}% Founder</span>
-                      </div>
-                      <div className="h-1.5 w-full bg-slate-700 rounded-full overflow-hidden flex">
-                        <div className="h-full bg-sky-500 transition-all duration-500 ease-out" style={{ width: `${dialogueBalance}%` }} />
-                        <div className="h-full bg-indigo-500 transition-all duration-500 ease-out" style={{ width: `${100 - dialogueBalance}%` }} />
-                      </div>
-                      <div className="flex justify-between text-[9px] text-white/40 mt-1 font-medium">
-                        <span>You speaking</span>
-                        <span>Panel speaking</span>
-                      </div>
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-3 pt-2">
-                      <div className="bg-slate-800/40 p-2.5 rounded-xl text-center border border-white/5">
-                        <span className="text-[9px] font-bold text-white/40 uppercase block mb-0.5">Your Turns</span>
-                        <span className="text-lg font-bold font-mono text-white">{userMsgCount}</span>
-                      </div>
-                      <div className="bg-slate-800/40 p-2.5 rounded-xl text-center border border-white/5">
-                        <span className="text-[9px] font-bold text-white/40 uppercase block mb-0.5">Panel Responses</span>
-                        <span className="text-lg font-bold font-mono text-white">{aiMsgCount}</span>
-                      </div>
-                    </div>
-                  </div>
+                <div className="flex justify-between text-[9px] font-bold text-white/40 uppercase tracking-widest mt-3">
+                  <span>Founder</span>
+                  <span>Dynamics</span>
+                  <span>Panel</span>
                 </div>
               </div>
             );
