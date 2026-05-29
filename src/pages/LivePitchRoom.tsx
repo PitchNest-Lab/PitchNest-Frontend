@@ -72,7 +72,7 @@ function getPanelistAvatar(name: string): string {
 
 const AIPanelist = ({ name, role, isActive }: { name: string, role: string, isActive?: boolean }) => (
   <div className={cn(
-    "relative overflow-hidden bg-white/80 dark:bg-zinc-900/60 backdrop-blur-md rounded-[20px] transition-all duration-500 group flex flex-col border",
+    "w-[190px] lg:w-full shrink-0 relative overflow-hidden bg-white/80 dark:bg-zinc-900/60 backdrop-blur-md rounded-[20px] transition-all duration-500 group flex flex-col border",
     isActive ? "border-sky-500 shadow-[0_0_20px_rgba(14,165,233,0.15)] bg-sky-50/50 dark:bg-zinc-800" : "border-slate-200 dark:border-white/5"
   )}>
     {isActive && <div className="absolute inset-0 bg-gradient-to-b from-sky-500/10 to-transparent pointer-events-none" />}
@@ -680,10 +680,10 @@ export default function LivePitchRoom() {
         </div>
       </header>
 
-      <div className="flex-1 flex flex-col lg:flex-row p-3.5 gap-4 min-h-0 overflow-hidden bg-slate-100/50 dark:bg-zinc-950 transition-colors">
+      <div className="flex-1 flex flex-col lg:flex-row p-3.5 gap-4 min-h-0 overflow-y-auto lg:overflow-hidden bg-slate-100/50 dark:bg-zinc-950 transition-colors">
         
         {/* LEFT COLUMN: AI Panelists */}
-        <div className="w-64 lg:w-72 shrink-0 bg-white/70 dark:bg-zinc-900/40 backdrop-blur-xl rounded-[24px] p-4 flex flex-col border border-slate-200 dark:border-white/5 shadow-xl dark:shadow-2xl min-h-0 transition-colors">
+        <div className="w-full lg:w-72 shrink-0 bg-white/70 dark:bg-zinc-900/40 backdrop-blur-xl rounded-[24px] p-4 flex flex-col border border-slate-200 dark:border-white/5 shadow-xl dark:shadow-2xl min-h-0 transition-colors">
           <div className="mb-4 shrink-0">
             <h3 className="text-xs font-bold text-slate-700 dark:text-white flex items-center gap-2 uppercase tracking-widest">
               {pitchConfig.mode === 'solo' ? 'Solo Practice' : 'AI Investor Panel'}
@@ -694,7 +694,7 @@ export default function LivePitchRoom() {
             </p>
           </div>
           
-          <div className="space-y-4 overflow-y-auto flex-1 pr-2 custom-scrollbar">
+          <div className="flex flex-row lg:flex-col gap-3 overflow-x-auto lg:overflow-y-auto flex-1 pr-2 custom-scrollbar pb-2 lg:pb-0">
             {pitchConfig.mode !== 'solo' && visiblePersonas.map((persona, idx) => (
               <AIPanelist 
                 key={idx}
@@ -716,7 +716,7 @@ export default function LivePitchRoom() {
         <div className="flex-1 flex flex-col gap-3.5 min-h-0">
           
           {/* Main Viewing Area */}
-          <div className="flex-1 relative border border-slate-200 dark:border-white/10 shadow-xl dark:shadow-2xl group rounded-[24px] min-h-0 bg-white dark:bg-zinc-900/80 overflow-hidden backdrop-blur-lg transition-colors">
+          <div className="flex-1 min-h-[320px] lg:min-h-0 relative border border-slate-200 dark:border-white/10 shadow-xl dark:shadow-2xl group rounded-[24px] min-h-0 bg-white dark:bg-zinc-900/80 overflow-hidden backdrop-blur-lg transition-colors">
             {mainView === 'slide' ? (
               <div className="w-full h-full relative flex items-center justify-center rounded-[24px] overflow-hidden">
                 {isCapturing ? (
@@ -804,7 +804,7 @@ export default function LivePitchRoom() {
         </div>
 
         {/* RIGHT COLUMN: Deck, Vitals, Analytics */}
-        <div className="w-80 lg:w-96 shrink-0 flex flex-col gap-3.5 min-h-0 overflow-y-auto custom-scrollbar pr-1">
+        <div className="w-full lg:w-96 shrink-0 flex flex-col gap-3.5 min-h-0 lg:overflow-y-auto lg:custom-scrollbar pr-1">
           
           {/* Deck Preview Box */}
           <div className="h-32 lg:h-36 shrink-0 relative shadow-xl dark:shadow-2xl border-4 border-slate-250 dark:border-white/10 rounded-[24px] overflow-hidden bg-white dark:bg-zinc-900 cursor-pointer group transition-transform hover:scale-[1.02]" onClick={() => setMainView(v => v === 'slide' ? 'camera' : 'slide')}>
