@@ -199,18 +199,18 @@ export default function PrePitchSetup() {
         </div>
 
         {/* RIGHT COLUMN: Deck & Submit */}
-        <div className="lg:col-span-4 flex flex-col gap-4 min-h-[300px] lg:min-h-0">
-          <div className="flex-1 bg-slate-900 rounded-[32px] p-5 md:p-6 flex flex-col text-white min-h-0">
+        <div className="lg:col-span-4 flex flex-col gap-4 min-h-[300px] lg:min-h-0 min-w-0">
+          <div className="flex-1 bg-slate-900 rounded-[32px] p-5 md:p-6 flex flex-col text-white min-h-0 min-w-0 overflow-hidden">
             <h3 className="text-sm font-bold uppercase tracking-widest text-white/50 mb-4 shrink-0">Select Deck</h3>
             
-            <div className="flex-1 overflow-y-auto space-y-2 pr-1 custom-scrollbar min-h-[140px] lg:min-h-0">
+            <div className="flex-1 overflow-y-auto space-y-2 pr-1 custom-scrollbar min-h-[140px] lg:min-h-0 min-w-0">
               {isLoading ? ( <><Skeleton className="h-14 bg-white/10" /><Skeleton className="h-14 bg-white/10" /></> ) : availableDecks.length === 0 ? (
                 <p className="text-xs text-white/40 text-center py-4">No decks found.</p>
               ) : (
                 availableDecks.map((deck) => (
-                  <div key={deck.id} onClick={() => setSelectedDeck(deck)} className={cn("flex items-center gap-3 p-3 rounded-xl cursor-pointer transition-colors border", selectedDeck?.id === deck.id ? "bg-sky-500/20 border-sky-500" : "border-white/10 hover:bg-white/5")}>
+                  <div key={deck.id} onClick={() => setSelectedDeck(deck)} className={cn("flex items-center gap-3 p-3 rounded-xl cursor-pointer transition-colors border min-w-0", selectedDeck?.id === deck.id ? "bg-sky-500/20 border-sky-500" : "border-white/10 hover:bg-white/5")}>
                     <FileText size={16} className={selectedDeck?.id === deck.id ? "text-sky-400" : "text-white/40"} />
-                    <div className="flex-1 overflow-hidden">
+                    <div className="flex-1 overflow-hidden min-w-0">
                       <p className="text-xs font-bold truncate">{deck.name}</p>
                       <p className="text-[9px] text-white/40">{deck.size} MB</p>
                     </div>
