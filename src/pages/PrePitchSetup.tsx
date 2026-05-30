@@ -32,13 +32,13 @@ const ModeCard = ({ title, icon: Icon, active, onClick }: { title: string, icon:
   <button 
     type="button" onClick={onClick}
     className={cn(
-      "flex-1 p-4 rounded-2xl border-2 transition-all flex flex-col items-center justify-center gap-2 text-center group h-24",
+      "flex-1 p-3 sm:p-4 rounded-2xl border-2 transition-all flex flex-col items-center justify-center gap-1.5 text-center group h-20 sm:h-24 relative",
       active ? "border-sky-500 bg-sky-50 dark:bg-sky-500/10 shadow-sm" : "border-slate-100 dark:border-zinc-800 hover:border-slate-200 dark:hover:border-zinc-700 bg-white dark:bg-zinc-900"
     )}
   >
-    <Icon size={20} className={active ? "text-sky-500" : "text-slate-400 dark:text-zinc-500"} />
-    <span className={cn("text-[11px] font-bold uppercase tracking-wider", active ? "text-sky-900 dark:text-sky-400" : "text-slate-600 dark:text-zinc-400")}>{title}</span>
-    {active && <CheckCircle2 size={14} className="absolute top-2 right-2 text-sky-500" />}
+    <Icon size={18} className={active ? "text-sky-500" : "text-slate-400 dark:text-zinc-500"} />
+    <span className={cn("text-[10px] sm:text-[11px] font-bold uppercase tracking-wider", active ? "text-sky-900 dark:text-sky-400" : "text-slate-600 dark:text-zinc-400")}>{title}</span>
+    {active && <CheckCircle2 size={12} className="absolute top-2 right-2 text-sky-500" />}
   </button>
 );
 
@@ -133,7 +133,7 @@ export default function PrePitchSetup() {
             <ModeCard title="Solo" icon={User} active={currentMode === 'solo'} onClick={() => setValue('mode', 'solo')} />
           </div>
 
-          <div className="bg-white dark:bg-zinc-900 p-5 md:p-6 rounded-[24px] border border-slate-200 dark:border-zinc-800 shadow-sm shrink-0">
+          <div className="bg-white dark:bg-zinc-900 p-4 sm:p-6 rounded-[24px] border border-slate-200 dark:border-zinc-800 shadow-sm shrink-0">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-1.5 col-span-1">
                 <div className="flex justify-between">
@@ -145,12 +145,12 @@ export default function PrePitchSetup() {
               <div className="space-y-1.5 col-span-1">
                 <label className="text-xs font-bold text-slate-700 dark:text-zinc-300 flex items-center gap-1.5"><AlignLeft size={14} className="text-sky-500"/> Industry & Persona</label>
                 <div className="flex flex-col sm:flex-row gap-2">
-                  <select {...register('industry')} className="flex-1 px-3 py-2 text-sm bg-slate-50 dark:bg-zinc-800 border rounded-xl dark:border-zinc-700 text-slate-700 dark:text-zinc-300 focus:outline-none focus:ring-2 focus:ring-sky-500/20">
+                  <select {...register('industry')} className="w-full sm:flex-1 px-3 py-2 text-sm bg-slate-50 dark:bg-zinc-800 border rounded-xl dark:border-zinc-700 text-slate-700 dark:text-zinc-300 focus:outline-none focus:ring-2 focus:ring-sky-500/20">
                     <option value="SaaS & Enterprise">SaaS & Enterprise</option>
                     <option value="Fintech">Fintech</option>
                     <option value="Healthtech">Healthtech</option>
                   </select>
-                  <select {...register('investorArchetype')} className="flex-1 px-3 py-2 text-sm bg-slate-50 dark:bg-zinc-800 border rounded-xl dark:border-zinc-700 text-slate-700 dark:text-zinc-300 focus:outline-none focus:ring-2 focus:ring-sky-500/20">
+                  <select {...register('investorArchetype')} className="w-full sm:flex-1 px-3 py-2 text-sm bg-slate-50 dark:bg-zinc-800 border rounded-xl dark:border-zinc-700 text-slate-700 dark:text-zinc-300 focus:outline-none focus:ring-2 focus:ring-sky-500/20">
                     <option value="Seed Stage - Venture Capital">Seed VC</option>
                     <option value="Angel Investor Group">Angel Group</option>
                     <option value="Growth Stage - Venture Capital">Growth Fund</option>
@@ -167,7 +167,7 @@ export default function PrePitchSetup() {
             </div>
           </div>
 
-          <div className="bg-white dark:bg-zinc-900 p-5 md:p-6 rounded-[24px] border border-slate-200 dark:border-zinc-800 shadow-sm shrink-0 grid grid-cols-1 sm:grid-cols-2 gap-6 sm:gap-8">
+          <div className="bg-white dark:bg-zinc-900 p-4 sm:p-6 rounded-[24px] border border-slate-200 dark:border-zinc-800 shadow-sm shrink-0 grid grid-cols-1 sm:grid-cols-2 gap-6 sm:gap-8">
             <div className="space-y-3">
               <div className="flex justify-between text-xs font-bold text-slate-700 dark:text-zinc-300"><span>Aggressiveness</span><span className="text-sky-500">{aggressiveness}%</span></div>
               <input type="range" {...register('aggressiveness', { valueAsNumber: true })} className="w-full h-1.5 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-sky-500" />
@@ -184,7 +184,7 @@ export default function PrePitchSetup() {
               { icon: Mic, label: 'Microphone', state: micEnabled, set: (c:boolean) => setValue('micEnabled', c) },
               ...(canScreenShare ? [{ icon: Monitor, label: 'Screen', state: screenShareEnabled, set: toggleScreenShare }] : [])
             ].map((hw, i) => (
-              <div key={i} className="flex-1 bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 rounded-2xl p-4 flex items-center justify-between">
+              <div key={i} className="flex-1 bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 rounded-2xl p-3.5 sm:p-4 flex items-center justify-between">
                 <div className="flex items-center gap-3">
                   <hw.icon size={18} className={hw.state ? "text-emerald-500" : "text-slate-400"} />
                   <span className="text-xs font-bold">{hw.label}</span>

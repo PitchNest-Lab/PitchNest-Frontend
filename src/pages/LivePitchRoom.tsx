@@ -459,7 +459,16 @@ export default function LivePitchRoom() {
           if (statusIntervalRef.current) clearInterval(statusIntervalRef.current);
           
           const finalizeNavigation = () => {
-            navigate(`/report${data.sessionId ? `?session=${data.sessionId}` : ''}`); 
+            const mockSessionDbRow = {
+              id: data.sessionId,
+              business_name: currentBusinessName,
+              evaluation_report: data.data,
+              created_at: new Date().toISOString(),
+              video_url: currentVideoUrl || ""
+            };
+            navigate(`/report${data.sessionId ? `?session=${data.sessionId}` : ''}`, {
+              state: { session: mockSessionDbRow }
+            }); 
           };
 
           if (uploadPromiseRef.current) {
@@ -908,13 +917,12 @@ export default function LivePitchRoom() {
       {/* MOBILE & TABLET LAYOUT (Toggleable tab tray Zoom/Meet style)   */}
       {/* ============================================================== */}
       <div className="flex lg:hidden flex-1 flex-col p-3 md:p-4 min-h-0 overflow-hidden bg-slate-100/50 dark:bg-zinc-950 transition-colors">
-        
-        {/* Tab 1: Room Workspace (Main Pitching Screen & PIP Overlays) */}
+          {/* Tab 1: Room Workspace (Main Pitching Screen & PIP Overlays) */}
         {activeMobileTab === 'room' && (
-          <div className="flex-1 flex flex-col min-h-0 justify-center">
+          <div className="flex-1 flex flex-col min-h-0 justify-start pt-2">
             
             {/* Screen Container with locked 16:9 Aspect Ratio to guarantee no distortion */}
-            <div className="w-full aspect-video md:flex-1 relative border border-slate-200 dark:border-zinc-800 shadow-xl rounded-[20px] bg-slate-900 overflow-hidden shrink-0 flex items-center justify-center">
+            <div className="w-full aspect-video relative border border-slate-200 dark:border-zinc-800 shadow-xl rounded-[20px] bg-slate-900 overflow-hidden shrink-0 flex items-center justify-center">
               
               {mainView === 'slide' ? (
                 // --- SLIDE VIEW (Active) ---
@@ -927,16 +935,21 @@ export default function LivePitchRoom() {
                     <div className="text-slate-500 text-center"><MonitorOff size={40} className="mx-auto mb-2 opacity-50" /><p className="text-[10px] font-bold uppercase tracking-widest opacity-50">No deck selected</p></div>
                   )}
 
-                  {/* Camera PIP Thumbnail Overlay (Absolute Floating zoomed Zoom-style) */}
-                  {stream && (
-                    <div 
-                      onClick={() => setMainView('camera')}
-                      className="absolute bottom-3 right-3 w-28 h-20 sm:w-36 sm:h-24 rounded-xl border border-white/20 shadow-2xl overflow-hidden cursor-pointer z-20 hover:scale-105 transition-all bg-black/80"
-                    >
+                  {/* Camera PIP Thumbnail Overlay (Absolute Floating zoomed Zoom-style, ALWAYS render to enable switching) */}
+                  <div 
+                    onClick={() => setMainView('camera')}
+                    className="absolute bottom-3 right-3 w-28 h-20 sm:w-36 sm:h-24 rounded-xl border border-white/20 shadow-2xl overflow-hidden cursor-pointer z-20 hover:scale-105 transition-all bg-black/80 flex items-center justify-center"
+                  >
+                    {stream ? (
                       <video ref={videoRef} autoPlay muted playsInline className="w-full h-full object-cover animate-fade-in" />
-                      {isPitching && <div className="absolute top-1.5 right-1.5 bg-rose-500 w-1.5 h-1.5 rounded-full animate-pulse" />}
-                    </div>
-                  )}
+                    ) : (
+                      <div className="flex flex-col items-center justify-center text-white/40">
+                        <VideoOff size={16} />
+                        <span className="text-[7px] font-bold uppercase tracking-wider mt-1">Camera Off</span>
+                      </div>
+                    )}
+                    {isPitching && stream && <div className="absolute top-1.5 right-1.5 bg-rose-500 w-1.5 h-1.5 rounded-full animate-pulse" />}
+                  </div>
                 </div>
               ) : (
                 // --- CAMERA VIEW (Active) ---
@@ -962,7 +975,7 @@ export default function LivePitchRoom() {
             </div>
 
             {/* Google Meet & Zoom Style bottom tray controls */}
-            <div className="flex items-center justify-center gap-3.5 bg-white dark:bg-zinc-900/90 backdrop-blur-md border border-slate-200 dark:border-zinc-805 p-2.5 rounded-2xl shadow-lg max-w-sm w-full mx-auto mt-4 shrink-0 transition-colors">
+            <div className="flex items-center justify-center gap-3.5 bg-white dark:bg-zinc-900/90 backdrop-blur-md border border-slate-200 dark:border-zinc-855 p-2.5 rounded-2xl shadow-lg max-w-sm w-full mx-auto mt-4 shrink-0 transition-colors">
               <button onClick={toggleCamera} className={cn("w-11 h-11 rounded-xl transition-all flex items-center justify-center cursor-pointer", stream ? "bg-slate-100 dark:bg-zinc-800 text-slate-800 dark:text-white hover:bg-slate-200 dark:hover:bg-zinc-700" : "bg-rose-500/20 text-rose-500")}>
                 {stream ? <Video size={18} /> : <VideoOff size={18} />}
               </button>
@@ -987,6 +1000,45 @@ export default function LivePitchRoom() {
             {/* Small informative prompt below controls */}
             <div className="text-center mt-3 text-[10px] text-slate-400 dark:text-zinc-500 font-bold uppercase tracking-widest animate-pulse shrink-0">
               {mainView === 'slide' ? "Tap Floating camera feed to switch screen" : "Tap Floating deck to view slides"}
+            </div>
+
+            {/* Embedded Live Chat Transcript (Directly in portrait room tab, hides in landscape) */}
+            <div className="flex-1 min-h-[150px] max-h-[30vh] mt-4 bg-white/70 dark:bg-zinc-900/60 backdrop-blur-xl border border-slate-200 dark:border-zinc-800/50 rounded-2xl p-3 flex flex-col shadow-inner transition-colors portrait:flex landscape:hidden">
+              <div className="flex items-center gap-2 text-slate-500 dark:text-white/50 text-[9px] font-bold uppercase tracking-widest mb-2 shrink-0">
+                <MessageSquare size={12} /> Live Room Chat & Transcript
+                {isSpeaking && <span className="text-sky-500 dark:text-sky-400 animate-pulse ml-auto font-medium text-[8px]">AI is responding...</span>}
+              </div>
+              
+              <div ref={scrollRef} className="flex-1 overflow-y-auto space-y-2 pr-1 custom-scrollbar mb-2 min-h-0">
+                {messages.length === 0 ? (
+                  <p className="text-slate-400 dark:text-white/30 text-[10px] text-center mt-4 font-bold uppercase tracking-wider opacity-60">AI Panel is ready. Start your pitch.</p>
+                ) : (
+                  messages.map((m) => (
+                    <div key={m.id} className={cn("flex flex-col max-w-[85%]", m.type === 'user' ? "ml-auto items-end" : "mr-auto items-start")}>
+                      <span className="text-[8px] font-bold uppercase text-slate-400 dark:text-white/30 mb-0.5 px-1 tracking-wider">
+                        {m.speaker || (m.type === 'user' ? userData.name : "Panelist")}
+                      </span>
+                      <div className={cn(
+                        "p-2 text-xs leading-relaxed",
+                        m.type === 'user' ? "bg-sky-500 text-white rounded-xl rounded-tr-sm shadow-sm" : "bg-slate-100 dark:bg-zinc-800 text-slate-800 dark:text-slate-100 rounded-xl rounded-tl-sm border border-slate-200 dark:border-zinc-700 shadow-sm"
+                      )}>
+                        {m.text}
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+
+              <form onSubmit={handleSendChat} className="flex items-center gap-2 shrink-0 mt-auto bg-slate-100/50 dark:bg-zinc-950/50 border border-slate-200 dark:border-white/10 rounded-lg p-1">
+                <input 
+                  type="text" value={chatInput} onChange={e => setChatInput(e.target.value)}
+                  placeholder="Type a message to panel..."
+                  className="flex-1 bg-transparent border-none focus:ring-0 text-xs text-slate-800 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500 px-2 outline-none"
+                />
+                <button type="submit" disabled={!isConnected} className="px-3 py-1.5 bg-sky-500 text-white font-bold text-slate-100 hover:text-white text-[10px] uppercase tracking-wider rounded hover:bg-sky-600 transition-colors disabled:opacity-50 cursor-pointer">
+                  Send
+                </button>
+              </form>
             </div>
           </div>
         )}
@@ -1159,16 +1211,6 @@ export default function LivePitchRoom() {
           <span className="text-[9px] font-bold uppercase tracking-wider">Panelists</span>
         </button>
         <button 
-          onClick={() => setActiveMobileTab('chat')}
-          className={cn("flex flex-col items-center gap-1 cursor-pointer relative transition-all", activeMobileTab === 'chat' ? "text-sky-500 scale-105" : "text-slate-400 dark:text-zinc-500")}
-        >
-          <MessageSquare size={19} />
-          <span className="text-[9px] font-bold uppercase tracking-wider">Chat</span>
-          {messages.length > 0 && activeMobileTab !== 'chat' && (
-            <span className="absolute top-0 right-2 w-2 h-2 rounded-full bg-rose-500 border border-white dark:border-zinc-900 animate-pulse" />
-          )}
-        </button>
-        <button 
           onClick={() => setActiveMobileTab('vitals')}
           className={cn("flex flex-col items-center gap-1 cursor-pointer transition-all", activeMobileTab === 'vitals' ? "text-sky-500 scale-105" : "text-slate-400 dark:text-zinc-500")}
         >
@@ -1179,10 +1221,13 @@ export default function LivePitchRoom() {
 
       <AnimatePresence>
         {isEvaluatingPitch && (
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="absolute inset-0 z-[100] bg-slate-900/95 backdrop-blur-md flex flex-col items-center justify-center">
-            <Loader2 className="animate-spin text-sky-500 mb-6" size={48} />
-            <h2 className="text-3xl font-bold">{loadingStatus}</h2>
-            <p className="text-sky-400 mt-2 font-medium">Please wait while Gemini evaluates your performance.</p>
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="absolute inset-0 z-[100] bg-gradient-to-b from-slate-950 via-slate-900 to-zinc-950 backdrop-blur-md flex flex-col items-center justify-center p-6 text-center">
+            <div className="relative mb-8">
+              <Loader2 className="animate-spin text-sky-500" size={64} />
+              <div className="absolute inset-0 animate-ping opacity-25 rounded-full border border-sky-400 scale-125" />
+            </div>
+            <h2 className="text-2xl md:text-3xl font-extrabold text-white mb-3 tracking-tight">{loadingStatus}</h2>
+            <p className="text-sky-450/80 max-w-sm text-sm font-medium tracking-wide">Please wait while Gemini evaluates your pitch dynamics and calculates readiness scoring.</p>
           </motion.div>
         )}
       </AnimatePresence>

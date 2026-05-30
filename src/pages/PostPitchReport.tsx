@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Link, useSearchParams } from 'react-router-dom';
+import { Link, useSearchParams, useLocation } from 'react-router-dom';
 import { 
   Share2, FileDown, Calendar, Users, Target, Activity, 
   CheckCircle2, AlertTriangle, Play, Zap, Star, TrendingUp, ShieldAlert, Loader2
@@ -12,8 +12,9 @@ export default function PostPitchReport() {
   const [searchParams] = useSearchParams();
   const sessionId = searchParams.get('session');
   const { authFetch } = useAuth();
-  const [session, setSession] = useState<any>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const location = useLocation();
+  const [session, setSession] = useState<any>(() => location.state?.session || null);
+  const [isLoading, setIsLoading] = useState(() => !location.state?.session);
 
   useEffect(() => {
     const fetchSession = async () => {
