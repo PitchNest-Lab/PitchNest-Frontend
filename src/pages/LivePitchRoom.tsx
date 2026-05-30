@@ -461,10 +461,10 @@ export default function LivePitchRoom() {
           const finalizeNavigation = () => {
             const mockSessionDbRow = {
               id: data.sessionId,
-              business_name: currentBusinessName,
+              business_name: pitchConfig?.businessName || "My Startup",
               evaluation_report: data.data,
               created_at: new Date().toISOString(),
-              video_url: currentVideoUrl || ""
+              video_url: ""
             };
             navigate(`/report${data.sessionId ? `?session=${data.sessionId}` : ''}`, {
               state: { session: mockSessionDbRow }
@@ -483,7 +483,7 @@ export default function LivePitchRoom() {
     
     socket.addEventListener('message', handleMessage);
     return () => socket.removeEventListener('message', handleMessage);
-  }, [socket, navigate]);
+  }, [socket, navigate, pitchConfig]);
 
   useEffect(() => {
     if (!isPitching || !isConnected || !socket) return;
