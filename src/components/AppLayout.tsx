@@ -165,7 +165,7 @@ export default function AppLayout() {
       </aside>
 
       {/* Main Content Area */}
-      <main className="flex-1 lg:ml-64 min-h-screen flex flex-col p-4 md:p-8 transition-all duration-300">
+      <main className="flex-1 lg:ml-64 min-h-screen flex flex-col p-4 md:p-8 transition-all duration-300 w-full max-w-full overflow-x-hidden min-w-0">
         
         {/* Top Header */}
         <header className="flex flex-col md:flex-row gap-4 md:items-center justify-between mb-8 md:mb-10">
