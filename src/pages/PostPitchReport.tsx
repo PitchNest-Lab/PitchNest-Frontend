@@ -17,6 +17,11 @@ export default function PostPitchReport() {
   const [isLoading, setIsLoading] = useState(() => !location.state?.session);
 
   useEffect(() => {
+    // If we already have the session from navigation state, skip fetching to prevent flickering/overriding
+    if (location.state?.session) {
+      return;
+    }
+
     const fetchSession = async () => {
       try {
         let url = '/api/sessions';
