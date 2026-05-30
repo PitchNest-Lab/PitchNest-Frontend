@@ -213,7 +213,7 @@ export default function MyPitchesArchive() {
               filteredSessions.map((session) => {
                 const score = getOverallScore(session.evaluation_report);
                 const name = session.business_name || "Untitled Pitch";
-                const date = formatDate(session.timestamp);
+                const date = formatDate(session.created_at);
                 const duration = formatDuration(session.evaluation_report?.duration);
                 const type = session.evaluation_report?.mode === 'coach' ? "Practice Coach" : "VC Panel";
                 return (

@@ -214,7 +214,7 @@ export default function Analytics() {
     if (report?.summary) {
       insights.push({
         category: session === sessions[0] ? "Latest Feedback" : "Past Review",
-        time: formatDate(session.timestamp),
+        time: formatDate(session.created_at),
         content: report.summary,
         type: session === sessions[0] ? "engagement" : "vocal"
       });

@@ -96,7 +96,7 @@ export default function PostPitchReport() {
 
   const circumference = 2 * Math.PI * 40; 
   const strokeDashoffset = circumference * (1 - overallScore / 100);
-  const formattedDate = session?.timestamp ? new Date(session.timestamp).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 'Unknown Date';
+  const formattedDate = session?.created_at ? new Date(session.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 'Unknown Date';
   const businessName = session?.business_name || "My Startup";
 
   return (

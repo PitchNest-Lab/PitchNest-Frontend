@@ -253,7 +253,7 @@ export default function Dashboard() {
                     key={session.id}
                     id={session.id}
                     name={session.business_name || "Untitled Pitch"} 
-                    date={formatDate(session.timestamp)} 
+                    date={formatDate(session.created_at)} 
                     score={score} 
                     status={getStatus(score)} 
                   />
