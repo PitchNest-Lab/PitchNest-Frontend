@@ -98,15 +98,15 @@ export default function PitchReplayScreen() {
     readiness: Number(rawScores.readiness) || 0,
   };
   
-  const overallScore = isInsufficientData ? 0 : Math.round(((scores.delivery + scores.clarity + scores.scalability + scores.readiness) / 40) * 100);
+  const overallScore = isInsufficientData ? 0 : Math.round((scores.delivery + scores.clarity + scores.scalability + scores.readiness) / 4);
   const transcript = Array.isArray(report.transcript) ? report.transcript : [];
   const businessName = session.business_name || "Untitled Pitch";
 
   const stats = [
     { label: "Overall Score", value: isInsufficientData ? "N/A" : `${overallScore}%`, icon: Target, color: "text-sky-500" },
-    { label: "Delivery", value: isInsufficientData ? "N/A" : `${scores.delivery}/10`, icon: Sparkles, color: "text-indigo-500" },
-    { label: "Clarity", value: isInsufficientData ? "N/A" : `${scores.clarity}/10`, icon: MessageSquare, color: "text-purple-500" },
-    { label: "Scalability", value: isInsufficientData ? "N/A" : `${scores.scalability}/10`, icon: Clock, color: "text-amber-500" }
+    { label: "Delivery", value: isInsufficientData ? "N/A" : `${scores.delivery}/100`, icon: Sparkles, color: "text-indigo-500" },
+    { label: "Clarity", value: isInsufficientData ? "N/A" : `${scores.clarity}/100`, icon: MessageSquare, color: "text-purple-500" },
+    { label: "Scalability", value: isInsufficientData ? "N/A" : `${scores.scalability}/100`, icon: Clock, color: "text-amber-500" }
   ];
 
   return (
@@ -215,7 +215,7 @@ export default function PitchReplayScreen() {
           <div className="space-y-4 bg-sky-50 dark:bg-sky-900/10 p-6 rounded-2xl border border-sky-100 dark:border-sky-900/30">
             <p className="text-[10px] font-bold text-sky-600 dark:text-sky-400 uppercase tracking-widest">Investor Readiness</p>
             <p className="text-sm text-slate-700 dark:text-zinc-300 leading-relaxed">
-              Based on this session, your pitch readiness is evaluated at a <strong className="text-sky-600">{scores.readiness}/10</strong>. Focus on iterating your delivery and ensuring your market size arguments are defensible before presenting to live VC panels.
+              Based on this session, your pitch readiness is evaluated at a <strong className="text-sky-600">{scores.readiness}/100</strong>. Focus on iterating your delivery and ensuring your market size arguments are defensible before presenting to live VC panels.
             </p>
           </div>
         </div>

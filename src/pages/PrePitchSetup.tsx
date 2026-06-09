@@ -129,7 +129,7 @@ export default function PrePitchSetup() {
   const preSelectedDeckName = location.state?.preSelectedDeck;
 
   useEffect(() => {
-    const fetchDecks = async () => {
+    const fetchInitialData = async () => {
       try {
         const res = await authFetch('/api/decks');
         if (res.ok) {
@@ -138,9 +138,35 @@ export default function PrePitchSetup() {
           if (preSelectedDeckName) setSelectedDeck(data.find((d: any) => d.name === preSelectedDeckName) || data[0]);
           else if (data.length > 0) setSelectedDeck(data[0]); 
         }
-      } catch (err) {} finally { setIsLoading(false); }
+      } catch (err) {
+        console.error("Failed to fetch decks:", err);
+      }
+
+      try {
+        const profileRes = await authFetch('/api/profile');
+        if (profileRes.ok) {
+          const profile = await profileRes.json();
+          if (profile) {
+            if (profile.startup_name) {
+              setValue('businessName', profile.startup_name);
+              localStorage.setItem('pitchnest_startup_name', profile.startup_name);
+            }
+            if (profile.industry) {
+              setValue('industry', profile.industry);
+            }
+            if (profile.funding_stage) {
+              setValue('fundingStage', profile.funding_stage);
+              localStorage.setItem('pitchnest_funding_stage', profile.funding_stage);
+            }
+          }
+        }
+      } catch (err) {
+        console.error("Failed to fetch profile in PrePitchSetup:", err);
+      } finally {
+        setIsLoading(false);
+      }
     };
-    fetchDecks();
+    fetchInitialData();
   }, [preSelectedDeckName]);
 
   const toggleScreenShare = async (checked: boolean) => {

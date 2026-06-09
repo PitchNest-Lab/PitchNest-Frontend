@@ -37,7 +37,8 @@ export default function Onboarding() {
         body: JSON.stringify({
           startup_name: formData.startupName || "My Startup",
           industry: formData.industry,
-          goal: formData.goal
+          goal: formData.goal,
+          funding_stage: formData.fundingStage || "Pre-Seed"
         })
       });
     } catch (err) {
