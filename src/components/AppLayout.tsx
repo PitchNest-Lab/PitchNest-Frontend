@@ -12,7 +12,8 @@ import {
   LogOut,
   Rocket,
   Menu,
-  X
+  X,
+  Download
 } from 'lucide-react';
 import { Link, useLocation, Outlet, useNavigate } from 'react-router-dom';
 import { cn } from '../lib/utils';
@@ -37,6 +38,35 @@ export default function AppLayout() {
   const { logout } = useAuth();
   const [logoError, setLogoError] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
+  const [isInstallable, setIsInstallable] = useState(false);
+
+  useEffect(() => {
+    const handleBeforeInstallPrompt = (e: Event) => {
+      e.preventDefault();
+      setDeferredPrompt(e);
+      setIsInstallable(true);
+    };
+
+    window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+
+    if (window.matchMedia('(display-mode: standalone)').matches) {
+      setIsInstallable(false);
+    }
+
+    return () => {
+      window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+    };
+  }, []);
+
+  const handleInstallClick = async () => {
+    if (!deferredPrompt) return;
+    deferredPrompt.prompt();
+    const { outcome } = await deferredPrompt.userChoice;
+    console.log(`PWA Install Choice: ${outcome}`);
+    setDeferredPrompt(null);
+    setIsInstallable(false);
+  };
   
   // 🔥 DATA FIX: Dynamic User Profile
   const [userData, setUserData] = useState<{name: string, email?: string}>({ name: "Founder" });
@@ -135,6 +165,19 @@ export default function AppLayout() {
             />
           </div>
         </nav>
+
+        {isInstallable && (
+          <div className="mt-4 p-4 bg-slate-50 dark:bg-zinc-800/30 border border-slate-200 dark:border-zinc-800 rounded-2xl text-center shrink-0">
+            <p className="text-xs font-bold text-slate-800 dark:text-zinc-200 mb-2">Get Desktop App</p>
+            <button 
+              type="button"
+              onClick={handleInstallClick}
+              className="w-full py-2 bg-sky-500 hover:bg-sky-600 text-white font-bold rounded-xl text-xs flex items-center justify-center gap-2 shadow-sm transition-colors cursor-pointer"
+            >
+              <Download size={14} /> Install App
+            </button>
+          </div>
+        )}
 
         <div className="mt-6 p-4 bg-gradient-to-br from-indigo-600 to-sky-500 rounded-2xl text-white relative overflow-hidden group shrink-0">
           <div className="relative z-10">
