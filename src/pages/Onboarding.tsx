@@ -14,11 +14,12 @@ export default function Onboarding() {
   const [formData, setFormData] = useState({
     startupName: '',
     industry: '',
-    goal: ''
+    goal: '',
+    fundingStage: 'Pre-Seed'
   });
 
   const handleNext = () => {
-    if (step < 3) setStep(step + 1);
+    if (step < 4) setStep(step + 1);
   };
 
   const handleFinish = async () => {
@@ -45,6 +46,7 @@ export default function Onboarding() {
 
     localStorage.setItem('pitchnest_onboarding_complete', 'true');
     localStorage.setItem('pitchnest_startup_name', formData.startupName || "My Startup");
+    localStorage.setItem('pitchnest_funding_stage', formData.fundingStage || "Pre-Seed");
     
     navigate('/dashboard');
   };
@@ -53,6 +55,7 @@ export default function Onboarding() {
   const handleSkip = () => {
     localStorage.setItem('pitchnest_onboarding_complete', 'true');
     localStorage.setItem('pitchnest_startup_name', "My Startup");
+    localStorage.setItem('pitchnest_funding_stage', "Pre-Seed");
     navigate('/dashboard');
   };
 
@@ -134,6 +137,45 @@ export default function Onboarding() {
       case 3:
         return (
           <div className="flex-1 flex flex-col justify-center h-full">
+            <h2 className="text-3xl font-bold text-slate-900 dark:text-zinc-100 mb-3">Select your Funding Stage</h2>
+            <p className="text-slate-500 dark:text-zinc-400 text-lg mb-8 leading-relaxed">
+              This guides the AI investors' expectations on traction, revenue, and scaling.
+            </p>
+            
+            <div className="grid grid-cols-2 gap-4">
+              {['Idea / Bootstrap', 'Pre-Seed', 'Seed', 'Series A+'].map((stage) => (
+                <button
+                  key={stage}
+                  onClick={() => setFormData({...formData, fundingStage: stage})}
+                  className={cn(
+                    "p-5 rounded-2xl border-2 text-left transition-all font-bold text-sm",
+                    formData.fundingStage === stage 
+                      ? "border-sky-500 bg-sky-50 dark:bg-sky-500/10 text-sky-600 dark:text-sky-400" 
+                      : "border-slate-100 dark:border-zinc-800 hover:border-slate-300 dark:hover:border-zinc-700 text-slate-600 dark:text-zinc-300"
+                  )}
+                >
+                  {stage}
+                </button>
+              ))}
+            </div>
+
+            <div className="mt-8 flex justify-between mt-auto pt-8">
+              <button onClick={() => setStep(2)} className="px-6 py-4 text-slate-500 font-bold hover:text-slate-800 dark:hover:text-white transition-colors">
+                Back
+              </button>
+              <button 
+                onClick={handleNext} 
+                disabled={!formData.fundingStage}
+                className="px-8 py-4 bg-sky-500 text-white font-bold rounded-2xl hover:bg-sky-600 transition-all flex items-center gap-2 group disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Continue <ChevronRight size={18} className="group-hover:translate-x-1 transition-transform" />
+              </button>
+            </div>
+          </div>
+        );
+      case 4:
+        return (
+          <div className="flex-1 flex flex-col justify-center h-full">
             <h2 className="text-3xl font-bold text-slate-900 dark:text-zinc-100 mb-3">What is your primary goal?</h2>
             <p className="text-slate-500 dark:text-zinc-400 text-lg mb-8 leading-relaxed">
               We'll tailor your dashboard analytics based on what matters most to you right now.
@@ -173,7 +215,7 @@ export default function Onboarding() {
             </div>
 
             <div className="mt-8 flex justify-between mt-auto pt-8">
-              <button onClick={() => setStep(2)} className="px-6 py-4 text-slate-500 font-bold hover:text-slate-800 dark:hover:text-white transition-colors">
+              <button onClick={() => setStep(3)} className="px-6 py-4 text-slate-500 font-bold hover:text-slate-800 dark:hover:text-white transition-colors">
                 Back
               </button>
               <button 
@@ -221,7 +263,7 @@ export default function Onboarding() {
 
         {/* Progress Bar */}
         <div className="flex gap-2 mb-8 max-w-sm mx-auto w-full shrink-0">
-          {[1, 2, 3].map((i) => (
+          {[1, 2, 3, 4].map((i) => (
             <div key={i} className="h-1.5 flex-1 rounded-full overflow-hidden bg-slate-200 dark:bg-zinc-800">
               <div 
                 className={cn("h-full bg-sky-500 transition-all duration-500", step >= i ? "w-full" : "w-0")}

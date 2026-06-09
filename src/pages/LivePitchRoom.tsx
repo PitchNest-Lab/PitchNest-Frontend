@@ -220,7 +220,19 @@ export default function LivePitchRoom() {
     "waiting",
   );
   const [countdown, setCountdown] = useState(3);
-  const [timeLeft, setTimeLeft] = useState(15 * 60);
+  const [timeLeft, setTimeLeft] = useState(() => {
+    if (location.state?.pitchConfig) {
+      return (location.state.pitchConfig.duration || 15) * 60;
+    }
+    const saved = sessionStorage.getItem("pitchConfig");
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        return (parsed.duration || 15) * 60;
+      } catch (e) {}
+    }
+    return 15 * 60;
+  });
 
   const [mainView, setMainView] = useState<"slide" | "camera">("slide");
   const [chatInput, setChatInput] = useState("");

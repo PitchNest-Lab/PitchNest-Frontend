@@ -19,11 +19,13 @@ const setupSchema = z.object({
   description: z.string().min(10, 'Min 10 chars'),
   industry: z.string().min(1, 'Required'),
   investorArchetype: z.string().min(1, 'Required'),
+  fundingStage: z.string().min(1, 'Required'),
   aggressiveness: z.number().min(0).max(100),
   riskAppetite: z.number().min(0).max(100),
   cameraEnabled: z.boolean(),
   micEnabled: z.boolean(),
   screenShareEnabled: z.boolean(),
+  duration: z.number().min(5).max(60),
 });
 
 type SetupFormValues = z.infer<typeof setupSchema>;
@@ -105,11 +107,13 @@ export default function PrePitchSetup() {
       description: 'We are building the next generation of AI tools for enterprise.', 
       industry: 'SaaS & Enterprise',
       investorArchetype: 'Seed Stage - Venture Capital', 
+      fundingStage: localStorage.getItem('pitchnest_funding_stage') || 'Pre-Seed',
       aggressiveness: 60, 
       riskAppetite: 75,
       cameraEnabled: true, 
       micEnabled: true, 
       screenShareEnabled: false,
+      duration: 15,
     }
   });
 
@@ -120,6 +124,7 @@ export default function PrePitchSetup() {
   const canScreenShare = typeof navigator?.mediaDevices?.getDisplayMedia === 'function';
   const aggressiveness = watch('aggressiveness');
   const riskAppetite = watch('riskAppetite');
+  const duration = watch('duration') || 15;
 
   const preSelectedDeckName = location.state?.preSelectedDeck;
 
@@ -161,7 +166,7 @@ export default function PrePitchSetup() {
           <h1 className="text-2xl md:text-3xl font-extrabold text-slate-900 dark:text-zinc-100">Pre-Pitch Configuration</h1>
         </div>
         <div className="flex items-center gap-2 px-3 py-1.5 bg-slate-100 dark:bg-zinc-800 rounded-lg text-xs font-bold text-slate-500">
-          <Clock size={14} /> 15 Min Session
+          <Clock size={14} /> {duration} Min Session
         </div>
       </div>
 
@@ -177,7 +182,7 @@ export default function PrePitchSetup() {
           </div>
 
           <div className="bg-white dark:bg-zinc-900 p-4 sm:p-6 rounded-[24px] border border-slate-200 dark:border-zinc-800 shadow-sm shrink-0">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div className="space-y-1.5 col-span-1">
                 <div className="flex justify-between">
                   <label className="text-xs font-bold text-slate-700 dark:text-zinc-300 flex items-center gap-1.5"><Briefcase size={14} className="text-sky-500"/> Startup Name</label>
@@ -216,7 +221,24 @@ export default function PrePitchSetup() {
                   </select>
                 </div>
               </div>
-              <div className="space-y-1.5 col-span-1 md:col-span-2">
+              <div className="space-y-1.5 col-span-1">
+                <label className="text-xs font-bold text-slate-700 dark:text-zinc-300 flex items-center gap-1.5"><Clock size={14} className="text-sky-500"/> Funding & Duration</label>
+                <div className="flex flex-col sm:flex-row gap-2">
+                  <select {...register('fundingStage')} className="w-full sm:flex-1 px-3 py-2 text-sm bg-slate-50 dark:bg-zinc-800 border rounded-xl dark:border-zinc-700 text-slate-700 dark:text-zinc-300 focus:outline-none focus:ring-2 focus:ring-sky-500/20">
+                    <option value="Idea / Bootstrap">Idea / Bootstrap</option>
+                    <option value="Pre-Seed">Pre-Seed</option>
+                    <option value="Seed">Seed</option>
+                    <option value="Series A+">Series A+</option>
+                  </select>
+                  <select {...register('duration', { valueAsNumber: true })} className="w-full sm:flex-1 px-3 py-2 text-sm bg-slate-50 dark:bg-zinc-800 border rounded-xl dark:border-zinc-700 text-slate-700 dark:text-zinc-300 focus:outline-none focus:ring-2 focus:ring-sky-500/20">
+                    <option value="10">10 Min</option>
+                    <option value="15">15 Min</option>
+                    <option value="20">20 Min</option>
+                    <option value="30">30 Min</option>
+                  </select>
+                </div>
+              </div>
+              <div className="space-y-1.5 col-span-1 md:col-span-3">
                 <div className="flex justify-between">
                   <label className="text-xs font-bold text-slate-700 dark:text-zinc-300">Elevator Pitch</label>
                   {errors.description && <span className="text-[10px] text-rose-500 font-bold">{errors.description.message}</span>}
