@@ -94,7 +94,7 @@ export default function AppLayout() {
             )}>
               {!logoError ? (
                 <img 
-                  src="/PitchNest Logo.png" 
+                  src="/logo.svg" 
                   alt="PitchNest Logo" 
                   className="w-full h-full object-contain"
                   onError={() => setLogoError(true)}

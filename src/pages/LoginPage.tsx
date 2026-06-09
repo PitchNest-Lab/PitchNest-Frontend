@@ -80,7 +80,7 @@ export default function LoginPage() {
           {/* 🔥 FIX 1: Wrapped Logo in a Link back to the Landing Page */}
           <Link to="/" className="flex items-center gap-3 mb-12 w-fit hover:opacity-80 transition-opacity">
             <div className={cn("w-10 h-10 flex items-center justify-center overflow-hidden rounded-xl", logoError && "bg-sky-500 text-white shadow-lg shadow-sky-200")}>
-              {!logoError ? <img src="/PitchNest Logo.png" alt="Logo" className="w-full h-full object-contain" onError={() => setLogoError(true)} /> : <Rocket size={24} fill="currentColor" />}
+              {!logoError ? <img src="/logo.svg" alt="Logo" className="w-full h-full object-contain" onError={() => setLogoError(true)} /> : <Rocket size={24} fill="currentColor" />}
             </div>
             <span className="text-xl font-bold tracking-tight text-slate-900 dark:text-zinc-100">PitchNest</span>
           </Link>

@@ -149,11 +149,27 @@ export default function PrePitchSetup() {
                     <option value="SaaS & Enterprise">SaaS & Enterprise</option>
                     <option value="Fintech">Fintech</option>
                     <option value="Healthtech">Healthtech</option>
+                    <option value="Consumer Social & Media">Consumer Social & Media</option>
+                    <option value="E-commerce & Retail">E-commerce & Retail</option>
+                    <option value="Artificial Intelligence & ML">Artificial Intelligence & ML</option>
+                    <option value="CleanTech & Sustainability">CleanTech & Sustainability</option>
+                    <option value="Biotech & Life Sciences">Biotech & Life Sciences</option>
+                    <option value="DeepTech & Aerospace">DeepTech & Aerospace</option>
+                    <option value="EdTech">EdTech</option>
+                    <option value="Crypto & Web3">Crypto & Web3</option>
+                    <option value="Hardware / IoT">Hardware / IoT</option>
+                    <option value="Logistics & PropTech">Logistics & PropTech</option>
                   </select>
                   <select {...register('investorArchetype')} className="w-full sm:flex-1 px-3 py-2 text-sm bg-slate-50 dark:bg-zinc-800 border rounded-xl dark:border-zinc-700 text-slate-700 dark:text-zinc-300 focus:outline-none focus:ring-2 focus:ring-sky-500/20">
                     <option value="Seed Stage - Venture Capital">Seed VC</option>
                     <option value="Angel Investor Group">Angel Group</option>
                     <option value="Growth Stage - Venture Capital">Growth Fund</option>
+                    <option value="Shark Tank Judge">Shark Tank Judge</option>
+                    <option value="Private Equity">Private Equity</option>
+                    <option value="Strategic Corporate VC">Corporate VC</option>
+                    <option value="Family Office">Family Office</option>
+                    <option value="Y Combinator Partner">Y Combinator Partner</option>
+                    <option value="ESG & Impact Investor">ESG & Impact Investor</option>
                   </select>
                 </div>
               </div>

@@ -238,6 +238,8 @@ export default function LivePitchRoom() {
     }[]
   >([]);
   const [isEvaluatingPitch, setIsEvaluatingPitch] = useState(false);
+  const [isConcluding, setIsConcluding] = useState(false);
+  const [hasSpokenConclusion, setHasSpokenConclusion] = useState(false);
   const [loadingStatus, setLoadingStatus] = useState(
     "Panel is grading your pitch...",
   );
@@ -305,8 +307,35 @@ export default function LivePitchRoom() {
       try {
         setUserData(JSON.parse(storedUser));
       } catch (e) {}
-    }
+    };
   }, []);
+
+  const streamRef = useRef<MediaStream | null>(null);
+  const screenStreamRef = useRef<MediaStream | null>(null);
+
+  useEffect(() => {
+    streamRef.current = stream;
+  }, [stream]);
+
+  useEffect(() => {
+    screenStreamRef.current = screenStream;
+  }, [screenStream]);
+
+  // Cleanup media streams on unmount to prevent microphone leak
+  useEffect(() => {
+    return () => {
+      try {
+        if (streamRef.current) {
+          streamRef.current.getTracks().forEach((track) => track.stop());
+        }
+        if (screenStreamRef.current) {
+          screenStreamRef.current.getTracks().forEach((track) => track.stop());
+        }
+        stopStream();
+        stopCapture();
+      } catch (e) {}
+    };
+  }, [stopStream, stopCapture]);
 
   // Auto-scroll chat to bottom when new messages arrive
   useEffect(() => {
@@ -316,15 +345,15 @@ export default function LivePitchRoom() {
   }, [messages]);
 
   useEffect(() => {
-    if (!isPitching || isEvaluatingPitch) return;
+    if (!isPitching || isEvaluatingPitch || isConcluding) return;
 
     if (timeLeft <= 0) {
-      handleEndSession();
+      triggerConclusion();
       return;
     }
     const timer = setInterval(() => setTimeLeft((prev) => prev - 1), 1000);
     return () => clearInterval(timer);
-  }, [isPitching, timeLeft, isEvaluatingPitch]);
+  }, [isPitching, timeLeft, isEvaluatingPitch, isConcluding]);
 
   const formatTime = (seconds: number) => {
     const m = Math.floor(seconds / 60);
@@ -439,53 +468,79 @@ export default function LivePitchRoom() {
     }
   }, [isPitching, stream]);
 
+  // We'll use a ref to buffer the transcript and debounce the send to the backend
+  const transcriptBufferRef = useRef<string>("");
+  const transcriptTimerRef = useRef<number | null>(null);
+
   useEffect(() => {
-    if (!isPitching || !stream || !socket || !isConnected) return;
+    if (!isPitching || !socket || !isConnected) return;
 
-    const audioCtx = new (
-      window.AudioContext || (window as any).webkitAudioContext
-    )({ sampleRate: 16000 });
-    const source = audioCtx.createMediaStreamSource(stream);
-    const processor = audioCtx.createScriptProcessor(4096, 1, 1);
+    let active = true;
 
-    processor.onaudioprocess = (e) => {
-      if (isMicMuted) return;
-      const inputData = e.inputBuffer.getChannelData(0);
-      const pcmBuffer = new Int16Array(inputData.length);
-      for (let i = 0; i < inputData.length; i++) {
-        const s = Math.max(-1, Math.min(1, inputData[i]));
-        pcmBuffer[i] = s < 0 ? s * 0x8000 : s * 0x7fff;
-      }
-      const binary = String.fromCharCode(...new Uint8Array(pcmBuffer.buffer));
-      const base64Data = btoa(binary);
+    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    if (!SpeechRecognition) {
+      console.warn("SpeechRecognition API not supported in this browser.");
+      return;
+    }
 
-      if (socket.readyState === WebSocket.OPEN) {
-        // 🔥 FIX 2: Buffer overflow guard to stop Gemini from freezing mid-pitch
-        if (socket.bufferedAmount > 1000000) {
-          console.warn("WebSocket buffer full, dropping chunk");
-          return;
+    const recognition = new SpeechRecognition();
+    recognition.continuous = true;
+    recognition.interimResults = false;
+    recognition.lang = "en-US";
+
+    recognition.onresult = (event: any) => {
+      if (!active || isMicMuted) return;
+      const lastResult = event.results[event.results.length - 1];
+      if (lastResult.isFinal) {
+        const text = lastResult[0].transcript.trim();
+        if (!text) return;
+        
+        // Append to buffer
+        transcriptBufferRef.current += (transcriptBufferRef.current ? " " : "") + text;
+
+        // Clear existing timer
+        if (transcriptTimerRef.current) {
+          window.clearTimeout(transcriptTimerRef.current);
         }
-        socket.send(
-          JSON.stringify({
-            realtimeInput: {
-              mediaChunks: [
-                { mimeType: "audio/pcm;rate=16000", data: base64Data },
-              ],
-            },
-          }),
-        );
+
+        // Set a new timer to send after 1.5s of silence
+        transcriptTimerRef.current = window.setTimeout(() => {
+          const finalPayload = transcriptBufferRef.current.trim();
+          if (finalPayload && socket.readyState === WebSocket.OPEN) {
+            setMessages((prev) => [
+              ...prev,
+              {
+                id: `user-voice-${Date.now()}`,
+                text: finalPayload,
+                type: "user",
+                speaker: userData.name,
+                inputMethod: "voice",
+              },
+            ]);
+            socket.send(JSON.stringify({ type: "chat_message", text: finalPayload }));
+          }
+          transcriptBufferRef.current = "";
+          transcriptTimerRef.current = null;
+        }, 1500);
       }
     };
 
-    source.connect(processor);
-    processor.connect(audioCtx.destination);
+    recognition.onend = () => {
+      if (active && isPitching && !isMicMuted) {
+        try { recognition.start(); } catch (e) {}
+      }
+    };
+
+    if (!isMicMuted && isPitching) {
+      try { recognition.start(); } catch (e) {}
+    }
 
     return () => {
-      source.disconnect();
-      processor.disconnect();
-      if (audioCtx.state !== "closed") audioCtx.close();
+      active = false;
+      try { recognition.abort(); } catch (e) {}
+      if (transcriptTimerRef.current) window.clearTimeout(transcriptTimerRef.current);
     };
-  }, [isPitching, stream, socket, isConnected, isMicMuted]);
+  }, [isPitching, socket, isConnected, isMicMuted, userData.name]);
 
   useEffect(() => {
     if (!socket) return;
@@ -550,6 +605,10 @@ export default function LivePitchRoom() {
                 speaker: currentSpeaker,
               },
             ]);
+
+            if (isConcluding) {
+              setHasSpokenConclusion(true);
+            }
 
             const chunk = cleanText;
             if (chunk && isAiStreamingRef.current === false) {
@@ -616,6 +675,9 @@ export default function LivePitchRoom() {
           source.start(startTime);
           nextStartTimeRef.current = startTime + audioBuffer.duration;
 
+          if (isConcluding) {
+            setHasSpokenConclusion(true);
+          }
           setIsSpeaking(true);
           source.onended = () => {
             if (
@@ -786,6 +848,42 @@ export default function LivePitchRoom() {
     socket.send(JSON.stringify({ type: "chat_message", text: chatInput }));
     setChatInput("");
   };
+
+  const triggerConclusion = async () => {
+    if (isConcluding || !socket || !isConnected) return;
+    setIsConcluding(true);
+    setHasSpokenConclusion(false);
+    wakeAudio();
+    
+    // Add an invisible system message to trigger the final verdict
+    socket.send(
+      JSON.stringify({
+        type: "chat_message",
+        text: "[SYSTEM: Time is up or the session is ending. Please conclude the pitch now and deliver your final spoken verdict on whether to accept, reject, or recommend improvements.]",
+      })
+    );
+
+    // Fallback timer: if the AI doesn't finish speaking (or we don't receive response) within 18 seconds, proceed anyway
+    setTimeout(() => {
+      setIsPitching((prev) => {
+        if (prev) {
+          console.warn("Conclusion timeout fallback triggered.");
+          handleEndSession();
+        }
+        return prev;
+      });
+    }, 18000);
+  };
+
+  useEffect(() => {
+    if (isConcluding && hasSpokenConclusion && !isSpeaking) {
+      // Add a small delay to ensure audio is truly finished and not just between sentences
+      const timer = setTimeout(() => {
+        if (!isSpeaking) handleEndSession();
+      }, 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [isConcluding, hasSpokenConclusion, isSpeaking]);
 
   const handleEndSession = async () => {
     wakeAudio();
@@ -971,7 +1069,7 @@ export default function LivePitchRoom() {
           >
             {!logoError ? (
               <img
-                src="/PitchNest Logo.png"
+                src="/logo.svg"
                 alt="Logo"
                 className="w-full h-full object-contain"
                 onError={() => setLogoError(true)}
@@ -1196,11 +1294,12 @@ export default function LivePitchRoom() {
               )}
               <div className="w-px h-8 bg-slate-200 dark:bg-white/10 mx-2" />
               <button
-                onClick={handleEndSession}
-                disabled={!isConnected && !isPitching}
+                onClick={triggerConclusion}
+                disabled={(!isConnected && !isPitching) || isConcluding}
                 className="px-6 h-12 bg-rose-500 text-white text-sm font-bold rounded-xl hover:bg-rose-600 transition-all disabled:bg-slate-200 dark:disabled:bg-slate-700 disabled:opacity-50 shadow-lg shadow-rose-500/20 flex items-center justify-center gap-2 cursor-pointer"
               >
-                <VolumeX size={18} /> End Pitch
+                <VolumeX size={18} />
+                {isConcluding ? "Concluding..." : "End Session"}
               </button>
             </div>
           </div>
@@ -1617,11 +1716,12 @@ export default function LivePitchRoom() {
               )}
               <div className="w-px h-6 bg-slate-200 dark:bg-white/10 mx-1" />
               <button
-                onClick={handleEndSession}
-                disabled={!isConnected && !isPitching}
+                onClick={triggerConclusion}
+                disabled={(!isConnected && !isPitching) || isConcluding}
                 className="px-5 h-11 bg-rose-500 text-white text-xs font-bold rounded-xl hover:bg-rose-600 shadow-md flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-50"
               >
-                <VolumeX size={16} /> End Pitch
+                <MonitorOff className="w-4 h-4" />
+                {isConcluding ? "Concluding..." : "End Session"}
               </button>
             </div>
 
