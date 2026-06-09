@@ -227,6 +227,15 @@ export default function LivePitchRoom() {
   const [activeSpeakerName, setActiveSpeakerName] = useState("");
   const [isPitching, setIsPitching] = useState(false);
   const [isSpeaking, setIsSpeaking] = useState(false);
+  const isSpeakingRef = useRef(false);
+  const lastAiSpeakingEndedTimeRef = useRef(0);
+  const setSpeakingState = useCallback((val: boolean) => {
+    setIsSpeaking(val);
+    isSpeakingRef.current = val;
+    if (!val) {
+      lastAiSpeakingEndedTimeRef.current = Date.now();
+    }
+  }, []);
   const [isMicMuted, setIsMicMuted] = useState(false);
   const [messages, setMessages] = useState<
     {
@@ -265,7 +274,9 @@ export default function LivePitchRoom() {
   const chunksRef = useRef<BlobPart[]>([]);
   const videoRef = useRef<HTMLVideoElement>(null);
   const screenRef = useRef<HTMLVideoElement>(null);
-  const scrollRef = useRef<HTMLDivElement>(null);
+  const desktopScrollRef = useRef<HTMLDivElement>(null);
+  const mobileEmbeddedScrollRef = useRef<HTMLDivElement>(null);
+  const mobileFullScrollRef = useRef<HTMLDivElement>(null);
 
   const audioContextRef = useRef<AudioContext | null>(null);
   const nextStartTimeRef = useRef(0);
@@ -279,6 +290,7 @@ export default function LivePitchRoom() {
   const isAiStreamingRef = useRef(false);
   const preferredVoiceRef = useRef<SpeechSynthesisVoice | null>(null);
   const uploadPromiseRef = useRef<Promise<any> | null>(null);
+  const activeSourcesRef = useRef<AudioBufferSourceNode[]>([]);
 
   useEffect(() => {
     if (!("speechSynthesis" in window)) return;
@@ -340,6 +352,14 @@ export default function LivePitchRoom() {
           audioContextRef.current = null;
         }
 
+        // Cancel active audio source nodes
+        activeSourcesRef.current.forEach((src) => {
+          try {
+            src.stop();
+          } catch (e) {}
+        });
+        activeSourcesRef.current = [];
+
         // Cancel browser native synthesis just in case
         if (typeof window !== "undefined" && window.speechSynthesis) {
           window.speechSynthesis.cancel();
@@ -348,10 +368,16 @@ export default function LivePitchRoom() {
     };
   }, [stopStream, stopCapture]);
 
-  // Auto-scroll chat to bottom when new messages arrive
+  // Auto-scroll chat views to bottom when new messages arrive
   useEffect(() => {
-    if (scrollRef.current) {
-      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+    if (desktopScrollRef.current) {
+      desktopScrollRef.current.scrollTop = desktopScrollRef.current.scrollHeight;
+    }
+    if (mobileEmbeddedScrollRef.current) {
+      mobileEmbeddedScrollRef.current.scrollTop = mobileEmbeddedScrollRef.current.scrollHeight;
+    }
+    if (mobileFullScrollRef.current) {
+      mobileFullScrollRef.current.scrollTop = mobileFullScrollRef.current.scrollHeight;
     }
   }, [messages]);
 
@@ -500,7 +526,9 @@ export default function LivePitchRoom() {
     recognition.lang = "en-US";
 
     recognition.onresult = (event: any) => {
-      if (!active || isMicMuted) return;
+      const now = Date.now();
+      const timeSinceAiSpoke = now - lastAiSpeakingEndedTimeRef.current;
+      if (!active || isMicMuted || isSpeakingRef.current || timeSinceAiSpoke < 1200) return;
       const lastResult = event.results[event.results.length - 1];
       if (lastResult.isFinal) {
         const text = lastResult[0].transcript.trim();
@@ -514,7 +542,7 @@ export default function LivePitchRoom() {
           window.clearTimeout(transcriptTimerRef.current);
         }
 
-        // Set a new timer to send after 1.5s of silence
+        // Set a new timer to send after 1.0s of silence to reduce response delay
         transcriptTimerRef.current = window.setTimeout(() => {
           const finalPayload = transcriptBufferRef.current.trim();
           if (finalPayload && socket.readyState === WebSocket.OPEN) {
@@ -532,7 +560,7 @@ export default function LivePitchRoom() {
           }
           transcriptBufferRef.current = "";
           transcriptTimerRef.current = null;
-        }, 1500);
+        }, 1000);
       }
     };
 
@@ -559,6 +587,19 @@ export default function LivePitchRoom() {
     const handleMessage = async (event: MessageEvent) => {
       try {
         const data = JSON.parse(event.data);
+
+        if (data.type === "stop_audio") {
+          activeSourcesRef.current.forEach((src) => {
+            try {
+              src.stop();
+            } catch (e) {}
+          });
+          activeSourcesRef.current = [];
+          nextStartTimeRef.current = 0;
+          setSpeakingState(false);
+          setActiveSpeakerName("");
+          return;
+        }
 
         if (data.type === "transcript" || data.text) {
           const rawText = data.text || data.transcript;
@@ -607,15 +648,29 @@ export default function LivePitchRoom() {
           setActiveSpeakerName(currentSpeaker);
 
           if (cleanText) {
-            setMessages((prev) => [
-              ...prev,
-              {
-                id: Date.now().toString(),
-                text: cleanText,
-                type: "ai",
-                speaker: currentSpeaker,
-              },
-            ]);
+            setMessages((prev) => {
+              if (prev.length > 0) {
+                const last = prev[prev.length - 1];
+                if (last.type === "ai" && last.speaker === currentSpeaker) {
+                  const updated = [...prev];
+                  const needsSpace = last.text.length > 0 && !last.text.endsWith(" ") && !cleanText.startsWith(" ");
+                  updated[updated.length - 1] = {
+                    ...last,
+                    text: last.text + (needsSpace ? " " : "") + cleanText,
+                  };
+                  return updated;
+                }
+              }
+              return [
+                ...prev,
+                {
+                  id: Date.now().toString(),
+                  text: cleanText,
+                  type: "ai",
+                  speaker: currentSpeaker,
+                },
+              ];
+            });
 
             if (isConcluding) {
               setHasSpokenConclusion(true);
@@ -683,19 +738,21 @@ export default function LivePitchRoom() {
             nextStartTimeRef.current,
             audioContextRef.current.currentTime,
           );
+          activeSourcesRef.current.push(source);
           source.start(startTime);
           nextStartTimeRef.current = startTime + audioBuffer.duration;
 
           if (isConcluding) {
             setHasSpokenConclusion(true);
           }
-          setIsSpeaking(true);
+          setSpeakingState(true);
           source.onended = () => {
+            activeSourcesRef.current = activeSourcesRef.current.filter((s) => s !== source);
             if (
               audioContextRef.current &&
               audioContextRef.current.currentTime >= nextStartTimeRef.current
             ) {
-              setIsSpeaking(false);
+              setSpeakingState(false);
               setActiveSpeakerName("");
             }
           };
@@ -795,10 +852,7 @@ export default function LivePitchRoom() {
     return () => clearInterval(visionInterval);
   }, [isPitching, isConnected, isCapturing, socket]);
 
-  useEffect(() => {
-    if (scrollRef.current)
-      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
-  }, [messages]);
+  // Already handled by layout-specific auto-scroll effects
   useEffect(() => {
     if (videoRef.current && stream) videoRef.current.srcObject = stream;
   }, [stream, mainView]);
@@ -1314,7 +1368,7 @@ export default function LivePitchRoom() {
             </div>
 
             <div
-              ref={scrollRef}
+              ref={desktopScrollRef}
               className="flex-1 overflow-y-auto space-y-4 pr-2 custom-scrollbar mb-3"
             >
               {messages.length === 0 ? (
@@ -1742,7 +1796,7 @@ export default function LivePitchRoom() {
               </div>
 
               <div
-                ref={scrollRef}
+                ref={mobileEmbeddedScrollRef}
                 className="flex-1 overflow-y-auto space-y-2 pr-1 custom-scrollbar mb-2 min-h-0"
               >
                 {messages.length === 0 ? (
@@ -1861,7 +1915,7 @@ export default function LivePitchRoom() {
             </div>
 
             <div
-              ref={scrollRef}
+              ref={mobileFullScrollRef}
               className="flex-1 overflow-y-auto space-y-4 pr-1 custom-scrollbar mb-3 min-h-0"
             >
               {messages.length === 0 ? (
