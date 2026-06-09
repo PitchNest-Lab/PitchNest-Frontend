@@ -321,7 +321,7 @@ export default function LivePitchRoom() {
     screenStreamRef.current = screenStream;
   }, [screenStream]);
 
-  // Cleanup media streams on unmount to prevent microphone leak
+  // Cleanup media streams and AudioContext on unmount to prevent microphone leak and audio bleed
   useEffect(() => {
     return () => {
       try {
@@ -333,6 +333,17 @@ export default function LivePitchRoom() {
         }
         stopStream();
         stopCapture();
+
+        // Close AudioContext to stop any ongoing speech synthesis
+        if (audioContextRef.current) {
+          audioContextRef.current.close().catch(() => {});
+          audioContextRef.current = null;
+        }
+
+        // Cancel browser native synthesis just in case
+        if (typeof window !== "undefined" && window.speechSynthesis) {
+          window.speechSynthesis.cancel();
+        }
       } catch (e) {}
     };
   }, [stopStream, stopCapture]);
@@ -713,7 +724,7 @@ export default function LivePitchRoom() {
           if (statusIntervalRef.current)
             clearInterval(statusIntervalRef.current);
 
-          const finalizeNavigation = async () => {
+          const finalizeNavigation = () => {
             const mockSessionDbRow = {
               id: data.sessionId,
               business_name: pitchConfig?.businessName || "My Startup",
@@ -721,19 +732,6 @@ export default function LivePitchRoom() {
               created_at: new Date().toISOString(),
               video_url: "",
             };
-            const res = await authFetch(`/api/sessions/create`, {
-              method: "POST",
-              headers: {
-                "Content-Type": "application/json",
-              },
-              body: JSON.stringify({
-                business_name: pitchConfig?.businessName,
-                evaluation_report: data.data,
-                video_url: "",
-              }),
-            });
-
-            const session = await res.json();
             navigate(
               `/report${data.sessionId ? `?session=${data.sessionId}` : ""}`,
               {

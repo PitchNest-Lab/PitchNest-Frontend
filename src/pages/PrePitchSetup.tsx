@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { 
   Users, Target, User, Upload, FileText, Camera, Mic, CheckCircle2,
@@ -50,6 +50,49 @@ export default function PrePitchSetup() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [availableDecks, setAvailableDecks] = useState<any[]>([]);
   const [selectedDeck, setSelectedDeck] = useState<any>(null);
+  const deckFileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleUploadDeck = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const tempId = 'temp-' + Date.now();
+    const tempDeck = {
+      id: tempId,
+      name: file.name.replace(/\.[^/.]+$/, ""),
+      size: parseFloat((file.size / (1024 * 1024)).toFixed(2)),
+      status: "DRAFT"
+    };
+
+    setAvailableDecks(prev => [tempDeck, ...prev]);
+    setSelectedDeck(tempDeck);
+
+    const formData = new FormData();
+    formData.append('deck', file);
+
+    try {
+      const res = await authFetch('/api/upload-deck', {
+        method: 'POST',
+        body: formData
+      });
+
+      if (!res.ok) throw new Error("Upload failed");
+      const savedDeck = await res.json();
+
+      setAvailableDecks(prev => 
+        prev.map(d => d.id === tempId ? {
+          ...savedDeck,
+          image: `https://api.dicebear.com/9.x/shapes/svg?seed=${savedDeck.id}&backgroundColor=0ea5e9,4f46e5,0f172a`
+        } : d)
+      );
+      setSelectedDeck(savedDeck);
+    } catch (err) {
+      console.error("Failed to upload deck:", err);
+      alert("Failed to upload pitch deck. Please try again.");
+      setAvailableDecks(prev => prev.filter(d => d.id !== tempId));
+      setSelectedDeck(null);
+    }
+  };
 
   const { isCapturing, startCapture, stopCapture } = useScreenCapture((frame, index) => {});
 
@@ -224,22 +267,39 @@ export default function PrePitchSetup() {
                 <p className="text-xs text-white/40 text-center py-4">No decks found.</p>
               ) : (
                 availableDecks.map((deck) => (
-                  <div key={deck.id} onClick={() => setSelectedDeck(deck)} className={cn("flex items-center gap-3 p-3 rounded-xl cursor-pointer transition-colors border min-w-0", selectedDeck?.id === deck.id ? "bg-sky-500/20 border-sky-500" : "border-white/10 hover:bg-white/5")}>
+                  <div key={deck.id} onClick={() => deck.status !== 'DRAFT' && setSelectedDeck(deck)} className={cn("flex items-center gap-3 p-3 rounded-xl cursor-pointer transition-colors border min-w-0", selectedDeck?.id === deck.id ? "bg-sky-500/20 border-sky-500" : "border-white/10 hover:bg-white/5", deck.status === 'DRAFT' && "opacity-60 cursor-not-allowed")}>
                     <FileText size={16} className={selectedDeck?.id === deck.id ? "text-sky-400" : "text-white/40"} />
                     <div className="flex-1 overflow-hidden min-w-0">
                       <p className="text-xs font-bold truncate">{deck.name}</p>
-                      <p className="text-[9px] text-white/40">{deck.size} MB</p>
+                      <p className="text-[9px] text-white/40">
+                        {deck.status === 'DRAFT' ? 'Uploading...' : `${deck.size || 0} MB`}
+                      </p>
                     </div>
-                    {selectedDeck?.id === deck.id && <CheckCircle2 size={14} className="text-sky-500" />}
+                    {deck.status === 'DRAFT' ? (
+                      <Loader2 size={14} className="animate-spin text-sky-500" />
+                    ) : selectedDeck?.id === deck.id ? (
+                      <CheckCircle2 size={14} className="text-sky-500" />
+                    ) : null}
                   </div>
                 ))
               )}
             </div>
 
             <div className="shrink-0 mt-4 space-y-4">
-              <Link to="/decks" className="flex items-center justify-center gap-2 w-full py-3 rounded-xl border border-white/20 text-xs font-bold text-white/70 hover:bg-white/10 hover:text-white transition-colors">
+              <button 
+                type="button"
+                onClick={() => deckFileInputRef.current?.click()}
+                className="flex items-center justify-center gap-2 w-full py-3 rounded-xl border border-white/20 text-xs font-bold text-white/70 hover:bg-white/10 hover:text-white transition-colors cursor-pointer"
+              >
                 <Upload size={14} /> Upload New
-              </Link>
+              </button>
+              <input 
+                type="file"
+                ref={deckFileInputRef}
+                onChange={handleUploadDeck}
+                accept=".pdf,.ppt,.pptx"
+                className="hidden"
+              />
               
               <button type="submit" disabled={isSubmitting} className="w-full py-4 bg-sky-500 text-white font-bold rounded-2xl hover:bg-sky-400 transition-all flex items-center justify-center gap-2 group disabled:opacity-50 cursor-pointer">
                 {isSubmitting ? <Loader2 className="animate-spin" size={20} /> : <>Enter Live Room <PlayCircle size={20} className="group-hover:translate-x-1 transition-transform" /></>}

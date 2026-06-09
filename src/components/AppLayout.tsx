@@ -13,9 +13,15 @@ import {
   Rocket,
   Menu,
   X,
-  Download
+  Download,
+  Sparkles,
+  MessageSquare,
+  AlertCircle,
+  Check,
+  Trash2
 } from 'lucide-react';
 import { Link, useLocation, Outlet, useNavigate } from 'react-router-dom';
+import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
 import { cn } from '../lib/utils';
 import { ThemeToggle } from './ThemeToggle';
 import { useAuth } from '../contexts/AuthContext';
@@ -69,14 +75,70 @@ export default function AppLayout() {
   };
   
   // 🔥 DATA FIX: Dynamic User Profile
-  const [userData, setUserData] = useState<{name: string, email?: string}>({ name: "Founder" });
+  const [userData, setUserData] = useState<{name: string, email?: string, bio?: string, avatarUrl?: string}>({ name: "Founder" });
 
-  useEffect(() => {
+  const loadUserData = () => {
     const storedUser = localStorage.getItem("user");
     if (storedUser) {
       try { setUserData(JSON.parse(storedUser)); } catch (e) {}
     }
+  };
+
+  useEffect(() => {
+    loadUserData();
+    window.addEventListener("userUpdate", loadUserData);
+    return () => {
+      window.removeEventListener("userUpdate", loadUserData);
+    };
   }, []);
+
+  // Notifications State
+  const [notifications, setNotifications] = useState<any[]>([]);
+
+  useEffect(() => {
+    const stored = localStorage.getItem("notifications");
+    if (stored) {
+      try {
+        setNotifications(JSON.parse(stored));
+      } catch (e) {
+        setNotifications([]);
+      }
+    } else {
+      const defaultNotifications = [
+        { id: "n1", title: "Pitch Evaluated", message: "Your pitch 'PitchNest' has been analyzed.", time: "2 hours ago", read: false, link: "/report", type: "report" },
+        { id: "n2", title: "New AI Insight Available", message: "We have dynamic feedback regarding your market scalability.", time: "1 day ago", read: false, link: "/analytics", type: "insight" },
+        { id: "n3", title: "Welcome to PitchNest", message: "Complete setup and invite your first VC panel to get started.", time: "3 days ago", read: true, link: "/setup", type: "alert" }
+      ];
+      setNotifications(defaultNotifications);
+      localStorage.setItem("notifications", JSON.stringify(defaultNotifications));
+    }
+  }, []);
+
+  const saveNotifications = (newNotifs: any[]) => {
+    setNotifications(newNotifs);
+    localStorage.setItem("notifications", JSON.stringify(newNotifs));
+  };
+
+  const handleMarkAsRead = (id: string) => {
+    const updated = notifications.map(n => n.id === id ? { ...n, read: true } : n);
+    saveNotifications(updated);
+  };
+
+  const handleMarkAllAsRead = () => {
+    const updated = notifications.map(n => ({ ...n, read: true }));
+    saveNotifications(updated);
+  };
+
+  const handleClearAll = () => {
+    saveNotifications([]);
+  };
+
+  const handleNotificationClick = (item: any) => {
+    handleMarkAsRead(item.id);
+    navigate(item.link);
+  };
+
+  const unreadCount = notifications.filter(n => !n.read).length;
 
   // Close mobile drawer on route change
   useEffect(() => {
@@ -192,9 +254,9 @@ export default function AppLayout() {
 
         <div className="mt-6 flex items-center gap-3 p-2 bg-slate-50 dark:bg-zinc-800/50 rounded-xl border border-slate-100 dark:border-zinc-800 shrink-0">
           <img 
-            src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${userData.name}`} 
+            src={userData.avatarUrl || `https://api.dicebear.com/7.x/avataaars/svg?seed=${userData.name}`} 
             alt="Avatar" 
-            className="w-10 h-10 rounded-full border-2 border-white dark:border-zinc-700 shadow-sm bg-sky-100"
+            className="w-10 h-10 rounded-full border-2 border-white dark:border-zinc-700 shadow-sm bg-sky-100 object-cover"
             referrerPolicy="no-referrer"
           />
           <div className="flex-1 min-w-0">
@@ -233,9 +295,9 @@ export default function AppLayout() {
             <div className="lg:hidden flex items-center gap-3">
               <ThemeToggle />
               <img 
-                src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${userData.name}`} 
+                src={userData.avatarUrl || `https://api.dicebear.com/7.x/avataaars/svg?seed=${userData.name}`} 
                 alt="Avatar" 
-                className="w-8 h-8 rounded-full border border-slate-250 dark:border-zinc-800 bg-sky-100"
+                className="w-8 h-8 rounded-full border border-slate-250 dark:border-zinc-800 bg-sky-100 object-cover"
                 referrerPolicy="no-referrer"
               />
             </div>
@@ -255,19 +317,98 @@ export default function AppLayout() {
           <div className="hidden lg:flex items-center gap-4">
             <ThemeToggle />
             <div className="flex items-center gap-6">
-              <button className="relative p-2 text-slate-400 dark:text-zinc-500 hover:text-slate-600 dark:hover:text-zinc-300 transition-colors">
-                <Bell size={20} />
-                <span className="absolute top-2.5 right-2.5 w-2 h-2 bg-rose-500 rounded-full border-2 border-slate-50 dark:border-zinc-950" />
-              </button>
+              <DropdownMenu.Root>
+                <DropdownMenu.Trigger asChild>
+                  <button className="relative p-2 text-slate-400 dark:text-zinc-500 hover:text-slate-600 dark:hover:text-zinc-300 transition-colors cursor-pointer outline-none">
+                    <Bell size={20} />
+                    {unreadCount > 0 && (
+                      <span className="absolute top-2.5 right-2.5 w-2 h-2 bg-rose-500 rounded-full border-2 border-slate-50 dark:border-zinc-950 animate-pulse" />
+                    )}
+                  </button>
+                </DropdownMenu.Trigger>
+
+                <DropdownMenu.Portal>
+                  <DropdownMenu.Content 
+                    align="end" 
+                    sideOffset={10} 
+                    className="min-w-[320px] max-w-[360px] bg-white dark:bg-zinc-900 rounded-2xl shadow-xl border border-slate-200 dark:border-zinc-800 p-4 z-50 flex flex-col gap-3 outline-none"
+                  >
+                    <div className="flex items-center justify-between border-b border-slate-100 dark:border-zinc-800 pb-2">
+                      <span className="text-xs font-bold text-slate-900 dark:text-zinc-100">Notifications</span>
+                      {unreadCount > 0 && (
+                        <button 
+                          onClick={handleMarkAllAsRead} 
+                          className="text-[10px] font-bold text-sky-500 hover:text-sky-600 cursor-pointer"
+                        >
+                          Mark all as read
+                        </button>
+                      )}
+                    </div>
+
+                    <div className="max-h-[280px] overflow-y-auto pr-1 custom-scrollbar flex flex-col gap-2">
+                      {notifications.length === 0 ? (
+                        <div className="py-8 text-center text-slate-400 dark:text-zinc-600">
+                          <Bell size={24} className="mx-auto mb-2 opacity-40" />
+                          <p className="text-xs font-medium">No notifications yet</p>
+                        </div>
+                      ) : (
+                        notifications.map((item) => {
+                          const Icon = item.type === 'report' ? Activity : item.type === 'insight' ? Sparkles : AlertCircle;
+                          return (
+                            <div 
+                              key={item.id}
+                              onClick={() => handleNotificationClick(item)}
+                              className={cn(
+                                "flex gap-3 p-2.5 rounded-xl cursor-pointer hover:bg-slate-50 dark:hover:bg-zinc-800/50 transition-colors relative border border-transparent",
+                                !item.read && "bg-sky-50/40 dark:bg-sky-500/5 hover:border-sky-100 dark:hover:border-sky-500/20"
+                              )}
+                            >
+                              <div className={cn(
+                                "w-8 h-8 rounded-lg flex items-center justify-center shrink-0",
+                                item.type === 'report' ? "bg-emerald-50 dark:bg-emerald-950/20 text-emerald-500" :
+                                item.type === 'insight' ? "bg-sky-50 dark:bg-sky-950/20 text-sky-500" :
+                                "bg-amber-50 dark:bg-amber-950/20 text-amber-500"
+                              )}>
+                                <Icon size={16} />
+                              </div>
+                              <div className="flex-1 min-w-0 font-sans">
+                                <div className="flex justify-between items-start gap-1">
+                                  <p className={cn("text-xs font-bold truncate text-slate-900 dark:text-zinc-100", !item.read && "text-sky-600 dark:text-sky-400")}>{item.title}</p>
+                                  <span className="text-[9px] text-slate-400 dark:text-zinc-500 shrink-0 mt-0.5">{item.time}</span>
+                                </div>
+                                <p className="text-[10px] text-slate-500 dark:text-zinc-400 mt-0.5 leading-relaxed">{item.message}</p>
+                              </div>
+                              {!item.read && (
+                                <span className="absolute top-1/2 -translate-y-1/2 right-2 w-1.5 h-1.5 bg-sky-500 rounded-full shrink-0" />
+                              )}
+                            </div>
+                          );
+                        })
+                      )}
+                    </div>
+
+                    {notifications.length > 0 && (
+                      <div className="border-t border-slate-100 dark:border-zinc-800 pt-2 flex justify-end">
+                        <button 
+                          onClick={handleClearAll} 
+                          className="text-[10px] font-bold text-rose-500 hover:text-rose-600 cursor-pointer flex items-center gap-1"
+                        >
+                          <Trash2 size={10} /> Clear all
+                        </button>
+                      </div>
+                    )}
+                  </DropdownMenu.Content>
+                </DropdownMenu.Portal>
+              </DropdownMenu.Root>
               <div className="flex items-center gap-3 pl-6 border-l border-slate-200 dark:border-zinc-800">
                 <div className="text-right hidden sm:block">
-                  <p className="text-sm font-bold text-slate-900 dark:text-zinc-100">{userData.name}</p>
+                  <p className="text-sm font-bold text-slate-900 dark:text-zinc-100 truncate max-w-[120px]">{userData.name}</p>
                   <p className="text-[10px] text-slate-400 dark:text-zinc-500 font-medium">Founder</p>
                 </div>
                 <img 
-                  src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${userData.name}`} 
+                  src={userData.avatarUrl || `https://api.dicebear.com/7.x/avataaars/svg?seed=${userData.name}`} 
                   alt="Avatar" 
-                  className="w-10 h-10 rounded-full border-2 border-white dark:border-zinc-700 shadow-sm bg-sky-100"
+                  className="w-10 h-10 rounded-full border-2 border-white dark:border-zinc-700 shadow-sm bg-sky-100 object-cover"
                   referrerPolicy="no-referrer"
                 />
               </div>
