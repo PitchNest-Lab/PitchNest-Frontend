@@ -132,7 +132,7 @@ function getOverallScore(report: any): number {
   if (!report || !report.scores) return 0;
   const s = report.scores;
   const total = (Number(s.delivery) || 0) + (Number(s.clarity) || 0) + (Number(s.scalability) || 0) + (Number(s.readiness) || 0);
-  return Math.round((total / 40) * 100);
+  return Math.round(total / 4);
 }
 
 function formatDate(timestamp: string): string {
@@ -182,15 +182,15 @@ export default function Analytics() {
     return {
       name: s.business_name?.substring(0, 12) || `Pitch ${i + 1}`,
       readiness: s.overallScore,
-      confidence: Math.round((Number(scores.delivery) || 0) * 10),
-      market: Math.round((Number(scores.scalability) || 0) * 10),
-      tech: Math.round((Number(scores.clarity) || 0) * 10),
+      confidence: Math.round(Number(scores.delivery) || 0),
+      market: Math.round(Number(scores.scalability) || 0),
+      tech: Math.round(Number(scores.clarity) || 0),
     };
   });
 
   // Market and tech score arrays for the bar charts
-  const marketScores = chartSessions.map(s => Math.round((Number(s.evaluation_report?.scores?.scalability) || 0) * 10));
-  const techScores = chartSessions.map(s => Math.round((Number(s.evaluation_report?.scores?.clarity) || 0) * 10));
+  const marketScores = chartSessions.map(s => Math.round(Number(s.evaluation_report?.scores?.scalability) || 0));
+  const techScores = chartSessions.map(s => Math.round(Number(s.evaluation_report?.scores?.clarity) || 0));
 
   // Most improved metric
   let mostImproved = "N/A";
@@ -288,9 +288,9 @@ export default function Analytics() {
             </div>
           </motion.div>
 
-          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }} className="card p-8 dark:bg-zinc-900 dark:border-zinc-800">
+          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }} className="card p-8 dark:bg-zinc-900 dark:border-zinc-800 flex flex-col h-[440px]">
             <div className="flex items-center gap-2 mb-6"><Sparkles className="text-purple-500" size={20} /><h3 className="text-lg font-bold text-slate-900 dark:text-zinc-100">AI Insights & Trends</h3></div>
-            <div className="flex flex-col">
+            <div className="flex flex-col overflow-y-auto flex-1 pr-2 custom-scrollbar">
               {isLoading ? (
                 <><InsightItem isLoading /><InsightItem isLoading /></>
               ) : insights.length === 0 ? (
@@ -308,7 +308,7 @@ export default function Analytics() {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
           <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }} className="card p-8 dark:bg-zinc-900 dark:border-zinc-800">
             <h3 className="text-sm font-bold uppercase tracking-widest text-slate-400 dark:text-zinc-500 mb-6">Market Understanding (Scalability)</h3>
-            <div className="flex items-end gap-3 h-40">
+            <div className="flex items-end gap-3 h-40 overflow-visible">
               {isLoading ? (
                 [40, 60, 30, 80, 50].map((_, i) => <Skeleton key={i} className="flex-1 w-full h-full rounded-t-lg" />)
               ) : marketScores.length === 0 ? (
@@ -317,6 +317,7 @@ export default function Analytics() {
                 marketScores.map((h: number, i: number) => (
                   <div key={i} className="flex-1 bg-slate-100 dark:bg-zinc-800 rounded-t-lg relative group cursor-pointer h-full flex items-end">
                     <motion.div initial={{ height: 0 }} animate={{ height: `${h}%` }} transition={{ delay: 0.4 + (i * 0.05), duration: 0.8 }} className={cn("w-full rounded-t-lg transition-all duration-300", i === marketScores.length - 1 ? "bg-sky-500" : "bg-slate-200 dark:bg-zinc-700 group-hover:bg-slate-300")} />
+                    <span className="absolute -top-7 left-1/2 -translate-x-1/2 bg-slate-900 dark:bg-zinc-800 text-white text-[10px] font-bold px-1.5 py-0.5 rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10 shadow-md whitespace-nowrap">{h}/100</span>
                   </div>
                 ))
               )}
@@ -325,7 +326,7 @@ export default function Analytics() {
 
           <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.4 }} className="card p-8 dark:bg-zinc-900 dark:border-zinc-800">
             <h3 className="text-sm font-bold uppercase tracking-widest text-slate-400 dark:text-zinc-500 mb-6">Technical Depth (Clarity)</h3>
-            <div className="flex items-end gap-3 h-40">
+            <div className="flex items-end gap-3 h-40 overflow-visible">
                {isLoading ? (
                 [40, 60, 30, 80, 50].map((_, i) => <Skeleton key={i} className="flex-1 w-full h-full rounded-t-lg" />)
               ) : techScores.length === 0 ? (
@@ -334,6 +335,7 @@ export default function Analytics() {
                 techScores.map((h: number, i: number) => (
                   <div key={i} className="flex-1 bg-slate-100 dark:bg-zinc-800 rounded-t-lg relative group cursor-pointer h-full flex items-end">
                     <motion.div initial={{ height: 0 }} animate={{ height: `${h}%` }} transition={{ delay: 0.5 + (i * 0.05), duration: 0.8 }} className={cn("w-full rounded-t-lg transition-all duration-300", i === techScores.length - 1 ? "bg-indigo-500" : "bg-slate-200 dark:bg-zinc-700 group-hover:bg-slate-300")} />
+                    <span className="absolute -top-7 left-1/2 -translate-x-1/2 bg-slate-900 dark:bg-zinc-800 text-white text-[10px] font-bold px-1.5 py-0.5 rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10 shadow-md whitespace-nowrap">{h}/100</span>
                   </div>
                 ))
               )}

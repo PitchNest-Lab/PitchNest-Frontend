@@ -1,18 +1,40 @@
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Rocket, Play, BarChart3, Target, Sparkles, ChevronRight, Clock, CheckCircle2, AlertCircle } from 'lucide-react';
+import { Rocket, Play, BarChart3, Target, Sparkles, ChevronRight, Clock, CheckCircle2, AlertCircle, Trash2, Loader2 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { cn } from '../lib/utils';
 import { Skeleton } from '../components/Skeleton';
 import { useAuth } from '../contexts/AuthContext';
 
 // --- Components ---
-const RecentPitchItem = ({ id, name, date, score, status }: { id: number, name: string, date: string, score: number, status: string }) => {
+const RecentPitchItem = ({ 
+  id, 
+  name, 
+  date, 
+  score, 
+  status,
+  isSelected,
+  onSelectToggle
+}: { 
+  id: number, 
+  name: string, 
+  date: string, 
+  score: number, 
+  status: string,
+  isSelected: boolean,
+  onSelectToggle: (id: number) => void
+}) => {
   const isIncomplete = score === 0;
 
   return (
     <div className="flex items-center justify-between p-4 bg-white dark:bg-zinc-900 border border-slate-100 dark:border-zinc-800 rounded-2xl hover:border-sky-200 dark:hover:border-sky-500/50 hover:shadow-md transition-all group">
       <div className="flex items-center gap-4">
+        <input 
+          type="checkbox" 
+          checked={isSelected}
+          onChange={() => onSelectToggle(id)}
+          className="w-4 h-4 rounded border-slate-300 dark:border-zinc-700 text-sky-500 focus:ring-sky-500/25 cursor-pointer accent-sky-500 shrink-0"
+        />
         <Link to={`/report?session=${id}`} className="w-12 h-12 bg-slate-50 dark:bg-zinc-800 rounded-xl flex items-center justify-center text-slate-400 dark:text-zinc-500 group-hover:bg-sky-50 dark:group-hover:bg-sky-900/20 group-hover:text-sky-500 transition-colors">
           <Play size={20} fill="currentColor" />
         </Link>
@@ -84,7 +106,7 @@ function getOverallScore(report: any): number {
   if (!report || !report.scores) return 0;
   const s = report.scores;
   const total = (Number(s.delivery) || 0) + (Number(s.clarity) || 0) + (Number(s.scalability) || 0) + (Number(s.readiness) || 0);
-  return Math.round((total / 40) * 100);
+  return Math.round(total / 4);
 }
 
 // Helper to format date
@@ -99,6 +121,32 @@ export default function Dashboard() {
   const { user, authFetch } = useAuth();
   const [isLoading, setIsLoading] = useState(true);
   const [sessions, setSessions] = useState<any[]>([]);
+  const [selectedIds, setSelectedIds] = useState<number[]>([]);
+  const [isDeleting, setIsDeleting] = useState(false);
+
+  const handleSelectToggle = (id: number) => {
+    setSelectedIds(prev => 
+      prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]
+    );
+  };
+
+  const handleDeleteSelected = async () => {
+    if (selectedIds.length === 0) return;
+    if (!window.confirm(`Are you sure you want to delete the ${selectedIds.length} selected pitch sessions?`)) return;
+
+    setIsDeleting(true);
+    try {
+      await Promise.all(
+        selectedIds.map(id => authFetch(`/api/sessions/${id}`, { method: 'DELETE' }))
+      );
+      setSessions(prev => prev.filter(s => !selectedIds.includes(s.id)));
+      setSelectedIds([]);
+    } catch (err) {
+      console.error("Failed to delete sessions:", err);
+    } finally {
+      setIsDeleting(false);
+    }
+  };
 
   useEffect(() => {
     const fetchSessions = async () => {
@@ -182,7 +230,7 @@ export default function Dashboard() {
         {[
           { label: "Average Pitch Score", value: totalPitches > 0 ? avgScore.toString() : "—", suffix: totalPitches > 0 ? "/100" : "", trend: "", icon: BarChart3, color: "text-sky-500" },
           { label: "Total Pitches", value: totalPitches.toString(), suffix: "Sessions", trend: "", icon: Target, color: "text-indigo-500" },
-          { label: "Best Score", value: totalPitches > 0 ? bestScore.toString() : "—", suffix: totalPitches > 0 ? "/100" : "", trend: "", icon: CheckCircle2, color: "text-emerald-500" },
+          { label: "Best Score", value: totalPitches > 0 ? bestScore.toString() : "—", suffix: "", trend: "", icon: CheckCircle2, color: "text-emerald-500" },
           { label: "AI Improvements", value: totalPitches > 0 ? "Ready" : "Start", suffix: totalPitches > 0 ? "Pending Action" : "Your first pitch", trend: "", icon: Sparkles, color: "text-amber-500" }
         ].map((stat, i) => (
           <motion.div 
@@ -224,7 +272,19 @@ export default function Dashboard() {
         {/* Recent Pitches List */}
         <div className="lg:col-span-2 space-y-6">
           <div className="flex justify-between items-center">
-            <h3 className="text-xl font-bold text-slate-900 dark:text-zinc-100">Recent Pitches</h3>
+            <div className="flex items-center gap-4">
+              <h3 className="text-xl font-bold text-slate-900 dark:text-zinc-100">Recent Pitches</h3>
+              {selectedIds.length > 0 && (
+                <button 
+                  onClick={handleDeleteSelected}
+                  disabled={isDeleting}
+                  className="px-3.5 py-1.5 bg-rose-600 hover:bg-rose-700 disabled:opacity-50 text-white font-bold rounded-xl text-xs flex items-center gap-1.5 transition-all shadow-md active:scale-95 cursor-pointer"
+                >
+                  {isDeleting ? <Loader2 className="animate-spin" size={12} /> : <Trash2 size={12} />}
+                  Delete Selected ({selectedIds.length})
+                </button>
+              )}
+            </div>
             <Link to="/archive" className="text-sm font-bold text-sky-500 hover:text-sky-600 flex items-center gap-1">
               View All
               <ChevronRight size={16} />
@@ -256,6 +316,8 @@ export default function Dashboard() {
                     date={formatDate(session.created_at)} 
                     score={score} 
                     status={getStatus(score)} 
+                    isSelected={selectedIds.includes(session.id)}
+                    onSelectToggle={handleSelectToggle}
                   />
                 );
               })

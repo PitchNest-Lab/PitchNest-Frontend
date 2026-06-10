@@ -82,7 +82,7 @@ export default function PostPitchReport() {
     readiness: Number(rawScores.readiness) || 0,
   };
   
-  const overallScore = isInsufficientData ? 0 : Math.round(((scores.delivery + scores.clarity + scores.scalability + scores.readiness) / 40) * 100);
+  const overallScore = isInsufficientData ? 0 : Math.round((scores.delivery + scores.clarity + scores.scalability + scores.readiness) / 4);
 
   const strengths = Array.isArray(report.strengths) ? report.strengths : [];
   const risks = Array.isArray(report.risks) ? report.risks : [];
@@ -90,14 +90,14 @@ export default function PostPitchReport() {
   const sentiments = Array.isArray(report.sentiments) ? report.sentiments : [];
 
   const dynamicQuestionsAsked = isInsufficientData ? 0 : Math.max(1, risks.length + nextSteps.length + 2);
-  const dynamicConfidenceScore = isInsufficientData ? 0 : Math.min(100, Math.round((scores.readiness / 10) * 100));
-  const dynamicTrend = isInsufficientData ? "N/A" : (scores.delivery >= 7 ? `+${(scores.delivery * 1.5).toFixed(0)}%` : `-${(10 - scores.delivery).toFixed(0)}%`);
+  const dynamicConfidenceScore = isInsufficientData ? 0 : Math.min(100, scores.readiness);
+  const dynamicTrend = isInsufficientData ? "N/A" : (scores.delivery >= 70 ? `+${(scores.delivery * 0.15).toFixed(0)}%` : `-${((100 - scores.delivery) / 10).toFixed(0)}%`);
 
   const RADAR_DATA = [
-    { subject: 'MARKET FIT', A: scores.scalability * 10, fullMark: 100 },
-    { subject: 'TECH MOAT', A: scores.clarity * 10, fullMark: 100 },
-    { subject: 'FINANCIALS', A: scores.readiness * 10, fullMark: 100 },
-    { subject: 'TEAM', A: scores.delivery * 10, fullMark: 100 },
+    { subject: 'MARKET FIT', A: scores.scalability, fullMark: 100 },
+    { subject: 'TECH MOAT', A: scores.clarity, fullMark: 100 },
+    { subject: 'FINANCIALS', A: scores.readiness, fullMark: 100 },
+    { subject: 'TEAM', A: scores.delivery, fullMark: 100 },
   ];
 
   const circumference = 2 * Math.PI * 40; 
@@ -116,8 +116,8 @@ export default function PostPitchReport() {
           <div className="flex items-center gap-3 text-sm text-slate-500 font-medium">
             <span className="flex items-center gap-1.5"><Calendar size={16} /> Pitch Date: {formattedDate}</span>
             <span className="w-1.5 h-1.5 bg-slate-300 rounded-full" />
-            <span className={cn("px-3 py-0.5 rounded-full text-xs font-bold", isInsufficientData ? "bg-slate-100 text-slate-500" : overallScore >= 80 ? "bg-emerald-100 text-emerald-700" : overallScore >= 60 ? "bg-sky-100 text-sky-700" : "bg-amber-100 text-amber-700")}>
-              Verdict: {isInsufficientData ? 'Incomplete' : overallScore >= 80 ? 'Strong Buy' : overallScore >= 60 ? 'Consideration' : 'Pass'}
+            <span className={cn("px-3 py-0.5 rounded-full text-xs font-bold", isInsufficientData ? "bg-slate-100 text-slate-500" : overallScore >= 80 ? "bg-emerald-100 text-emerald-700" : overallScore >= 60 ? "bg-sky-100 text-sky-700" : "bg-rose-100 text-rose-700")}>
+              Verdict: {isInsufficientData ? 'Incomplete' : overallScore >= 80 ? 'Strong Buy (Invest)' : overallScore >= 60 ? 'Consideration (Follow Up)' : 'Decline to Invest'}
             </span>
           </div>
         </div>

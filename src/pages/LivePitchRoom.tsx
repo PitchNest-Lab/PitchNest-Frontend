@@ -220,13 +220,34 @@ export default function LivePitchRoom() {
     "waiting",
   );
   const [countdown, setCountdown] = useState(3);
-  const [timeLeft, setTimeLeft] = useState(15 * 60);
+  const [timeLeft, setTimeLeft] = useState(() => {
+    if (location.state?.pitchConfig) {
+      return (location.state.pitchConfig.duration || 15) * 60;
+    }
+    const saved = sessionStorage.getItem("pitchConfig");
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        return (parsed.duration || 15) * 60;
+      } catch (e) {}
+    }
+    return 15 * 60;
+  });
 
   const [mainView, setMainView] = useState<"slide" | "camera">("slide");
   const [chatInput, setChatInput] = useState("");
   const [activeSpeakerName, setActiveSpeakerName] = useState("");
   const [isPitching, setIsPitching] = useState(false);
   const [isSpeaking, setIsSpeaking] = useState(false);
+  const isSpeakingRef = useRef(false);
+  const lastAiSpeakingEndedTimeRef = useRef(0);
+  const setSpeakingState = useCallback((val: boolean) => {
+    setIsSpeaking(val);
+    isSpeakingRef.current = val;
+    if (!val) {
+      lastAiSpeakingEndedTimeRef.current = Date.now();
+    }
+  }, []);
   const [isMicMuted, setIsMicMuted] = useState(false);
   const [messages, setMessages] = useState<
     {
@@ -238,6 +259,8 @@ export default function LivePitchRoom() {
     }[]
   >([]);
   const [isEvaluatingPitch, setIsEvaluatingPitch] = useState(false);
+  const [isConcluding, setIsConcluding] = useState(false);
+  const [isTurnComplete, setIsTurnComplete] = useState(false);
   const [loadingStatus, setLoadingStatus] = useState(
     "Panel is grading your pitch...",
   );
@@ -263,7 +286,9 @@ export default function LivePitchRoom() {
   const chunksRef = useRef<BlobPart[]>([]);
   const videoRef = useRef<HTMLVideoElement>(null);
   const screenRef = useRef<HTMLVideoElement>(null);
-  const scrollRef = useRef<HTMLDivElement>(null);
+  const desktopScrollRef = useRef<HTMLDivElement>(null);
+  const mobileEmbeddedScrollRef = useRef<HTMLDivElement>(null);
+  const mobileFullScrollRef = useRef<HTMLDivElement>(null);
 
   const audioContextRef = useRef<AudioContext | null>(null);
   const nextStartTimeRef = useRef(0);
@@ -277,6 +302,8 @@ export default function LivePitchRoom() {
   const isAiStreamingRef = useRef(false);
   const preferredVoiceRef = useRef<SpeechSynthesisVoice | null>(null);
   const uploadPromiseRef = useRef<Promise<any> | null>(null);
+  const activeSourcesRef = useRef<AudioBufferSourceNode[]>([]);
+  const pendingTimeoutsRef = useRef<number[]>([]);
 
   useEffect(() => {
     if (!("speechSynthesis" in window)) return;
@@ -305,26 +332,82 @@ export default function LivePitchRoom() {
       try {
         setUserData(JSON.parse(storedUser));
       } catch (e) {}
-    }
+    };
   }, []);
 
-  // Auto-scroll chat to bottom when new messages arrive
+  const streamRef = useRef<MediaStream | null>(null);
+  const screenStreamRef = useRef<MediaStream | null>(null);
+
   useEffect(() => {
-    if (scrollRef.current) {
-      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+    streamRef.current = stream;
+  }, [stream]);
+
+  useEffect(() => {
+    screenStreamRef.current = screenStream;
+  }, [screenStream]);
+
+  // Cleanup media streams and AudioContext on unmount to prevent microphone leak and audio bleed
+  useEffect(() => {
+    return () => {
+      try {
+        if (streamRef.current) {
+          streamRef.current.getTracks().forEach((track) => track.stop());
+        }
+        if (screenStreamRef.current) {
+          screenStreamRef.current.getTracks().forEach((track) => track.stop());
+        }
+        stopStream();
+        stopCapture();
+
+        // Close AudioContext to stop any ongoing speech synthesis
+        if (audioContextRef.current) {
+          audioContextRef.current.close().catch(() => {});
+          audioContextRef.current = null;
+        }
+
+        // Cancel active audio source nodes
+        activeSourcesRef.current.forEach((src) => {
+          try {
+            src.stop();
+          } catch (e) {}
+        });
+        activeSourcesRef.current = [];
+
+        // Clear pending scheduled text display timeouts
+        pendingTimeoutsRef.current.forEach((t) => clearTimeout(t));
+        pendingTimeoutsRef.current = [];
+
+        // Cancel browser native synthesis just in case
+        if (typeof window !== "undefined" && window.speechSynthesis) {
+          window.speechSynthesis.cancel();
+        }
+      } catch (e) {}
+    };
+  }, [stopStream, stopCapture]);
+
+  // Auto-scroll chat views to bottom when new messages arrive
+  useEffect(() => {
+    if (desktopScrollRef.current) {
+      desktopScrollRef.current.scrollTop = desktopScrollRef.current.scrollHeight;
+    }
+    if (mobileEmbeddedScrollRef.current) {
+      mobileEmbeddedScrollRef.current.scrollTop = mobileEmbeddedScrollRef.current.scrollHeight;
+    }
+    if (mobileFullScrollRef.current) {
+      mobileFullScrollRef.current.scrollTop = mobileFullScrollRef.current.scrollHeight;
     }
   }, [messages]);
 
   useEffect(() => {
-    if (!isPitching || isEvaluatingPitch) return;
+    if (!isPitching || isEvaluatingPitch || isConcluding) return;
 
     if (timeLeft <= 0) {
-      handleEndSession();
+      triggerConclusion();
       return;
     }
     const timer = setInterval(() => setTimeLeft((prev) => prev - 1), 1000);
     return () => clearInterval(timer);
-  }, [isPitching, timeLeft, isEvaluatingPitch]);
+  }, [isPitching, timeLeft, isEvaluatingPitch, isConcluding]);
 
   const formatTime = (seconds: number) => {
     const m = Math.floor(seconds / 60);
@@ -439,53 +522,85 @@ export default function LivePitchRoom() {
     }
   }, [isPitching, stream]);
 
+  // We'll use a ref to buffer the transcript and debounce the send to the backend
+  const transcriptBufferRef = useRef<string>("");
+  const transcriptTimerRef = useRef<number | null>(null);
+
   useEffect(() => {
-    if (!isPitching || !stream || !socket || !isConnected) return;
+    if (!isPitching || !socket || !isConnected) return;
 
-    const audioCtx = new (
-      window.AudioContext || (window as any).webkitAudioContext
-    )({ sampleRate: 16000 });
-    const source = audioCtx.createMediaStreamSource(stream);
-    const processor = audioCtx.createScriptProcessor(4096, 1, 1);
+    let active = true;
 
-    processor.onaudioprocess = (e) => {
-      if (isMicMuted) return;
-      const inputData = e.inputBuffer.getChannelData(0);
-      const pcmBuffer = new Int16Array(inputData.length);
-      for (let i = 0; i < inputData.length; i++) {
-        const s = Math.max(-1, Math.min(1, inputData[i]));
-        pcmBuffer[i] = s < 0 ? s * 0x8000 : s * 0x7fff;
-      }
-      const binary = String.fromCharCode(...new Uint8Array(pcmBuffer.buffer));
-      const base64Data = btoa(binary);
+    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    if (!SpeechRecognition) {
+      console.warn("SpeechRecognition API not supported in this browser.");
+      return;
+    }
 
-      if (socket.readyState === WebSocket.OPEN) {
-        // 🔥 FIX 2: Buffer overflow guard to stop Gemini from freezing mid-pitch
-        if (socket.bufferedAmount > 1000000) {
-          console.warn("WebSocket buffer full, dropping chunk");
-          return;
+    const recognition = new SpeechRecognition();
+    recognition.continuous = true;
+    recognition.interimResults = false;
+    recognition.lang = "en-US";
+
+    recognition.onresult = (event: any) => {
+      const now = Date.now();
+      const timeSinceAiSpoke = now - lastAiSpeakingEndedTimeRef.current;
+      if (!active || isMicMuted || isSpeakingRef.current || timeSinceAiSpoke < 1200) return;
+      const lastResult = event.results[event.results.length - 1];
+      if (lastResult.isFinal) {
+        const text = lastResult[0].transcript.trim();
+        if (!text) return;
+        
+        // Append to buffer
+        transcriptBufferRef.current += (transcriptBufferRef.current ? " " : "") + text;
+
+        // Clear existing timer
+        if (transcriptTimerRef.current) {
+          window.clearTimeout(transcriptTimerRef.current);
         }
-        socket.send(
-          JSON.stringify({
-            realtimeInput: {
-              mediaChunks: [
-                { mimeType: "audio/pcm;rate=16000", data: base64Data },
-              ],
-            },
-          }),
-        );
+
+        // Set a new timer to send after 1.0s of silence to reduce response delay
+        transcriptTimerRef.current = window.setTimeout(() => {
+          const finalPayload = transcriptBufferRef.current.trim();
+          if (finalPayload && socket.readyState === WebSocket.OPEN) {
+            setIsTurnComplete(false);
+            pendingTimeoutsRef.current.forEach((t) => clearTimeout(t));
+            pendingTimeoutsRef.current = [];
+
+            setMessages((prev) => [
+              ...prev,
+              {
+                id: `user-voice-${Date.now()}`,
+                text: finalPayload,
+                type: "user",
+                speaker: userData.name,
+                inputMethod: "voice",
+              },
+            ]);
+            socket.send(JSON.stringify({ type: "chat_message", text: finalPayload, timeLeft }));
+          }
+          transcriptBufferRef.current = "";
+          transcriptTimerRef.current = null;
+        }, 1000);
       }
     };
 
-    source.connect(processor);
-    processor.connect(audioCtx.destination);
+    recognition.onend = () => {
+      if (active && isPitching && !isMicMuted) {
+        try { recognition.start(); } catch (e) {}
+      }
+    };
+
+    if (!isMicMuted && isPitching) {
+      try { recognition.start(); } catch (e) {}
+    }
 
     return () => {
-      source.disconnect();
-      processor.disconnect();
-      if (audioCtx.state !== "closed") audioCtx.close();
+      active = false;
+      try { recognition.abort(); } catch (e) {}
+      if (transcriptTimerRef.current) window.clearTimeout(transcriptTimerRef.current);
     };
-  }, [isPitching, stream, socket, isConnected, isMicMuted]);
+  }, [isPitching, socket, isConnected, isMicMuted, userData.name]);
 
   useEffect(() => {
     if (!socket) return;
@@ -494,138 +609,146 @@ export default function LivePitchRoom() {
       try {
         const data = JSON.parse(event.data);
 
-        if (data.type === "transcript" || data.text) {
-          const rawText = data.text || data.transcript;
-          let cleanText = rawText;
+        if (data.type === "stop_audio") {
+          activeSourcesRef.current.forEach((src) => {
+            try {
+              src.stop();
+            } catch (e) {}
+          });
+          activeSourcesRef.current = [];
 
-          // Determine speaker: use backend-detected speaker, or parse from text
-          let currentSpeaker = data.speaker || "";
+          // Clear any scheduled text timeouts immediately
+          pendingTimeoutsRef.current.forEach((t) => clearTimeout(t));
+          pendingTimeoutsRef.current = [];
 
-          if (!currentSpeaker) {
-            // Try to detect speaker from text patterns
-            const nameMatch =
-              cleanText.match(
-                /^(Marcus|Sarah|Chen|Riley|Taylor|Elena|David|James)\s+here[,.\s\u2014-]/i,
-              ) ||
-              cleanText.match(
-                /(?:I'm|I am|This is|It's)\s+(Marcus|Sarah|Chen|Riley|Taylor|Elena|David|James)/i,
-              );
+          nextStartTimeRef.current = 0;
+          setSpeakingState(false);
+          setActiveSpeakerName("");
+          return;
+        }
 
-            if (nameMatch && nameMatch[1]) {
-              currentSpeaker =
-                nameMatch[1].charAt(0).toUpperCase() +
-                nameMatch[1].slice(1).toLowerCase();
-            }
-          }
-
-          // Strip the speaker intro from the displayed text to avoid redundancy
-          cleanText = cleanText
-            .replace(
-              /^(Marcus|Sarah|Chen|Riley|Taylor|Elena|David|James)\s+here[,.\s\u2014-]+/i,
-              "",
-            )
-            .trim();
-          cleanText = cleanText
-            .replace(
-              /^(?:I'm|I am|This is|It's)\s+(?:Marcus|Sarah|Chen|Riley|Taylor|Elena|David|James)[,.\s\u2014-]+/i,
-              "",
-            )
-            .trim();
-
-          // Use last known speaker if we couldn't detect one
-          if (!currentSpeaker) {
-            currentSpeaker = activeSpeakerName || "Marcus";
-          }
-
-          // Update active speaker for pulse animation
-          setActiveSpeakerName(currentSpeaker);
-
-          if (cleanText) {
-            setMessages((prev) => [
-              ...prev,
-              {
-                id: Date.now().toString(),
-                text: cleanText,
-                type: "ai",
-                speaker: currentSpeaker,
-              },
-            ]);
-
-            const chunk = cleanText;
-            if (chunk && isAiStreamingRef.current === false) {
-              stopTts();
-              ttsDidStreamSpeakRef.current = false;
-              isAiStreamingRef.current = true;
-            }
-            ttsStreamBufferRef.current += chunk;
-            const buf = ttsStreamBufferRef.current;
-            const hasSentenceEnd =
-              /[.!?]\s*$/.test(buf) ||
-              normalizeWhitespace(buf).length >= TTS_STREAM_SPEAK_MIN_CHARS;
-
-            if (hasSentenceEnd) {
-              if (ttsStreamFlushTimerRef.current)
-                window.clearTimeout(ttsStreamFlushTimerRef.current);
-              ttsStreamFlushTimerRef.current = window.setTimeout(() => {
-                ttsStreamFlushTimerRef.current = null;
-                flushTtsStreamBuffer();
-              }, 120);
-            } else if (!ttsStreamFlushTimerRef.current) {
-              ttsStreamFlushTimerRef.current = window.setTimeout(() => {
-                ttsStreamFlushTimerRef.current = null;
-                flushTtsStreamBuffer();
-              }, TTS_STREAM_FLUSH_MS);
-            }
-
-            // Note: because Gemini natively handles audio, we are only using TTS as a fallback or for transcript-only mode.
-            // The final flush is handled implicitly by the sentence end detection and timers.
-          }
+        if (data.type === "turn_complete") {
+          setIsTurnComplete(true);
+          return;
         }
 
         if (data.type === "audio") {
-          if (!audioContextRef.current) return;
-          if (audioContextRef.current.state === "suspended") {
-            await audioContextRef.current.resume();
-          }
+          const hasAudio = !!data.data;
+          const hasText = !!data.text;
+          const speaker = data.speaker || activeSpeakerName || "Marcus";
 
-          const binaryString = atob(data.data);
-          const len = binaryString.length;
-          const bytes = new Uint8Array(len);
-          for (let i = 0; i < len; i++) bytes[i] = binaryString.charCodeAt(i);
-
-          const pcmData = new Int16Array(bytes.buffer);
-          const floatData = new Float32Array(pcmData.length);
-          for (let i = 0; i < pcmData.length; i++)
-            floatData[i] = pcmData[i] / 32768;
-
-          const audioBuffer = audioContextRef.current.createBuffer(
-            1,
-            floatData.length,
-            24000,
-          );
-          audioBuffer.getChannelData(0).set(floatData);
-
-          const source = audioContextRef.current.createBufferSource();
-          source.buffer = audioBuffer;
-          source.connect(audioContextRef.current.destination);
-
-          const startTime = Math.max(
-            nextStartTimeRef.current,
-            audioContextRef.current.currentTime,
-          );
-          source.start(startTime);
-          nextStartTimeRef.current = startTime + audioBuffer.duration;
-
-          setIsSpeaking(true);
-          source.onended = () => {
-            if (
-              audioContextRef.current &&
-              audioContextRef.current.currentTime >= nextStartTimeRef.current
-            ) {
-              setIsSpeaking(false);
-              setActiveSpeakerName("");
+          if (hasAudio) {
+            if (!audioContextRef.current) return;
+            if (audioContextRef.current.state === "suspended") {
+              await audioContextRef.current.resume();
             }
-          };
+
+            const binaryString = atob(data.data);
+            const len = binaryString.length;
+            const bytes = new Uint8Array(len);
+            for (let i = 0; i < len; i++) bytes[i] = binaryString.charCodeAt(i);
+
+            const pcmData = new Int16Array(bytes.buffer);
+            const floatData = new Float32Array(pcmData.length);
+            for (let i = 0; i < pcmData.length; i++)
+              floatData[i] = pcmData[i] / 32768;
+
+            const audioBuffer = audioContextRef.current.createBuffer(
+              1,
+              floatData.length,
+              24000,
+            );
+            audioBuffer.getChannelData(0).set(floatData);
+
+            const source = audioContextRef.current.createBufferSource();
+            source.buffer = audioBuffer;
+            source.connect(audioContextRef.current.destination);
+
+            const currentTime = audioContextRef.current.currentTime;
+            let startTime = nextStartTimeRef.current;
+
+            if (startTime < currentTime) {
+              // Add a 150ms jitter buffer delay to smooth out network gaps
+              startTime = currentTime + 0.15;
+            }
+
+            activeSourcesRef.current.push(source);
+            source.start(startTime);
+            nextStartTimeRef.current = startTime + audioBuffer.duration;
+            setSpeakingState(true);
+
+            source.onended = () => {
+              activeSourcesRef.current = activeSourcesRef.current.filter((s) => s !== source);
+              if (
+                audioContextRef.current &&
+                audioContextRef.current.currentTime >= nextStartTimeRef.current
+              ) {
+                setSpeakingState(false);
+                setActiveSpeakerName("");
+              }
+            };
+
+            // Queue transcript display to sync with audio start
+            if (hasText) {
+              const delayMs = Math.max(0, (startTime - currentTime) * 1000);
+              const textTimeout = window.setTimeout(() => {
+                setActiveSpeakerName(speaker);
+                setMessages((prev) => {
+                  if (prev.length > 0) {
+                    const last = prev[prev.length - 1];
+                    if (last.type === "ai" && last.speaker === speaker) {
+                      const updated = [...prev];
+                      const needsSpace = last.text.length > 0 && !last.text.endsWith(" ") && !data.text.startsWith(" ");
+                      updated[updated.length - 1] = {
+                        ...last,
+                        text: last.text + (needsSpace ? " " : "") + data.text,
+                      };
+                      return updated;
+                    }
+                  }
+                  return [
+                    ...prev,
+                    {
+                      id: Date.now().toString(),
+                      text: data.text,
+                      type: "ai",
+                      speaker: speaker,
+                    },
+                  ];
+                });
+
+                // Remove from pending list
+                pendingTimeoutsRef.current = pendingTimeoutsRef.current.filter((t) => t !== textTimeout);
+              }, delayMs);
+              pendingTimeoutsRef.current.push(textTimeout);
+            }
+          } else if (hasText) {
+            // Text-only message chunk (no audio) -> append immediately
+            setActiveSpeakerName(speaker);
+            setMessages((prev) => {
+              if (prev.length > 0) {
+                const last = prev[prev.length - 1];
+                if (last.type === "ai" && last.speaker === speaker) {
+                  const updated = [...prev];
+                  const needsSpace = last.text.length > 0 && !last.text.endsWith(" ") && !data.text.startsWith(" ");
+                  updated[updated.length - 1] = {
+                    ...last,
+                    text: last.text + (needsSpace ? " " : "") + data.text,
+                  };
+                  return updated;
+                }
+              }
+              return [
+                ...prev,
+                {
+                  id: Date.now().toString(),
+                  text: data.text,
+                  type: "ai",
+                  speaker: speaker,
+                },
+              ];
+            });
+          }
         }
 
         if (data.type === "SCORE_UPDATE" && data.scores) {
@@ -651,7 +774,7 @@ export default function LivePitchRoom() {
           if (statusIntervalRef.current)
             clearInterval(statusIntervalRef.current);
 
-          const finalizeNavigation = async () => {
+          const finalizeNavigation = () => {
             const mockSessionDbRow = {
               id: data.sessionId,
               business_name: pitchConfig?.businessName || "My Startup",
@@ -659,19 +782,6 @@ export default function LivePitchRoom() {
               created_at: new Date().toISOString(),
               video_url: "",
             };
-            const res = await authFetch(`/api/sessions/create`, {
-              method: "POST",
-              headers: {
-                "Content-Type": "application/json",
-              },
-              body: JSON.stringify({
-                business_name: pitchConfig?.businessName,
-                evaluation_report: data.data,
-                video_url: "",
-              }),
-            });
-
-            const session = await res.json();
             navigate(
               `/report${data.sessionId ? `?session=${data.sessionId}` : ""}`,
               {
@@ -692,7 +802,7 @@ export default function LivePitchRoom() {
 
     socket.addEventListener("message", handleMessage);
     return () => socket.removeEventListener("message", handleMessage);
-  }, [socket, navigate, pitchConfig]);
+  }, [socket, navigate, pitchConfig, activeSpeakerName]);
 
   useEffect(() => {
     if (!isPitching || !isConnected || !socket) return;
@@ -735,10 +845,7 @@ export default function LivePitchRoom() {
     return () => clearInterval(visionInterval);
   }, [isPitching, isConnected, isCapturing, socket]);
 
-  useEffect(() => {
-    if (scrollRef.current)
-      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
-  }, [messages]);
+  // Already handled by layout-specific auto-scroll effects
   useEffect(() => {
     if (videoRef.current && stream) videoRef.current.srcObject = stream;
   }, [stream, mainView]);
@@ -773,6 +880,11 @@ export default function LivePitchRoom() {
     e.preventDefault();
     wakeAudio();
     if (!chatInput.trim() || !socket || !isConnected) return;
+    
+    setIsTurnComplete(false);
+    pendingTimeoutsRef.current.forEach((t) => clearTimeout(t));
+    pendingTimeoutsRef.current = [];
+
     setMessages((prev) => [
       ...prev,
       {
@@ -783,9 +895,45 @@ export default function LivePitchRoom() {
         inputMethod: "chat",
       },
     ]);
-    socket.send(JSON.stringify({ type: "chat_message", text: chatInput }));
+    socket.send(JSON.stringify({ type: "chat_message", text: chatInput, timeLeft }));
     setChatInput("");
   };
+
+  const triggerConclusion = async () => {
+    if (isConcluding || !socket || !isConnected) return;
+    setIsConcluding(true);
+    setIsTurnComplete(false);
+    wakeAudio();
+    
+    // Add an invisible system message to trigger the final verdict
+    socket.send(
+      JSON.stringify({
+        type: "chat_message",
+        text: "[SYSTEM: Time is up or the session is ending. Please conclude the pitch now and deliver your final spoken verdict on whether to accept, reject, or recommend improvements.]",
+      })
+    );
+
+    // Fallback timer: if the AI doesn't finish speaking (or we don't receive response) within 18 seconds, proceed anyway
+    setTimeout(() => {
+      setIsPitching((prev) => {
+        if (prev) {
+          console.warn("Conclusion timeout fallback triggered.");
+          handleEndSession();
+        }
+        return prev;
+      });
+    }, 18000);
+  };
+
+  useEffect(() => {
+    if (isConcluding && isTurnComplete && !isSpeaking) {
+      // Add a small delay to ensure audio is truly finished and not just between sentences
+      const timer = setTimeout(() => {
+        if (!isSpeaking) handleEndSession();
+      }, 1500);
+      return () => clearTimeout(timer);
+    }
+  }, [isConcluding, isTurnComplete, isSpeaking]);
 
   const handleEndSession = async () => {
     wakeAudio();
@@ -971,7 +1119,7 @@ export default function LivePitchRoom() {
           >
             {!logoError ? (
               <img
-                src="/PitchNest Logo.png"
+                src="/logo.svg"
                 alt="Logo"
                 className="w-full h-full object-contain"
                 onError={() => setLogoError(true)}
@@ -1196,11 +1344,12 @@ export default function LivePitchRoom() {
               )}
               <div className="w-px h-8 bg-slate-200 dark:bg-white/10 mx-2" />
               <button
-                onClick={handleEndSession}
-                disabled={!isConnected && !isPitching}
+                onClick={triggerConclusion}
+                disabled={(!isConnected && !isPitching) || isConcluding}
                 className="px-6 h-12 bg-rose-500 text-white text-sm font-bold rounded-xl hover:bg-rose-600 transition-all disabled:bg-slate-200 dark:disabled:bg-slate-700 disabled:opacity-50 shadow-lg shadow-rose-500/20 flex items-center justify-center gap-2 cursor-pointer"
               >
-                <VolumeX size={18} /> End Pitch
+                <VolumeX size={18} />
+                {isConcluding ? "Concluding..." : "End Session"}
               </button>
             </div>
           </div>
@@ -1217,7 +1366,7 @@ export default function LivePitchRoom() {
             </div>
 
             <div
-              ref={scrollRef}
+              ref={desktopScrollRef}
               className="flex-1 overflow-y-auto space-y-4 pr-2 custom-scrollbar mb-3"
             >
               {messages.length === 0 ? (
@@ -1617,11 +1766,12 @@ export default function LivePitchRoom() {
               )}
               <div className="w-px h-6 bg-slate-200 dark:bg-white/10 mx-1" />
               <button
-                onClick={handleEndSession}
-                disabled={!isConnected && !isPitching}
+                onClick={triggerConclusion}
+                disabled={(!isConnected && !isPitching) || isConcluding}
                 className="px-5 h-11 bg-rose-500 text-white text-xs font-bold rounded-xl hover:bg-rose-600 shadow-md flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-50"
               >
-                <VolumeX size={16} /> End Pitch
+                <MonitorOff className="w-4 h-4" />
+                {isConcluding ? "Concluding..." : "End Session"}
               </button>
             </div>
 
@@ -1644,7 +1794,7 @@ export default function LivePitchRoom() {
               </div>
 
               <div
-                ref={scrollRef}
+                ref={mobileEmbeddedScrollRef}
                 className="flex-1 overflow-y-auto space-y-2 pr-1 custom-scrollbar mb-2 min-h-0"
               >
                 {messages.length === 0 ? (
@@ -1763,7 +1913,7 @@ export default function LivePitchRoom() {
             </div>
 
             <div
-              ref={scrollRef}
+              ref={mobileFullScrollRef}
               className="flex-1 overflow-y-auto space-y-4 pr-1 custom-scrollbar mb-3 min-h-0"
             >
               {messages.length === 0 ? (

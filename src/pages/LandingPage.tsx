@@ -87,7 +87,7 @@ export default function LandingPage() {
       <nav className="max-w-7xl mx-auto px-4 sm:px-6 py-4 sm:py-6 flex justify-between items-center relative z-50">
         <div className="flex items-center gap-2 sm:gap-3">
           <div className={cn("w-8 h-8 sm:w-10 sm:h-10 flex items-center justify-center overflow-hidden rounded-xl", logoError && "bg-sky-500 text-white shadow-lg shadow-sky-200")}>
-            {!logoError ? <img src="/PitchNest Logo.png" alt="PitchNest" className="w-full h-full object-contain" onError={() => setLogoError(true)} /> : <Rocket size={20} fill="currentColor" />}
+            {!logoError ? <img src="/logo.svg" alt="PitchNest" className="w-full h-full object-contain" onError={() => setLogoError(true)} /> : <Rocket size={20} fill="currentColor" />}
           </div>
           <span className="text-lg sm:text-xl font-bold tracking-tight">PitchNest</span>
         </div>
@@ -461,7 +461,7 @@ export default function LandingPage() {
           <div className="col-span-2 md:col-span-1">
             <div className="flex items-center gap-2 mb-4">
               <div className={cn("w-7 h-7 flex items-center justify-center overflow-hidden rounded-lg", footerLogoError && "bg-sky-500 text-white")}>
-                {!footerLogoError ? <img src="/PitchNest Logo.png" alt="PitchNest" className="w-full h-full object-contain" onError={() => setFooterLogoError(true)} /> : <Rocket size={16} fill="currentColor" />}
+                {!footerLogoError ? <img src="/logo.svg" alt="PitchNest" className="w-full h-full object-contain" onError={() => setFooterLogoError(true)} /> : <Rocket size={16} fill="currentColor" />}
               </div>
               <span className="text-base font-bold">PitchNest</span>
             </div>

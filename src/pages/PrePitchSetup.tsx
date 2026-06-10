@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { 
   Users, Target, User, Upload, FileText, Camera, Mic, CheckCircle2,
@@ -19,11 +19,13 @@ const setupSchema = z.object({
   description: z.string().min(10, 'Min 10 chars'),
   industry: z.string().min(1, 'Required'),
   investorArchetype: z.string().min(1, 'Required'),
+  fundingStage: z.string().min(1, 'Required'),
   aggressiveness: z.number().min(0).max(100),
   riskAppetite: z.number().min(0).max(100),
   cameraEnabled: z.boolean(),
   micEnabled: z.boolean(),
   screenShareEnabled: z.boolean(),
+  duration: z.number().min(5).max(60),
 });
 
 type SetupFormValues = z.infer<typeof setupSchema>;
@@ -50,6 +52,49 @@ export default function PrePitchSetup() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [availableDecks, setAvailableDecks] = useState<any[]>([]);
   const [selectedDeck, setSelectedDeck] = useState<any>(null);
+  const deckFileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleUploadDeck = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const tempId = 'temp-' + Date.now();
+    const tempDeck = {
+      id: tempId,
+      name: file.name.replace(/\.[^/.]+$/, ""),
+      size: parseFloat((file.size / (1024 * 1024)).toFixed(2)),
+      status: "DRAFT"
+    };
+
+    setAvailableDecks(prev => [tempDeck, ...prev]);
+    setSelectedDeck(tempDeck);
+
+    const formData = new FormData();
+    formData.append('deck', file);
+
+    try {
+      const res = await authFetch('/api/upload-deck', {
+        method: 'POST',
+        body: formData
+      });
+
+      if (!res.ok) throw new Error("Upload failed");
+      const savedDeck = await res.json();
+
+      setAvailableDecks(prev => 
+        prev.map(d => d.id === tempId ? {
+          ...savedDeck,
+          image: `https://api.dicebear.com/9.x/shapes/svg?seed=${savedDeck.id}&backgroundColor=0ea5e9,4f46e5,0f172a`
+        } : d)
+      );
+      setSelectedDeck(savedDeck);
+    } catch (err) {
+      console.error("Failed to upload deck:", err);
+      alert("Failed to upload pitch deck. Please try again.");
+      setAvailableDecks(prev => prev.filter(d => d.id !== tempId));
+      setSelectedDeck(null);
+    }
+  };
 
   const { isCapturing, startCapture, stopCapture } = useScreenCapture((frame, index) => {});
 
@@ -62,11 +107,13 @@ export default function PrePitchSetup() {
       description: 'We are building the next generation of AI tools for enterprise.', 
       industry: 'SaaS & Enterprise',
       investorArchetype: 'Seed Stage - Venture Capital', 
+      fundingStage: localStorage.getItem('pitchnest_funding_stage') || 'Pre-Seed',
       aggressiveness: 60, 
       riskAppetite: 75,
       cameraEnabled: true, 
       micEnabled: true, 
       screenShareEnabled: false,
+      duration: 15,
     }
   });
 
@@ -77,11 +124,12 @@ export default function PrePitchSetup() {
   const canScreenShare = typeof navigator?.mediaDevices?.getDisplayMedia === 'function';
   const aggressiveness = watch('aggressiveness');
   const riskAppetite = watch('riskAppetite');
+  const duration = watch('duration') || 15;
 
   const preSelectedDeckName = location.state?.preSelectedDeck;
 
   useEffect(() => {
-    const fetchDecks = async () => {
+    const fetchInitialData = async () => {
       try {
         const res = await authFetch('/api/decks');
         if (res.ok) {
@@ -90,9 +138,35 @@ export default function PrePitchSetup() {
           if (preSelectedDeckName) setSelectedDeck(data.find((d: any) => d.name === preSelectedDeckName) || data[0]);
           else if (data.length > 0) setSelectedDeck(data[0]); 
         }
-      } catch (err) {} finally { setIsLoading(false); }
+      } catch (err) {
+        console.error("Failed to fetch decks:", err);
+      }
+
+      try {
+        const profileRes = await authFetch('/api/profile');
+        if (profileRes.ok) {
+          const profile = await profileRes.json();
+          if (profile) {
+            if (profile.startup_name) {
+              setValue('businessName', profile.startup_name);
+              localStorage.setItem('pitchnest_startup_name', profile.startup_name);
+            }
+            if (profile.industry) {
+              setValue('industry', profile.industry);
+            }
+            if (profile.funding_stage) {
+              setValue('fundingStage', profile.funding_stage);
+              localStorage.setItem('pitchnest_funding_stage', profile.funding_stage);
+            }
+          }
+        }
+      } catch (err) {
+        console.error("Failed to fetch profile in PrePitchSetup:", err);
+      } finally {
+        setIsLoading(false);
+      }
     };
-    fetchDecks();
+    fetchInitialData();
   }, [preSelectedDeckName]);
 
   const toggleScreenShare = async (checked: boolean) => {
@@ -118,7 +192,7 @@ export default function PrePitchSetup() {
           <h1 className="text-2xl md:text-3xl font-extrabold text-slate-900 dark:text-zinc-100">Pre-Pitch Configuration</h1>
         </div>
         <div className="flex items-center gap-2 px-3 py-1.5 bg-slate-100 dark:bg-zinc-800 rounded-lg text-xs font-bold text-slate-500">
-          <Clock size={14} /> 15 Min Session
+          <Clock size={14} /> {duration} Min Session
         </div>
       </div>
 
@@ -134,7 +208,7 @@ export default function PrePitchSetup() {
           </div>
 
           <div className="bg-white dark:bg-zinc-900 p-4 sm:p-6 rounded-[24px] border border-slate-200 dark:border-zinc-800 shadow-sm shrink-0">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div className="space-y-1.5 col-span-1">
                 <div className="flex justify-between">
                   <label className="text-xs font-bold text-slate-700 dark:text-zinc-300 flex items-center gap-1.5"><Briefcase size={14} className="text-sky-500"/> Startup Name</label>
@@ -149,15 +223,48 @@ export default function PrePitchSetup() {
                     <option value="SaaS & Enterprise">SaaS & Enterprise</option>
                     <option value="Fintech">Fintech</option>
                     <option value="Healthtech">Healthtech</option>
+                    <option value="Consumer Social & Media">Consumer Social & Media</option>
+                    <option value="E-commerce & Retail">E-commerce & Retail</option>
+                    <option value="Artificial Intelligence & ML">Artificial Intelligence & ML</option>
+                    <option value="CleanTech & Sustainability">CleanTech & Sustainability</option>
+                    <option value="Biotech & Life Sciences">Biotech & Life Sciences</option>
+                    <option value="DeepTech & Aerospace">DeepTech & Aerospace</option>
+                    <option value="EdTech">EdTech</option>
+                    <option value="Crypto & Web3">Crypto & Web3</option>
+                    <option value="Hardware / IoT">Hardware / IoT</option>
+                    <option value="Logistics & PropTech">Logistics & PropTech</option>
                   </select>
                   <select {...register('investorArchetype')} className="w-full sm:flex-1 px-3 py-2 text-sm bg-slate-50 dark:bg-zinc-800 border rounded-xl dark:border-zinc-700 text-slate-700 dark:text-zinc-300 focus:outline-none focus:ring-2 focus:ring-sky-500/20">
                     <option value="Seed Stage - Venture Capital">Seed VC</option>
                     <option value="Angel Investor Group">Angel Group</option>
                     <option value="Growth Stage - Venture Capital">Growth Fund</option>
+                    <option value="Shark Tank Judge">Shark Tank Judge</option>
+                    <option value="Private Equity">Private Equity</option>
+                    <option value="Strategic Corporate VC">Corporate VC</option>
+                    <option value="Family Office">Family Office</option>
+                    <option value="Y Combinator Partner">Y Combinator Partner</option>
+                    <option value="ESG & Impact Investor">ESG & Impact Investor</option>
                   </select>
                 </div>
               </div>
-              <div className="space-y-1.5 col-span-1 md:col-span-2">
+              <div className="space-y-1.5 col-span-1">
+                <label className="text-xs font-bold text-slate-700 dark:text-zinc-300 flex items-center gap-1.5"><Clock size={14} className="text-sky-500"/> Funding & Duration</label>
+                <div className="flex flex-col sm:flex-row gap-2">
+                  <select {...register('fundingStage')} className="w-full sm:flex-1 px-3 py-2 text-sm bg-slate-50 dark:bg-zinc-800 border rounded-xl dark:border-zinc-700 text-slate-700 dark:text-zinc-300 focus:outline-none focus:ring-2 focus:ring-sky-500/20">
+                    <option value="Idea / Bootstrap">Idea / Bootstrap</option>
+                    <option value="Pre-Seed">Pre-Seed</option>
+                    <option value="Seed">Seed</option>
+                    <option value="Series A+">Series A+</option>
+                  </select>
+                  <select {...register('duration', { valueAsNumber: true })} className="w-full sm:flex-1 px-3 py-2 text-sm bg-slate-50 dark:bg-zinc-800 border rounded-xl dark:border-zinc-700 text-slate-700 dark:text-zinc-300 focus:outline-none focus:ring-2 focus:ring-sky-500/20">
+                    <option value="10">10 Min</option>
+                    <option value="15">15 Min</option>
+                    <option value="20">20 Min</option>
+                    <option value="30">30 Min</option>
+                  </select>
+                </div>
+              </div>
+              <div className="space-y-1.5 col-span-1 md:col-span-3">
                 <div className="flex justify-between">
                   <label className="text-xs font-bold text-slate-700 dark:text-zinc-300">Elevator Pitch</label>
                   {errors.description && <span className="text-[10px] text-rose-500 font-bold">{errors.description.message}</span>}
@@ -208,22 +315,39 @@ export default function PrePitchSetup() {
                 <p className="text-xs text-white/40 text-center py-4">No decks found.</p>
               ) : (
                 availableDecks.map((deck) => (
-                  <div key={deck.id} onClick={() => setSelectedDeck(deck)} className={cn("flex items-center gap-3 p-3 rounded-xl cursor-pointer transition-colors border min-w-0", selectedDeck?.id === deck.id ? "bg-sky-500/20 border-sky-500" : "border-white/10 hover:bg-white/5")}>
+                  <div key={deck.id} onClick={() => deck.status !== 'DRAFT' && setSelectedDeck(deck)} className={cn("flex items-center gap-3 p-3 rounded-xl cursor-pointer transition-colors border min-w-0", selectedDeck?.id === deck.id ? "bg-sky-500/20 border-sky-500" : "border-white/10 hover:bg-white/5", deck.status === 'DRAFT' && "opacity-60 cursor-not-allowed")}>
                     <FileText size={16} className={selectedDeck?.id === deck.id ? "text-sky-400" : "text-white/40"} />
                     <div className="flex-1 overflow-hidden min-w-0">
                       <p className="text-xs font-bold truncate">{deck.name}</p>
-                      <p className="text-[9px] text-white/40">{deck.size} MB</p>
+                      <p className="text-[9px] text-white/40">
+                        {deck.status === 'DRAFT' ? 'Uploading...' : `${deck.size || 0} MB`}
+                      </p>
                     </div>
-                    {selectedDeck?.id === deck.id && <CheckCircle2 size={14} className="text-sky-500" />}
+                    {deck.status === 'DRAFT' ? (
+                      <Loader2 size={14} className="animate-spin text-sky-500" />
+                    ) : selectedDeck?.id === deck.id ? (
+                      <CheckCircle2 size={14} className="text-sky-500" />
+                    ) : null}
                   </div>
                 ))
               )}
             </div>
 
             <div className="shrink-0 mt-4 space-y-4">
-              <Link to="/decks" className="flex items-center justify-center gap-2 w-full py-3 rounded-xl border border-white/20 text-xs font-bold text-white/70 hover:bg-white/10 hover:text-white transition-colors">
+              <button 
+                type="button"
+                onClick={() => deckFileInputRef.current?.click()}
+                className="flex items-center justify-center gap-2 w-full py-3 rounded-xl border border-white/20 text-xs font-bold text-white/70 hover:bg-white/10 hover:text-white transition-colors cursor-pointer"
+              >
                 <Upload size={14} /> Upload New
-              </Link>
+              </button>
+              <input 
+                type="file"
+                ref={deckFileInputRef}
+                onChange={handleUploadDeck}
+                accept=".pdf,.ppt,.pptx"
+                className="hidden"
+              />
               
               <button type="submit" disabled={isSubmitting} className="w-full py-4 bg-sky-500 text-white font-bold rounded-2xl hover:bg-sky-400 transition-all flex items-center justify-center gap-2 group disabled:opacity-50 cursor-pointer">
                 {isSubmitting ? <Loader2 className="animate-spin" size={20} /> : <>Enter Live Room <PlayCircle size={20} className="group-hover:translate-x-1 transition-transform" /></>}

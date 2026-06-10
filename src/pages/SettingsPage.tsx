@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
   User, 
@@ -55,10 +55,17 @@ export default function SettingsPage() {
   const [activeSector, setActiveSector] = useState("Venture Capital");
   const [twoFactorEnabled, setTwoFactorEnabled] = useState(true);
 
-  const [userData, setUserData] = useState<{name: string, email?: string}>({ 
+  const [userData, setUserData] = useState<{name: string, email?: string, bio?: string, avatarUrl?: string}>({ 
     name: "Founder", 
-    email: "founder@pitchnest.io" 
+    email: "founder@pitchnest.io",
+    bio: "Building the next generation of AI-driven tools for venture building. Focused on creating scalable technologies and empowering startups to nail their stories and secure funding."
   });
+
+  const [isEditing, setIsEditing] = useState(false);
+  const [editName, setEditName] = useState("");
+  const [editEmail, setEditEmail] = useState("");
+  const [editBio, setEditBio] = useState("");
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [deletePassword, setDeletePassword] = useState('');
@@ -70,10 +77,59 @@ export default function SettingsPage() {
     const storedUser = localStorage.getItem("user");
     if (storedUser) {
       try { 
-        setUserData(JSON.parse(storedUser)); 
+        const parsed = JSON.parse(storedUser);
+        setUserData(prev => ({
+          ...prev,
+          ...parsed,
+          bio: parsed.bio || prev.bio
+        })); 
       } catch (e) {}
     }
   }, []);
+
+  const handleEditToggle = () => {
+    if (!isEditing) {
+      setEditName(userData.name);
+      setEditEmail(userData.email || "");
+      setEditBio(userData.bio || "");
+    }
+    setIsEditing(!isEditing);
+  };
+
+  const handleSaveProfile = () => {
+    const updated = {
+      ...userData,
+      name: editName,
+      email: editEmail,
+      bio: editBio
+    };
+    setUserData(updated);
+    localStorage.setItem("user", JSON.stringify(updated));
+    window.dispatchEvent(new Event("userUpdate"));
+    setIsEditing(false);
+  };
+
+  const handleAvatarClick = () => {
+    fileInputRef.current?.click();
+  };
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      const base64String = reader.result as string;
+      const updated = {
+        ...userData,
+        avatarUrl: base64String
+      };
+      setUserData(updated);
+      localStorage.setItem("user", JSON.stringify(updated));
+      window.dispatchEvent(new Event("userUpdate"));
+    };
+    reader.readAsDataURL(file);
+  };
 
   const handleLogout = () => {
     logout();
@@ -140,40 +196,106 @@ export default function SettingsPage() {
           
           {/* PROFILE TAB */}
           <Tabs.Content value="profile" className="space-y-10 outline-none flex flex-col h-full">
-            <div className="flex justify-between items-start">
+            <div className="flex justify-between items-center">
               <h2 className="text-xl font-bold text-slate-900 dark:text-zinc-100">Profile Details</h2>
-              <button className="text-sm font-bold text-sky-500 hover:text-sky-600 flex items-center gap-1 transition-colors active:scale-95">
-                <Edit3 size={14} />
-                Edit Profile
-              </button>
+              {!isEditing && (
+                <button 
+                  onClick={handleEditToggle}
+                  className="text-sm font-bold text-sky-500 hover:text-sky-600 flex items-center gap-1 transition-colors active:scale-95 cursor-pointer"
+                >
+                  <Edit3 size={14} />
+                  Edit Profile
+                </button>
+              )}
             </div>
 
             <div className="flex flex-col sm:flex-row items-center gap-8 p-8 bg-slate-50 dark:bg-zinc-800/50 rounded-[32px] transition-colors">
               <div className="relative shrink-0">
                 <img 
-                  src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${userData.name}`} 
-                  className="w-24 h-24 rounded-full border-4 border-white dark:border-zinc-800 shadow-lg bg-sky-100"
+                  src={userData.avatarUrl || `https://api.dicebear.com/7.x/avataaars/svg?seed=${userData.name}`} 
+                  className="w-24 h-24 rounded-full border-4 border-white dark:border-zinc-800 shadow-lg bg-sky-100 object-cover"
                   alt="Profile Avatar"
                 />
-                <button className="absolute bottom-0 right-0 p-2 bg-white dark:bg-zinc-900 rounded-full shadow-md text-slate-400 dark:text-zinc-500 hover:text-sky-500 transition-colors border border-slate-100 dark:border-zinc-800 active:scale-95">
+                <button 
+                  onClick={handleAvatarClick}
+                  className="absolute bottom-0 right-0 p-2 bg-white dark:bg-zinc-900 rounded-full shadow-md text-slate-400 dark:text-zinc-500 hover:text-sky-500 transition-colors border border-slate-100 dark:border-zinc-800 active:scale-95 cursor-pointer"
+                >
                   <Edit3 size={14} />
                 </button>
+                <input 
+                  type="file" 
+                  ref={fileInputRef} 
+                  onChange={handleFileChange} 
+                  accept="image/*" 
+                  className="hidden" 
+                />
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-12 gap-y-6 flex-1 w-full">
-                <div>
-                  <p className="text-[10px] font-bold text-slate-400 dark:text-zinc-500 uppercase tracking-widest mb-1">Full Name</p>
-                  <p className="text-sm font-bold text-slate-900 dark:text-zinc-100">{userData.name}</p>
-                </div>
-                <div>
-                  <p className="text-[10px] font-bold text-slate-400 dark:text-zinc-500 uppercase tracking-widest mb-1">Email Address</p>
-                  <p className="text-sm font-bold text-slate-900 dark:text-zinc-100">{userData.email || "No email provided"}</p>
-                </div>
-                <div className="sm:col-span-2">
-                  <p className="text-[10px] font-bold text-slate-400 dark:text-zinc-500 uppercase tracking-widest mb-1">Founder Bio</p>
-                  <p className="text-sm text-slate-600 dark:text-zinc-400 leading-relaxed">
-                    Building the next generation of AI-driven tools for venture building. Focused on creating scalable technologies and empowering startups to nail their stories and secure funding.
-                  </p>
-                </div>
+                {isEditing ? (
+                  <>
+                    <div className="col-span-1">
+                      <label className="block text-[10px] font-bold text-slate-400 dark:text-zinc-500 uppercase tracking-widest mb-2">Full Name</label>
+                      <input 
+                        type="text" 
+                        value={editName}
+                        onChange={(e) => setEditName(e.target.value)}
+                        className="w-full px-4 py-2.5 bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-xl text-sm dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-sky-500/20"
+                        placeholder="Enter full name"
+                      />
+                    </div>
+                    <div className="col-span-1">
+                      <label className="block text-[10px] font-bold text-slate-400 dark:text-zinc-500 uppercase tracking-widest mb-2">Email Address</label>
+                      <input 
+                        type="email" 
+                        value={editEmail}
+                        onChange={(e) => setEditEmail(e.target.value)}
+                        className="w-full px-4 py-2.5 bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-xl text-sm dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-sky-500/20"
+                        placeholder="Enter email address"
+                      />
+                    </div>
+                    <div className="sm:col-span-2">
+                      <label className="block text-[10px] font-bold text-slate-400 dark:text-zinc-500 uppercase tracking-widest mb-2">Founder Bio</label>
+                      <textarea 
+                        rows={4}
+                        value={editBio}
+                        onChange={(e) => setEditBio(e.target.value)}
+                        className="w-full px-4 py-2.5 bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-xl text-sm dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-sky-500/20 resize-none leading-relaxed"
+                        placeholder="Tell investors about yourself..."
+                      />
+                    </div>
+                    <div className="sm:col-span-2 flex justify-end gap-3 mt-2">
+                      <button 
+                        onClick={() => setIsEditing(false)}
+                        className="px-4 py-2 border border-slate-200 dark:border-zinc-700 rounded-xl text-xs font-bold text-slate-600 dark:text-zinc-400 hover:bg-slate-50 dark:hover:bg-zinc-800 cursor-pointer"
+                      >
+                        Cancel
+                      </button>
+                      <button 
+                        onClick={handleSaveProfile}
+                        className="px-5 py-2 bg-sky-500 hover:bg-sky-600 text-white rounded-xl text-xs font-bold shadow-md cursor-pointer"
+                      >
+                        Save Changes
+                      </button>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <div>
+                      <p className="text-[10px] font-bold text-slate-400 dark:text-zinc-500 uppercase tracking-widest mb-1">Full Name</p>
+                      <p className="text-sm font-bold text-slate-900 dark:text-zinc-100">{userData.name}</p>
+                    </div>
+                    <div>
+                      <p className="text-[10px] font-bold text-slate-400 dark:text-zinc-500 uppercase tracking-widest mb-1">Email Address</p>
+                      <p className="text-sm font-bold text-slate-900 dark:text-zinc-100">{userData.email || "No email provided"}</p>
+                    </div>
+                    <div className="sm:col-span-2">
+                      <p className="text-[10px] font-bold text-slate-400 dark:text-zinc-500 uppercase tracking-widest mb-1">Founder Bio</p>
+                      <p className="text-sm text-slate-600 dark:text-zinc-400 leading-relaxed">
+                        {userData.bio}
+                      </p>
+                    </div>
+                  </>
+                )}
               </div>
             </div>
 
