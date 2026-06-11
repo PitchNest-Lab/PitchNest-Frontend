@@ -1,91 +1,154 @@
-import React, { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
-import { Rocket, Play, BarChart3, Target, Sparkles, ChevronRight, Clock, CheckCircle2, AlertCircle, Trash2, Loader2 } from 'lucide-react';
-import { motion } from 'framer-motion';
-import { cn } from '../lib/utils';
-import { Skeleton } from '../components/Skeleton';
-import { useAuth } from '../contexts/AuthContext';
+import React, { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
+import {
+  Rocket,
+  Play,
+  BarChart3,
+  Target,
+  Sparkles,
+  ChevronRight,
+  Clock,
+  CheckCircle2,
+  AlertCircle,
+  Trash2,
+  Loader2,
+} from "lucide-react";
+import { motion } from "framer-motion";
+import { cn } from "../lib/utils";
+import { Skeleton } from "../components/Skeleton";
+import { useAuth } from "../contexts/AuthContext";
 
 // --- Components ---
-const RecentPitchItem = ({ 
-  id, 
-  name, 
-  date, 
-  score, 
+const RecentPitchItem = ({
+  id,
+  name,
+  date,
+  score,
   status,
   isSelected,
-  onSelectToggle
-}: { 
-  id: number, 
-  name: string, 
-  date: string, 
-  score: number, 
-  status: string,
-  isSelected: boolean,
-  onSelectToggle: (id: number) => void
+  onSelectToggle,
+}: {
+  id: number;
+  name: string;
+  date: string;
+  score: number;
+  status: string;
+  isSelected: boolean;
+  onSelectToggle: (id: number) => void;
 }) => {
   const isIncomplete = score === 0;
 
   return (
-    <div className="flex items-center justify-between p-4 bg-white dark:bg-zinc-900 border border-slate-100 dark:border-zinc-800 rounded-2xl hover:border-sky-200 dark:hover:border-sky-500/50 hover:shadow-md transition-all group">
-      <div className="flex items-center gap-4">
-        <input 
-          type="checkbox" 
-          checked={isSelected}
-          onChange={() => onSelectToggle(id)}
-          className="w-4 h-4 rounded border-slate-300 dark:border-zinc-700 text-sky-500 focus:ring-sky-500/25 cursor-pointer accent-sky-500 shrink-0"
-        />
-        <Link to={`/report?session=${id}`} className="w-12 h-12 bg-slate-50 dark:bg-zinc-800 rounded-xl flex items-center justify-center text-slate-400 dark:text-zinc-500 group-hover:bg-sky-50 dark:group-hover:bg-sky-900/20 group-hover:text-sky-500 transition-colors">
-          <Play size={20} fill="currentColor" />
-        </Link>
-        <div>
-          <p className="text-sm font-bold text-slate-900 dark:text-zinc-100">{name}</p>
-          <p className="text-[10px] text-slate-400 dark:text-zinc-500 font-medium">{date}</p>
-        </div>
+    <div className="flex items-center gap-3 p-4 bg-white dark:bg-zinc-900 border border-slate-100 dark:border-zinc-800 rounded-2xl hover:border-sky-200 dark:hover:border-sky-500/50 hover:shadow-md transition-all group">
+      {/* Checkbox */}
+      <input
+        type="checkbox"
+        checked={isSelected}
+        onChange={() => onSelectToggle(id)}
+        className="w-4 h-4 rounded border-slate-300 dark:border-zinc-700 text-sky-500 focus:ring-sky-500/25 cursor-pointer accent-sky-500 shrink-0"
+      />
+
+      {/* Play icon */}
+      <Link
+        to={`/report?session=${id}`}
+        className="w-10 h-10 shrink-0 bg-slate-50 dark:bg-zinc-800 rounded-xl flex items-center justify-center text-slate-400 dark:text-zinc-500 group-hover:bg-sky-50 dark:group-hover:bg-sky-900/20 group-hover:text-sky-500 transition-colors"
+      >
+        <Play size={18} fill="currentColor" />
+      </Link>
+
+      {/* Name + date — grows to fill space */}
+      <div className="flex-1 min-w-0">
+        <p className="text-sm font-bold text-slate-900 dark:text-zinc-100 truncate">
+          {name}
+        </p>
+        <p className="text-[10px] text-slate-400 dark:text-zinc-500 font-medium">
+          {date}
+        </p>
       </div>
-      <div className="flex items-center gap-8">
-        <div className="flex flex-col items-end w-24">
-          {isIncomplete ? (
-            <div className="flex items-center gap-1.5 text-slate-400">
-              <AlertCircle size={14} />
-              <span className="text-[10px] font-bold uppercase tracking-widest">N/A</span>
-            </div>
-          ) : (
-            <div className="flex items-center gap-2 mb-1">
-              <div className="w-16 h-1.5 bg-slate-100 dark:bg-zinc-800 rounded-full overflow-hidden">
-                <div className={cn(
+
+      {/* Score bar — hidden on smallest screens */}
+      <div className="hidden sm:flex flex-col items-end shrink-0">
+        {isIncomplete ? (
+          <div className="flex items-center gap-1.5 text-slate-400">
+            <AlertCircle size={14} />
+            <span className="text-[10px] font-bold uppercase tracking-widest">
+              N/A
+            </span>
+          </div>
+        ) : (
+          <div className="flex items-center gap-2">
+            <div className="w-14 h-1.5 bg-slate-100 dark:bg-zinc-800 rounded-full overflow-hidden">
+              <div
+                className={cn(
                   "h-full transition-all duration-1000",
-                  score >= 80 ? "bg-emerald-500" : score >= 60 ? "bg-sky-500" : "bg-amber-500"
-                )} style={{ width: `${score}%` }} />
-              </div>
-              <span className="text-xs font-bold text-slate-700 dark:text-zinc-300">{score}</span>
+                  score >= 80
+                    ? "bg-emerald-500"
+                    : score >= 60
+                      ? "bg-sky-500"
+                      : "bg-amber-500",
+                )}
+                style={{ width: `${score}%` }}
+              />
             </div>
-          )}
-        </div>
-        <div className="w-32">
-          <span className={cn(
-            "text-[10px] font-bold px-3 py-1 rounded-full",
-            status === "Investor Ready" ? "bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400" : 
-            status === "Good Progress" ? "bg-sky-50 dark:bg-sky-900/20 text-sky-600 dark:text-sky-400" :
-            status === "Incomplete" ? "bg-slate-100 dark:bg-zinc-800 text-slate-500 dark:text-zinc-400" :
-            "bg-amber-50 dark:bg-amber-900/20 text-amber-600 dark:text-amber-400"
-          )}>
-            {status}
-          </span>
-        </div>
-        <Link to={`/report?session=${id}`} className="p-2 text-slate-300 dark:text-zinc-600 hover:text-sky-500 dark:hover:text-sky-400 transition-colors">
-          <Play size={18} />
-        </Link>
+            <span className="text-xs font-bold text-slate-700 dark:text-zinc-300">
+              {score}
+            </span>
+          </div>
+        )}
       </div>
+
+      {/* Status badge */}
+      <span
+        className={cn(
+          "shrink-0 text-[10px] font-bold px-2.5 py-1 rounded-full whitespace-nowrap",
+          status === "Investor Ready"
+            ? "bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400"
+            : status === "Good Progress"
+              ? "bg-sky-50 dark:bg-sky-900/20 text-sky-600 dark:text-sky-400"
+              : status === "Incomplete"
+                ? "bg-slate-100 dark:bg-zinc-800 text-slate-500 dark:text-zinc-400"
+                : "bg-amber-50 dark:bg-amber-900/20 text-amber-600 dark:text-amber-400",
+        )}
+      >
+        {status}
+      </span>
+
+      {/* Arrow link */}
+      <Link
+        to={`/report?session=${id}`}
+        className="shrink-0 p-1.5 text-slate-300 dark:text-zinc-600 hover:text-sky-500 dark:hover:text-sky-400 transition-colors"
+      >
+        <ChevronRight size={16} />
+      </Link>
     </div>
   );
 };
 
-const InsightCard = ({ title, content, icon: Icon, color, darkColor }: { title: string, content: string, icon: any, color: string, darkColor: string }) => (
-  <div className={cn("p-6 rounded-2xl border-l-4 transition-colors", color, darkColor)}>
+const InsightCard = ({
+  title,
+  content,
+  icon: Icon,
+  color,
+  darkColor,
+}: {
+  title: string;
+  content: string;
+  icon: any;
+  color: string;
+  darkColor: string;
+}) => (
+  <div
+    className={cn(
+      "p-6 rounded-2xl border-l-4 transition-colors",
+      color,
+      darkColor,
+    )}
+  >
     <div className="flex items-center gap-2 mb-3">
       <Icon size={18} className="dark:text-zinc-400" />
-      <h4 className="text-sm font-bold text-slate-900 dark:text-zinc-100">{title}</h4>
+      <h4 className="text-sm font-bold text-slate-900 dark:text-zinc-100">
+        {title}
+      </h4>
     </div>
     <p className="text-xs text-slate-600 dark:text-zinc-400 leading-relaxed">
       "{content}"
@@ -105,15 +168,25 @@ function getStatus(score: number): string {
 function getOverallScore(report: any): number {
   if (!report || !report.scores) return 0;
   const s = report.scores;
-  const total = (Number(s.delivery) || 0) + (Number(s.clarity) || 0) + (Number(s.scalability) || 0) + (Number(s.readiness) || 0);
+  const total =
+    (Number(s.delivery) || 0) +
+    (Number(s.clarity) || 0) +
+    (Number(s.scalability) || 0) +
+    (Number(s.readiness) || 0);
   return Math.round(total / 4);
 }
 
 // Helper to format date
 function formatDate(timestamp: string): string {
   try {
-    return new Date(timestamp).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
-  } catch { return "Unknown"; }
+    return new Date(timestamp).toLocaleDateString("en-US", {
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+    });
+  } catch {
+    return "Unknown";
+  }
 }
 
 // --- Main Dashboard Component ---
@@ -125,21 +198,28 @@ export default function Dashboard() {
   const [isDeleting, setIsDeleting] = useState(false);
 
   const handleSelectToggle = (id: number) => {
-    setSelectedIds(prev => 
-      prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]
+    setSelectedIds((prev) =>
+      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id],
     );
   };
 
   const handleDeleteSelected = async () => {
     if (selectedIds.length === 0) return;
-    if (!window.confirm(`Are you sure you want to delete the ${selectedIds.length} selected pitch sessions?`)) return;
+    if (
+      !window.confirm(
+        `Are you sure you want to delete the ${selectedIds.length} selected pitch sessions?`,
+      )
+    )
+      return;
 
     setIsDeleting(true);
     try {
       await Promise.all(
-        selectedIds.map(id => authFetch(`/api/sessions/${id}`, { method: 'DELETE' }))
+        selectedIds.map((id) =>
+          authFetch(`/api/sessions/${id}`, { method: "DELETE" }),
+        ),
       );
-      setSessions(prev => prev.filter(s => !selectedIds.includes(s.id)));
+      setSessions((prev) => prev.filter((s) => !selectedIds.includes(s.id)));
       setSelectedIds([]);
     } catch (err) {
       console.error("Failed to delete sessions:", err);
@@ -151,7 +231,7 @@ export default function Dashboard() {
   useEffect(() => {
     const fetchSessions = async () => {
       try {
-        const res = await authFetch('/api/sessions');
+        const res = await authFetch("/api/sessions");
         if (res.ok) {
           const data = await res.json();
           setSessions(data);
@@ -167,8 +247,15 @@ export default function Dashboard() {
 
   // Compute stats from real data
   const recentSessions = sessions.slice(0, 4);
-  const sessionScores = sessions.map(s => getOverallScore(s.evaluation_report)).filter(s => s > 0);
-  const avgScore = sessionScores.length > 0 ? Math.round(sessionScores.reduce((a, b) => a + b, 0) / sessionScores.length) : 0;
+  const sessionScores = sessions
+    .map((s) => getOverallScore(s.evaluation_report))
+    .filter((s) => s > 0);
+  const avgScore =
+    sessionScores.length > 0
+      ? Math.round(
+          sessionScores.reduce((a, b) => a + b, 0) / sessionScores.length,
+        )
+      : 0;
   const bestScore = sessionScores.length > 0 ? Math.max(...sessionScores) : 0;
   const totalPitches = sessions.length;
 
@@ -182,7 +269,7 @@ export default function Dashboard() {
       content: latestReport.summary,
       icon: Sparkles,
       color: "border-sky-500 bg-sky-50/30",
-      darkColor: "dark:border-sky-500 dark:bg-sky-500/5"
+      darkColor: "dark:border-sky-500 dark:bg-sky-500/5",
     });
   }
   if (latestReport?.strengths?.[0]) {
@@ -191,7 +278,7 @@ export default function Dashboard() {
       content: latestReport.strengths[0],
       icon: Target,
       color: "border-indigo-500 bg-indigo-50/30",
-      darkColor: "dark:border-indigo-500 dark:bg-indigo-500/5"
+      darkColor: "dark:border-indigo-500 dark:bg-indigo-500/5",
     });
   }
 
@@ -200,7 +287,7 @@ export default function Dashboard() {
   return (
     <div className="space-y-8 pb-20">
       {/* Welcome Hero */}
-      <motion.div 
+      <motion.div
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
         className="bg-gradient-to-br from-indigo-600 to-sky-500 rounded-[32px] p-10 text-white relative overflow-hidden shadow-xl shadow-sky-500/20"
@@ -210,12 +297,14 @@ export default function Dashboard() {
             Welcome back, {userName}! 🚀
           </h2>
           <p className="text-white/80 text-lg mb-8 leading-relaxed">
-            {totalPitches > 0 
-              ? `You've completed ${totalPitches} pitch${totalPitches !== 1 ? 'es' : ''}. Ready to refine your next big idea with our AI panel?`
-              : "Ready to practice your first pitch with our AI investor panel?"
-            }
+            {totalPitches > 0
+              ? `You've completed ${totalPitches} pitch${totalPitches !== 1 ? "es" : ""}. Ready to refine your next big idea with our AI panel?`
+              : "Ready to practice your first pitch with our AI investor panel?"}
           </p>
-          <Link to="/setup" className="px-8 py-3.5 bg-white text-sky-600 font-bold rounded-xl shadow-xl hover:bg-sky-50 transition-all inline-flex items-center gap-2">
+          <Link
+            to="/setup"
+            className="px-8 py-3.5 bg-white text-sky-600 font-bold rounded-xl shadow-xl hover:bg-sky-50 transition-all inline-flex items-center gap-2"
+          >
             <Rocket size={18} fill="currentColor" />
             Start New Pitch
           </Link>
@@ -228,12 +317,40 @@ export default function Dashboard() {
       {/* Dynamic Stats Overview */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
         {[
-          { label: "Average Pitch Score", value: totalPitches > 0 ? avgScore.toString() : "—", suffix: totalPitches > 0 ? "/100" : "", trend: "", icon: BarChart3, color: "text-sky-500" },
-          { label: "Total Pitches", value: totalPitches.toString(), suffix: "Sessions", trend: "", icon: Target, color: "text-indigo-500" },
-          { label: "Best Score", value: totalPitches > 0 ? bestScore.toString() : "—", suffix: "", trend: "", icon: CheckCircle2, color: "text-emerald-500" },
-          { label: "AI Improvements", value: totalPitches > 0 ? "Ready" : "Start", suffix: totalPitches > 0 ? "Pending Action" : "Your first pitch", trend: "", icon: Sparkles, color: "text-amber-500" }
+          {
+            label: "Average Pitch Score",
+            value: totalPitches > 0 ? avgScore.toString() : "—",
+            suffix: totalPitches > 0 ? "/100" : "",
+            trend: "",
+            icon: BarChart3,
+            color: "text-sky-500",
+          },
+          {
+            label: "Total Pitches",
+            value: totalPitches.toString(),
+            suffix: "Sessions",
+            trend: "",
+            icon: Target,
+            color: "text-indigo-500",
+          },
+          {
+            label: "Best Score",
+            value: totalPitches > 0 ? bestScore.toString() : "—",
+            suffix: "",
+            trend: "",
+            icon: CheckCircle2,
+            color: "text-emerald-500",
+          },
+          {
+            label: "AI Improvements",
+            value: totalPitches > 0 ? "Ready" : "Start",
+            suffix: totalPitches > 0 ? "Pending Action" : "Your first pitch",
+            trend: "",
+            icon: Sparkles,
+            color: "text-amber-500",
+          },
         ].map((stat, i) => (
-          <motion.div 
+          <motion.div
             key={i}
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
@@ -254,13 +371,23 @@ export default function Dashboard() {
             ) : (
               <>
                 <div className="flex justify-between items-start mb-4">
-                  <span className="text-xs font-bold text-slate-400 dark:text-zinc-500 uppercase tracking-wider">{stat.label}</span>
+                  <span className="text-xs font-bold text-slate-400 dark:text-zinc-500 uppercase tracking-wider">
+                    {stat.label}
+                  </span>
                   <stat.icon className={stat.color} size={20} />
                 </div>
                 <div className="flex items-baseline gap-2">
-                  <span className="text-3xl font-bold text-slate-900 dark:text-zinc-100">{stat.value}</span>
-                  <span className="text-xs font-bold text-slate-400 dark:text-zinc-500">{stat.suffix}</span>
-                  {stat.trend && <span className="text-[10px] font-bold text-emerald-500 ml-auto">{stat.trend}</span>}
+                  <span className="text-3xl font-bold text-slate-900 dark:text-zinc-100">
+                    {stat.value}
+                  </span>
+                  <span className="text-xs font-bold text-slate-400 dark:text-zinc-500">
+                    {stat.suffix}
+                  </span>
+                  {stat.trend && (
+                    <span className="text-[10px] font-bold text-emerald-500 ml-auto">
+                      {stat.trend}
+                    </span>
+                  )}
                 </div>
               </>
             )}
@@ -273,19 +400,28 @@ export default function Dashboard() {
         <div className="lg:col-span-2 space-y-6">
           <div className="flex justify-between items-center">
             <div className="flex items-center gap-4">
-              <h3 className="text-xl font-bold text-slate-900 dark:text-zinc-100">Recent Pitches</h3>
+              <h3 className="text-xl font-bold text-slate-900 dark:text-zinc-100">
+                Recent Pitches
+              </h3>
               {selectedIds.length > 0 && (
-                <button 
+                <button
                   onClick={handleDeleteSelected}
                   disabled={isDeleting}
                   className="px-3.5 py-1.5 bg-rose-600 hover:bg-rose-700 disabled:opacity-50 text-white font-bold rounded-xl text-xs flex items-center gap-1.5 transition-all shadow-md active:scale-95 cursor-pointer"
                 >
-                  {isDeleting ? <Loader2 className="animate-spin" size={12} /> : <Trash2 size={12} />}
+                  {isDeleting ? (
+                    <Loader2 className="animate-spin" size={12} />
+                  ) : (
+                    <Trash2 size={12} />
+                  )}
                   Delete Selected ({selectedIds.length})
                 </button>
               )}
             </div>
-            <Link to="/archive" className="text-sm font-bold text-sky-500 hover:text-sky-600 flex items-center gap-1">
+            <Link
+              to="/archive"
+              className="text-sm font-bold text-sky-500 hover:text-sky-600 flex items-center gap-1"
+            >
               View All
               <ChevronRight size={16} />
             </Link>
@@ -298,9 +434,17 @@ export default function Dashboard() {
               </>
             ) : recentSessions.length === 0 ? (
               <div className="p-12 text-center border-2 border-dashed border-slate-200 dark:border-zinc-800 rounded-2xl">
-                <Rocket size={48} className="mx-auto text-slate-300 dark:text-zinc-700 mb-4" />
-                <p className="text-slate-500 dark:text-zinc-500 font-medium mb-4">No pitches yet. Start your first session!</p>
-                <Link to="/setup" className="px-6 py-2.5 bg-sky-500 text-white font-bold rounded-xl hover:bg-sky-600 transition-all inline-flex items-center gap-2 text-sm">
+                <Rocket
+                  size={48}
+                  className="mx-auto text-slate-300 dark:text-zinc-700 mb-4"
+                />
+                <p className="text-slate-500 dark:text-zinc-500 font-medium mb-4">
+                  No pitches yet. Start your first session!
+                </p>
+                <Link
+                  to="/setup"
+                  className="px-6 py-2.5 bg-sky-500 text-white font-bold rounded-xl hover:bg-sky-600 transition-all inline-flex items-center gap-2 text-sm"
+                >
                   <Rocket size={16} fill="currentColor" />
                   Start Pitching
                 </Link>
@@ -309,13 +453,13 @@ export default function Dashboard() {
               recentSessions.map((session: any) => {
                 const score = getOverallScore(session.evaluation_report);
                 return (
-                  <RecentPitchItem 
+                  <RecentPitchItem
                     key={session.id}
                     id={session.id}
-                    name={session.business_name || "Untitled Pitch"} 
-                    date={formatDate(session.created_at)} 
-                    score={score} 
-                    status={getStatus(score)} 
+                    name={session.business_name || "Untitled Pitch"}
+                    date={formatDate(session.created_at)}
+                    score={score}
+                    status={getStatus(score)}
                     isSelected={selectedIds.includes(session.id)}
                     onSelectToggle={handleSelectToggle}
                   />
@@ -329,7 +473,9 @@ export default function Dashboard() {
         <div className="space-y-6">
           <div className="flex items-center gap-2">
             <Sparkles className="text-sky-500" size={20} />
-            <h3 className="text-xl font-bold text-slate-900 dark:text-zinc-100">AI Insights</h3>
+            <h3 className="text-xl font-bold text-slate-900 dark:text-zinc-100">
+              AI Insights
+            </h3>
           </div>
           <div className="space-y-4">
             {isLoading ? (
@@ -339,13 +485,18 @@ export default function Dashboard() {
               </>
             ) : insights.length === 0 ? (
               <div className="p-8 text-center border-2 border-dashed border-slate-200 dark:border-zinc-800 rounded-2xl">
-                <Sparkles size={32} className="mx-auto text-slate-300 dark:text-zinc-700 mb-3" />
-                <p className="text-slate-500 dark:text-zinc-500 text-sm font-medium">Complete your first pitch to see AI insights here.</p>
+                <Sparkles
+                  size={32}
+                  className="mx-auto text-slate-300 dark:text-zinc-700 mb-3"
+                />
+                <p className="text-slate-500 dark:text-zinc-500 text-sm font-medium">
+                  Complete your first pitch to see AI insights here.
+                </p>
               </div>
             ) : (
               <>
                 {insights.map((insight, i) => (
-                  <InsightCard 
+                  <InsightCard
                     key={i}
                     title={insight.title}
                     content={insight.content}
@@ -356,13 +507,19 @@ export default function Dashboard() {
                 ))}
               </>
             )}
-            
-            <Link to="/analytics" className="w-full py-4 bg-sky-50 dark:bg-sky-900/20 text-sky-600 dark:text-sky-400 font-bold rounded-2xl flex items-center justify-between px-6 hover:bg-sky-100 dark:hover:bg-sky-900/30 transition-colors group">
+
+            <Link
+              to="/analytics"
+              className="w-full py-4 bg-sky-50 dark:bg-sky-900/20 text-sky-600 dark:text-sky-400 font-bold rounded-2xl flex items-center justify-between px-6 hover:bg-sky-100 dark:hover:bg-sky-900/30 transition-colors group"
+            >
               <span className="flex items-center gap-2">
                 <BarChart3 size={16} />
                 Unlock deep analytics
               </span>
-              <ChevronRight size={18} className="group-hover:translate-x-1 transition-transform" />
+              <ChevronRight
+                size={18}
+                className="group-hover:translate-x-1 transition-transform"
+              />
             </Link>
           </div>
         </div>
