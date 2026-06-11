@@ -270,7 +270,7 @@ export default function LivePitchRoom() {
   );
   const [hasSentReady, setHasSentReady] = useState(false);
 
-  const [userData, setUserData] = useState<{ name: string; email?: string }>({
+  const [userData, setUserData] = useState<{ name: string; email?: string; bio?: string; avatarUrl?: string }>({
     name: "Founder",
   });
   const [scores, setScores] = useState<{
