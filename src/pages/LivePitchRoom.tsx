@@ -268,7 +268,7 @@ export default function LivePitchRoom() {
   const [loadingStatus, setLoadingStatus] = useState(
     "Panel is grading your pitch...",
   );
-  const [hasSentReady, setHasSentReady] = useState(false);
+  const sentReadyForSocketRef = useRef<WebSocket | null>(null);
 
   const [userData, setUserData] = useState<{ name: string; email?: string; bio?: string; avatarUrl?: string }>({
     name: "Founder",
@@ -511,8 +511,9 @@ export default function LivePitchRoom() {
     if (
       isPitching &&
       isConnected &&
-      socket?.readyState === WebSocket.OPEN &&
-      !hasSentReady
+      socket &&
+      socket.readyState === WebSocket.OPEN &&
+      sentReadyForSocketRef.current !== socket
     ) {
       socket.send(
         JSON.stringify({
@@ -520,9 +521,9 @@ export default function LivePitchRoom() {
           config: { ...pitchConfig, userId: user?.id },
         }),
       );
-      setHasSentReady(true);
+      sentReadyForSocketRef.current = socket;
     }
-  }, [isPitching, isConnected, socket, hasSentReady, pitchConfig]);
+  }, [isPitching, isConnected, socket, pitchConfig, user?.id]);
 
   useEffect(() => {
     if (isPitching && stream && !mediaRecorderRef.current) {
@@ -775,10 +776,13 @@ export default function LivePitchRoom() {
             setSpeakingState(true);
 
             source.onended = () => {
-              activeSourcesRef.current = activeSourcesRef.current.filter((s) => s !== source);
+              activeSourcesRef.current = activeSourcesRef.current.filter(
+                (s) => s !== source,
+              );
               if (
-                audioContextRef.current &&
-                audioContextRef.current.currentTime >= nextStartTimeRef.current
+                activeSourcesRef.current.length === 0 ||
+                (audioContextRef.current &&
+                  audioContextRef.current.currentTime >= nextStartTimeRef.current)
               ) {
                 setSpeakingState(false);
                 setActiveSpeakerName("");
