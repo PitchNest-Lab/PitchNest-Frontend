@@ -228,7 +228,7 @@ export default function Analytics() {
       <div className="space-y-8 pb-20">
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end gap-4">
           <div>
-            <h1 className="text-3xl font-bold text-slate-900 dark:text-zinc-100 mb-2">Analytics Deep Dive</h1>
+            <h1 className="text-3xl font-semibold text-slate-900 dark:text-zinc-100 mb-2 tracking-tight">Analytics</h1>
             <p className="text-slate-500 dark:text-zinc-500">Comprehensive review of your pitching performance and investor readiness.</p>
           </div>
           

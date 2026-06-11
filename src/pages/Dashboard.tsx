@@ -39,7 +39,7 @@ const RecentPitchItem = ({
   const isIncomplete = score === 0;
 
   return (
-    <div className="flex items-center gap-3 p-4 bg-white dark:bg-zinc-900 border border-slate-100 dark:border-zinc-800 rounded-2xl hover:border-sky-200 dark:hover:border-sky-500/50 hover:shadow-md transition-all group">
+    <div className="flex items-center gap-3 p-4 card-hover group">
       {/* Checkbox */}
       <input
         type="checkbox"
@@ -290,20 +290,20 @@ export default function Dashboard() {
       <motion.div
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
-        className="bg-gradient-to-br from-indigo-600 to-sky-500 rounded-[32px] p-10 text-white relative overflow-hidden shadow-xl shadow-sky-500/20"
+        className="app-hero-banner"
       >
         <div className="relative z-10 max-w-2xl">
-          <h2 className="text-4xl font-bold mb-4 flex items-center gap-3">
-            Welcome back, {userName}! 🚀
+          <h2 className="text-3xl sm:text-4xl font-semibold mb-4 tracking-tight">
+            Welcome back, {userName}
           </h2>
-          <p className="text-white/80 text-lg mb-8 leading-relaxed">
+          <p className="text-white/75 text-base sm:text-lg mb-8 leading-relaxed">
             {totalPitches > 0
               ? `You've completed ${totalPitches} pitch${totalPitches !== 1 ? "es" : ""}. Ready to refine your next big idea with our AI panel?`
               : "Ready to practice your first pitch with our AI investor panel?"}
           </p>
           <Link
             to="/setup"
-            className="px-8 py-3.5 bg-white text-sky-600 font-bold rounded-xl shadow-xl hover:bg-sky-50 transition-all inline-flex items-center gap-2"
+            className="inline-flex items-center gap-2 px-8 py-3.5 bg-white text-indigo-600 font-semibold rounded-xl shadow-xl hover:bg-white/95 transition-all"
           >
             <Rocket size={18} fill="currentColor" />
             Start New Pitch
@@ -355,7 +355,7 @@ export default function Dashboard() {
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: i * 0.1 }}
-            className="bg-white dark:bg-zinc-900 p-6 rounded-2xl border border-slate-200 dark:border-zinc-800 shadow-sm transition-colors"
+            className="app-stat-card"
           >
             {isLoading ? (
               <div className="space-y-4">
@@ -371,13 +371,13 @@ export default function Dashboard() {
             ) : (
               <>
                 <div className="flex justify-between items-start mb-4">
-                  <span className="text-xs font-bold text-slate-400 dark:text-zinc-500 uppercase tracking-wider">
+                  <span className="text-xs font-semibold text-slate-400 dark:text-zinc-500 uppercase tracking-wider">
                     {stat.label}
                   </span>
                   <stat.icon className={stat.color} size={20} />
                 </div>
                 <div className="flex items-baseline gap-2">
-                  <span className="text-3xl font-bold text-slate-900 dark:text-zinc-100">
+                  <span className="text-3xl font-semibold text-slate-900 dark:text-zinc-100">
                     {stat.value}
                   </span>
                   <span className="text-xs font-bold text-slate-400 dark:text-zinc-500">
@@ -400,7 +400,7 @@ export default function Dashboard() {
         <div className="lg:col-span-2 space-y-6">
           <div className="flex justify-between items-center">
             <div className="flex items-center gap-4">
-              <h3 className="text-xl font-bold text-slate-900 dark:text-zinc-100">
+              <h3 className="text-xl font-semibold text-slate-900 dark:text-zinc-100 tracking-tight">
                 Recent Pitches
               </h3>
               {selectedIds.length > 0 && (
@@ -420,7 +420,7 @@ export default function Dashboard() {
             </div>
             <Link
               to="/archive"
-              className="text-sm font-bold text-sky-500 hover:text-sky-600 flex items-center gap-1"
+              className="text-sm font-semibold text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 flex items-center gap-1"
             >
               View All
               <ChevronRight size={16} />
@@ -443,7 +443,7 @@ export default function Dashboard() {
                 </p>
                 <Link
                   to="/setup"
-                  className="px-6 py-2.5 bg-sky-500 text-white font-bold rounded-xl hover:bg-sky-600 transition-all inline-flex items-center gap-2 text-sm"
+                  className="btn-primary text-sm px-6 py-2.5"
                 >
                   <Rocket size={16} fill="currentColor" />
                   Start Pitching
@@ -473,7 +473,7 @@ export default function Dashboard() {
         <div className="space-y-6">
           <div className="flex items-center gap-2">
             <Sparkles className="text-sky-500" size={20} />
-            <h3 className="text-xl font-bold text-slate-900 dark:text-zinc-100">
+            <h3 className="text-xl font-semibold text-slate-900 dark:text-zinc-100 tracking-tight">
               AI Insights
             </h3>
           </div>
@@ -510,7 +510,7 @@ export default function Dashboard() {
 
             <Link
               to="/analytics"
-              className="w-full py-4 bg-sky-50 dark:bg-sky-900/20 text-sky-600 dark:text-sky-400 font-bold rounded-2xl flex items-center justify-between px-6 hover:bg-sky-100 dark:hover:bg-sky-900/30 transition-colors group"
+              className="w-full py-4 bg-indigo-50 dark:bg-indigo-950/20 text-indigo-600 dark:text-indigo-400 font-semibold rounded-2xl flex items-center justify-between px-6 hover:bg-indigo-100 dark:hover:bg-indigo-950/30 transition-colors group"
             >
               <span className="flex items-center gap-2">
                 <BarChart3 size={16} />

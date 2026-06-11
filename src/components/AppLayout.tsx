@@ -28,12 +28,12 @@ import { useAuth } from '../contexts/AuthContext';
 
 const SidebarItem = ({ icon: Icon, label, path, active, onClick }: { icon: any, label: string, path: string, active: boolean, onClick?: () => void }) => (
   <Link to={path} onClick={onClick} className={cn(
-    "flex items-center gap-3 px-4 py-3 rounded-xl cursor-pointer transition-all duration-200",
+    "flex items-center gap-3 px-4 py-2.5 rounded-xl cursor-pointer transition-all duration-200",
     active 
-      ? "bg-sky-50 dark:bg-sky-900/20 text-sky-600 dark:text-sky-400 font-medium" 
-      : "text-slate-500 dark:text-zinc-400 hover:bg-slate-50 dark:hover:bg-zinc-800/50 hover:text-slate-700 dark:hover:text-zinc-200"
+      ? "bg-indigo-50 dark:bg-indigo-950/30 text-indigo-600 dark:text-indigo-400 font-semibold" 
+      : "text-slate-500 dark:text-zinc-400 hover:bg-slate-50 dark:hover:bg-zinc-800/50 hover:text-slate-700 dark:hover:text-zinc-200 font-medium"
   )}>
-    <Icon size={20} />
+    <Icon size={18} strokeWidth={active ? 2.25 : 2} />
     <span className="text-sm">{label}</span>
   </Link>
 );
@@ -160,7 +160,7 @@ export default function AppLayout() {
   };
 
   return (
-    <div className="flex min-h-screen bg-slate-50 dark:bg-zinc-950 font-sans transition-colors duration-300 overflow-x-hidden">
+    <div className="flex min-h-screen bg-[#FAFBFC] dark:bg-[#09090B] font-sans transition-colors duration-300 overflow-x-hidden">
       
       {/* Mobile Drawer Overlay */}
       <div 
@@ -173,7 +173,7 @@ export default function AppLayout() {
 
       {/* Sidebar Drawer */}
       <aside className={cn(
-        "w-64 bg-white dark:bg-zinc-900 border-r border-slate-200 dark:border-zinc-800 flex flex-col p-6 fixed h-full z-50 transition-all duration-300 ease-in-out lg:translate-x-0 lg:left-0",
+        "w-64 bg-white/95 dark:bg-zinc-900/95 backdrop-blur-xl border-r border-slate-200/80 dark:border-zinc-800/80 flex flex-col p-6 fixed h-full z-50 transition-all duration-300 ease-in-out lg:translate-x-0 lg:left-0",
         isMobileMenuOpen ? "translate-x-0 left-0" : "-translate-x-full"
       )}>
         
@@ -195,7 +195,7 @@ export default function AppLayout() {
                 <Rocket size={24} fill="currentColor" />
               )}
             </div>
-            <span className="text-xl font-bold tracking-tight text-slate-900 dark:text-zinc-100">PitchNest</span>
+            <span className="text-lg font-semibold tracking-tight text-slate-900 dark:text-zinc-100">PitchNest</span>
           </Link>
 
           <button 
@@ -234,19 +234,19 @@ export default function AppLayout() {
             <button 
               type="button"
               onClick={handleInstallClick}
-              className="w-full py-2 bg-sky-500 hover:bg-sky-600 text-white font-bold rounded-xl text-xs flex items-center justify-center gap-2 shadow-sm transition-colors cursor-pointer"
+              className="w-full py-2 btn-primary text-xs flex items-center justify-center gap-2 cursor-pointer"
             >
               <Download size={14} /> Install App
             </button>
           </div>
         )}
 
-        <div className="mt-6 p-4 bg-gradient-to-br from-indigo-600 to-sky-500 rounded-2xl text-white relative overflow-hidden group shrink-0">
+        <div className="mt-6 p-4 gradient-brand rounded-2xl text-white relative overflow-hidden group shrink-0">
           <div className="relative z-10">
-            <span className="text-[10px] font-bold uppercase tracking-widest text-white/70">Pro Plan</span>
-            <p className="text-xs mt-1 text-white font-medium">Unlimited AI Analysis</p>
-            <Link to="/settings" onClick={() => setIsMobileMenuOpen(false)} className="mt-4 block w-full py-2 bg-white text-sky-600 text-center text-xs font-bold rounded-lg hover:bg-sky-50 transition-colors">
-              Manage Subscription
+            <span className="text-[10px] font-semibold uppercase tracking-widest text-white/70">Pro Plan</span>
+            <p className="text-xs mt-1 text-white font-medium">Unlimited analysis</p>
+            <Link to="/settings" onClick={() => setIsMobileMenuOpen(false)} className="mt-4 block w-full py-2 bg-white text-indigo-600 text-center text-xs font-semibold rounded-lg hover:bg-white/95 transition-colors">
+              Manage subscription
             </Link>
           </div>
           <div className="absolute -right-4 -bottom-4 w-24 h-24 bg-white/10 rounded-full blur-2xl group-hover:scale-110 transition-transform" />
@@ -309,7 +309,7 @@ export default function AppLayout() {
             <input 
               type="text" 
               placeholder="Search sessions, decks or reports..." 
-              className="w-full pl-10 pr-4 py-2.5 bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 dark:text-zinc-100 transition-all shadow-sm"
+              className="input-field pl-10 py-2.5 shadow-sm"
             />
           </div>
 

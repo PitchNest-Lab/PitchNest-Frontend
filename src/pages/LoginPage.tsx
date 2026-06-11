@@ -71,22 +71,22 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-zinc-950 flex items-center justify-center p-6 font-sans transition-colors duration-300">
+    <div className="min-h-screen bg-[#FAFBFC] dark:bg-[#09090B] flex items-center justify-center p-6 font-sans transition-colors duration-300">
       <motion.div 
         initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
-        className="w-full max-w-[1000px] bg-white dark:bg-zinc-900 rounded-[40px] shadow-2xl shadow-slate-200 dark:shadow-black/20 overflow-hidden flex flex-col lg:flex-row transition-colors"
+        className="w-full max-w-[1000px] card rounded-3xl shadow-2xl shadow-slate-200/50 dark:shadow-black/20 overflow-hidden flex flex-col lg:flex-row transition-colors"
       >
         <div className="flex-1 p-8 md:p-16">
           {/* 🔥 FIX 1: Wrapped Logo in a Link back to the Landing Page */}
           <Link to="/" className="flex items-center gap-3 mb-12 w-fit hover:opacity-80 transition-opacity">
-            <div className={cn("w-10 h-10 flex items-center justify-center overflow-hidden rounded-xl", logoError && "bg-sky-500 text-white shadow-lg shadow-sky-200")}>
+            <div className={cn("w-10 h-10 flex items-center justify-center overflow-hidden rounded-xl", logoError && "gradient-brand text-white")}>
               {!logoError ? <img src="/logo.svg" alt="Logo" className="w-full h-full object-contain" onError={() => setLogoError(true)} /> : <Rocket size={24} fill="currentColor" />}
             </div>
-            <span className="text-xl font-bold tracking-tight text-slate-900 dark:text-zinc-100">PitchNest</span>
+            <span className="text-lg font-semibold tracking-tight text-slate-900 dark:text-zinc-100">PitchNest</span>
           </Link>
 
-          <h2 className="text-4xl font-bold text-slate-900 dark:text-zinc-100 mb-2">Welcome Back</h2>
-          <p className="text-slate-500 dark:text-zinc-500 mb-10">Log in to your AI-powered workspace</p>
+          <h2 className="text-3xl font-semibold text-slate-900 dark:text-zinc-100 mb-2 tracking-tight">Welcome back</h2>
+          <p className="text-slate-500 dark:text-zinc-500 mb-10">Sign in to continue to your workspace</p>
 
           <form className="space-y-6" onSubmit={handleSubmit(onSubmit)}>
             {serverError && <div className="p-4 bg-rose-50 border border-rose-200 text-rose-600 rounded-2xl text-sm font-bold">{serverError}</div>}
@@ -115,7 +115,7 @@ export default function LoginPage() {
               {errors.password && <p className="text-xs font-bold text-rose-500">{errors.password.message}</p>}
             </div>
 
-            <button type="submit" disabled={isSubmitting} className="w-full py-4 bg-sky-500 text-white font-bold rounded-2xl shadow-xl hover:bg-sky-600 transition-all flex items-center justify-center gap-2 group disabled:opacity-50">
+            <button type="submit" disabled={isSubmitting} className="w-full py-4 btn-primary text-base group disabled:opacity-50 disabled:hover:transform-none">
               {isSubmitting ? <Loader2 className="animate-spin" size={18} /> : <>Login <ArrowRight size={18} className="group-hover:translate-x-1 transition-transform" /></>}
             </button>
           </form>
@@ -131,7 +131,7 @@ export default function LoginPage() {
           </button>
 
           <p className="text-center mt-10 text-sm text-slate-500 dark:text-zinc-500">
-            Don't have an account? <Link to="/signup" className="text-sky-500 font-bold hover:text-sky-600">Sign up</Link>
+            Don't have an account? <Link to="/signup" className="text-indigo-600 dark:text-indigo-400 font-semibold hover:text-indigo-700">Sign up</Link>
           </p>
           <p className="text-center mt-4 text-[10px] text-slate-400 dark:text-zinc-600 leading-relaxed">
             <Link to="/privacy" className="hover:underline">Privacy</Link>
@@ -143,7 +143,7 @@ export default function LoginPage() {
         </div>
 
         {/* Right Side: Image Carousel */}
-        <div className="hidden lg:flex flex-1 bg-gradient-to-br from-sky-100 to-indigo-50 dark:from-zinc-800 dark:to-zinc-900 items-center justify-center p-16 relative overflow-hidden">
+        <div className="hidden lg:flex flex-1 gradient-mesh dark:from-zinc-800 dark:to-zinc-900 items-center justify-center p-16 relative overflow-hidden border-l border-slate-100 dark:border-zinc-800">
           <div className="relative z-10 text-center max-w-sm">
             <div className="rounded-[40px] overflow-hidden shadow-2xl shadow-sky-200 dark:shadow-black/20 border-8 border-white dark:border-zinc-900 mb-8 relative aspect-[3/4]">
               {SLIDES.map((slide, i) => (
@@ -159,7 +159,7 @@ export default function LoginPage() {
             </div>
             <div className="mt-8 flex justify-center gap-2">
               {SLIDES.map((_, i) => (
-                <button key={i} type="button" onClick={() => setCurrentSlide(i)} className={cn("h-2 rounded-full transition-all outline-none", i === currentSlide ? "w-6 bg-sky-500" : "w-2 bg-sky-200 dark:bg-zinc-700 hover:bg-sky-300")} />
+                <button key={i} type="button" onClick={() => setCurrentSlide(i)} className={cn("h-2 rounded-full transition-all outline-none", i === currentSlide ? "w-6 gradient-brand" : "w-2 bg-slate-200 dark:bg-zinc-700")} />
               ))}
             </div>
           </div>

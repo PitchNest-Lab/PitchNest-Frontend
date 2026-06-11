@@ -77,22 +77,22 @@ export default function SignupPage() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-zinc-950 flex items-center justify-center p-6 font-sans transition-colors duration-300">
+    <div className="min-h-screen bg-[#FAFBFC] dark:bg-[#09090B] flex items-center justify-center p-6 font-sans transition-colors duration-300">
       <motion.div 
         initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
-        className="w-full max-w-[1000px] bg-white dark:bg-zinc-900 rounded-[40px] shadow-2xl shadow-slate-200 dark:shadow-black/20 overflow-hidden flex flex-col lg:flex-row transition-colors"
+        className="w-full max-w-[1000px] card rounded-3xl shadow-2xl shadow-slate-200/50 dark:shadow-black/20 overflow-hidden flex flex-col lg:flex-row transition-colors"
       >
         <div className="flex-1 p-8 md:p-12">
           {/* 🔥 FIX 1: Wrapped the logo in a Link to return to Landing Page */}
           <Link to="/" className="flex items-center gap-3 mb-10 w-fit hover:opacity-80 transition-opacity">
-            <div className="w-10 h-10 flex items-center justify-center overflow-hidden rounded-xl bg-sky-500 text-white shadow-lg shadow-sky-200">
+            <div className="w-10 h-10 flex items-center justify-center overflow-hidden rounded-xl gradient-brand text-white">
               <Rocket size={20} fill="currentColor" />
             </div>
-            <span className="text-xl font-bold tracking-tight text-slate-900 dark:text-zinc-100">PitchNest</span>
+            <span className="text-lg font-semibold tracking-tight text-slate-900 dark:text-zinc-100">PitchNest</span>
           </Link>
 
-          <h2 className="text-3xl font-bold text-slate-900 dark:text-zinc-100 mb-2">Create your account</h2>
-          <p className="text-slate-500 dark:text-zinc-500 mb-8 text-sm">Join the future of AI-driven startup pitching.</p>
+          <h2 className="text-3xl font-semibold text-slate-900 dark:text-zinc-100 mb-2 tracking-tight">Create your account</h2>
+          <p className="text-slate-500 dark:text-zinc-500 mb-8 text-sm">Start practicing with the investor panel.</p>
 
           <form className="space-y-5" onSubmit={handleSubmit(onSubmit)}>
             {serverError && <div className="p-3 bg-rose-50 border border-rose-200 text-rose-600 rounded-xl text-sm font-bold">{serverError}</div>}
@@ -151,7 +151,7 @@ export default function SignupPage() {
               </div>
             </div>
 
-            <button type="submit" disabled={isSubmitting} className="w-full py-3.5 bg-sky-500 text-white text-sm font-bold rounded-xl shadow-xl hover:bg-sky-600 transition-all flex items-center justify-center gap-2 group disabled:opacity-50 mt-4">
+            <button type="submit" disabled={isSubmitting} className="w-full py-3.5 btn-primary text-sm group disabled:opacity-50 disabled:hover:transform-none mt-4">
               {isSubmitting ? <Loader2 className="animate-spin" size={16} /> : <>Create Account <ArrowRight size={16} className="group-hover:translate-x-1 transition-transform" /></>}
             </button>
           </form>

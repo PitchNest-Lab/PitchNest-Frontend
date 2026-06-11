@@ -632,6 +632,38 @@ export default function LivePitchRoom() {
           return;
         }
 
+        if (data.type === "transcript" && data.text) {
+          const speaker = data.speaker || "Marcus";
+          setActiveSpeakerName(speaker);
+          setMessages((prev) => [
+            ...prev,
+            {
+              id: `ai-transcript-${Date.now()}`,
+              text: data.text,
+              type: "ai",
+              speaker,
+            },
+          ]);
+          return;
+        }
+
+        if (data.type === "error") {
+          console.error("PitchNest server error:", data.message);
+          setMessages((prev) => [
+            ...prev,
+            {
+              id: `error-${Date.now()}`,
+              text: data.message || "Something went wrong with the AI session.",
+              type: "ai",
+              speaker: "System",
+            },
+          ]);
+          if (data.code === "TTS_NOT_CONFIGURED" || data.code === "TTS_FAILED") {
+            setSpeakingState(false);
+          }
+          return;
+        }
+
         if (data.type === "audio") {
           const hasAudio = !!data.data;
           const hasText = !!data.text;

@@ -168,7 +168,7 @@ export default function SettingsPage() {
   return (
     <div className="max-w-5xl mx-auto pb-20">
       <div className="mb-10">
-        <h1 className="text-3xl font-bold text-slate-900 dark:text-zinc-100 mb-2">Settings</h1>
+        <h1 className="text-3xl font-semibold text-slate-900 dark:text-zinc-100 mb-2 tracking-tight">Settings</h1>
         <p className="text-slate-500 dark:text-zinc-500">Manage your account, billing, and AI customization.</p>
       </div>
 
@@ -414,7 +414,7 @@ export default function SettingsPage() {
           <Tabs.Content value="subscription" className="space-y-10 outline-none">
             <h2 className="text-xl font-bold text-slate-900 dark:text-zinc-100">Subscription</h2>
             
-            <div className="bg-gradient-to-br from-indigo-600 to-sky-500 rounded-[32px] p-8 sm:p-10 text-white relative overflow-hidden shadow-xl shadow-sky-500/20">
+            <div className="app-hero-banner p-8 sm:p-10">
               <div className="relative z-10 flex flex-col sm:flex-row justify-between items-start sm:items-end gap-6">
                 <div>
                   <span className="text-[10px] font-bold uppercase tracking-widest text-white/70">Active Plan</span>

@@ -21,11 +21,20 @@ export const SocketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     
     // ✅ DYNAMIC URL FIX: Works seamlessly for both Localhost and Google Cloud!
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const host = window.location.host;
     const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
-    const WS_URL = isLocal 
-      ? `ws://${window.location.hostname}:3000` 
-      : `wss://pitchnest-live.onrender.com`;
+    const explicitWs = import.meta.env.VITE_WS_BACKEND_URL as string | undefined;
+    const onRender = window.location.hostname.includes('onrender.com');
+
+    let WS_URL: string;
+    if (isLocal) {
+      WS_URL = `ws://${window.location.hostname}:3000`;
+    } else if (explicitWs) {
+      WS_URL = explicitWs;
+    } else if (onRender) {
+      WS_URL = `${protocol}//${window.location.host}`;
+    } else {
+      WS_URL = 'wss://pitchnest-live.onrender.com';
+    }
 
     const ws = new WebSocket(WS_URL);
 
