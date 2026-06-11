@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import {
   PlayCircle, ArrowRight, Users, MessageSquare, BarChart3,
   ShieldCheck, HelpCircle, FileText, Target, TrendingUp, FileCheck,
-  ChevronDown, Zap, Phone, Mail, Menu, X
+  ChevronDown, Zap, Phone, Mail, Menu, X, Star
 } from 'lucide-react';
 import { motion } from 'motion/react';
 import { cn } from '../lib/utils';
@@ -15,6 +15,16 @@ import { InvestorMarquee } from '../components/landing/InvestorMarquee';
 import { StatsBand } from '../components/landing/StatsBand';
 import { YCBatchBar } from '../components/landing/YCBatchBar';
 import { LogoLink, LogoMark } from '../components/Logo';
+
+const testimonials = [
+  { name: "Jessica Martinez", initials: "JM", company: "HealthTech AI", quote: "PitchNest surfaced the gaps in my narrative before I walked into my Series A meetings. We closed $8M.", result: "Raised $8M Series A" },
+  { name: "David Chen", initials: "DC", company: "Quantum Labs", quote: "The panel asked questions I had never prepared for. That alone was worth months of practice.", result: "Raised $3.5M Seed" },
+  { name: "Sophia Williams", initials: "SW", company: "FinFlow", quote: "Real-time feedback on delivery and substance. It felt closer to a real partner meeting than anything else I've used.", result: "Raised $12M Series B" },
+  { name: "Alex Rivera", initials: "AR", company: "DataSync", quote: "Hearing investors debate my thesis out loud changed how I structure every slide in my deck.", result: "Raised $5M Series A" },
+  { name: "Priya Patel", initials: "PP", company: "CloudNest", quote: "Three sessions in, I stopped fumbling on unit economics. The confidence carried into every real conversation.", result: "Raised $2M Pre-Seed" },
+];
+
+const startupLogos = ["HealthTech AI", "Quantum Labs", "FinFlow", "DataSync", "CloudNest", "AI Forge"];
 
 const features = [
   { icon: Users, title: "Live Investor Panel", desc: "Three distinct investor personas debate your startup in real time — challenging assumptions and building consensus." },
@@ -44,6 +54,7 @@ const faqs = [
 ];
 
 const navLinks = [
+  { href: "#stories", label: "Reviews" },
   { href: "#features", label: "Features" },
   { href: "#how-it-works", label: "How it works" },
   { href: "#why-pitchnest", label: "Why PitchNest" },
@@ -54,6 +65,7 @@ const navLinks = [
 export default function LandingPage() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [navScrolled, setNavScrolled] = useState(false);
+  const [testimonialIdx, setTestimonialIdx] = useState(0);
   const [showAllFeatures, setShowAllFeatures] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [waitlistEmail, setWaitlistEmail] = useState('');
@@ -89,6 +101,14 @@ export default function LandingPage() {
   };
 
   useEffect(() => { if (localStorage.getItem('user')) setIsLoggedIn(true); }, []);
+
+  useEffect(() => {
+    const timer = setInterval(
+      () => setTestimonialIdx((prev) => (prev + 1) % testimonials.length),
+      5000,
+    );
+    return () => clearInterval(timer);
+  }, []);
 
   useEffect(() => {
     const onScroll = (e: Event) => {
@@ -281,6 +301,81 @@ export default function LandingPage() {
 
       <InvestorMarquee />
       <StatsBand />
+
+      {/* ── Founder reviews ── */}
+      <section id="stories" className="py-[clamp(80px,10vw,128px)] border-y border-slate-100 dark:border-zinc-800/60 scroll-mt-28">
+        <div className="max-w-6xl mx-auto px-5 sm:px-8">
+          <SectionReveal className="text-center mb-12">
+            <p className="section-label mb-3">Trusted by founders</p>
+            <h2 className="section-heading mb-4">Built for teams raising their next round</h2>
+            <p className="section-subheading mx-auto">Founders use PitchNest to sharpen their narrative before the meetings that matter.</p>
+          </SectionReveal>
+
+          <SectionReveal delay={0.05}>
+            <div className="flex flex-wrap items-center justify-center gap-3 mb-12">
+              {startupLogos.map((logo) => (
+                <span
+                  key={logo}
+                  className="px-4 py-2 text-xs font-semibold text-slate-400 dark:text-zinc-500 bg-slate-50 dark:bg-zinc-900 rounded-lg border border-slate-100 dark:border-zinc-800"
+                >
+                  {logo}
+                </span>
+              ))}
+            </div>
+          </SectionReveal>
+
+          <SectionReveal delay={0.1}>
+            <div className="relative overflow-hidden">
+              <div
+                className="flex transition-transform duration-700 ease-in-out"
+                style={{ transform: `translateX(-${testimonialIdx * (100 / 3)}%)` }}
+              >
+                {testimonials.map((t) => (
+                  <div key={t.name} className="w-full sm:w-1/3 shrink-0 px-2">
+                    <div className="card-hover p-6 h-full">
+                      <div className="flex items-center gap-3 mb-4">
+                        <div className="w-10 h-10 rounded-full gradient-brand flex items-center justify-center text-white text-sm font-semibold shrink-0">
+                          {t.initials}
+                        </div>
+                        <div className="min-w-0">
+                          <h4 className="font-semibold text-sm truncate">{t.name}</h4>
+                          <p className="text-xs text-slate-400 dark:text-zinc-500 truncate">{t.company}</p>
+                        </div>
+                      </div>
+                      <div className="flex gap-0.5 mb-3">
+                        {[1, 2, 3, 4, 5].map((i) => (
+                          <Star key={i} className="w-3.5 h-3.5 fill-amber-400 text-amber-400" />
+                        ))}
+                      </div>
+                      <p className="text-sm text-slate-600 dark:text-zinc-300 leading-relaxed mb-4">
+                        &ldquo;{t.quote}&rdquo;
+                      </p>
+                      <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-sky-50 dark:bg-sky-950/30 text-sky-700 dark:text-sky-400 text-xs font-semibold">
+                        <TrendingUp className="w-3 h-3" />
+                        {t.result}
+                      </span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <div className="flex justify-center gap-2 mt-6">
+                {testimonials.map((_, i) => (
+                  <button
+                    key={i}
+                    type="button"
+                    onClick={() => setTestimonialIdx(i)}
+                    className={cn(
+                      "h-1.5 rounded-full transition-all duration-300",
+                      i === testimonialIdx ? "w-8 gradient-brand" : "w-1.5 bg-slate-300 dark:bg-zinc-700",
+                    )}
+                    aria-label={`Review ${i + 1}`}
+                  />
+                ))}
+              </div>
+            </div>
+          </SectionReveal>
+        </div>
+      </section>
 
       {/* ── Features ── */}
       <section id="features" className="py-[clamp(80px,10vw,128px)] scroll-mt-28">
