@@ -698,17 +698,25 @@ export default function LivePitchRoom() {
           const speaker = data.speaker || activeSpeakerName || "Marcus";
 
           if (hasAudio) {
+            // Lazily create AudioContext if it wasn't initialized during user gesture
             if (!audioContextRef.current) {
-              setMessages((prev) => [
-                ...prev,
-                {
-                  id: `audio-error-${Date.now()}`,
-                  text: "Audio playback is unavailable. Refresh the page and allow sound to hear the investor panel.",
-                  type: "ai",
-                  speaker: "System",
-                },
-              ]);
-              return;
+              try {
+                audioContextRef.current = new (
+                  window.AudioContext || (window as any).webkitAudioContext
+                )();
+              } catch (e) {
+                console.error("Failed to create AudioContext:", e);
+                setMessages((prev) => [
+                  ...prev,
+                  {
+                    id: `audio-error-${Date.now()}`,
+                    text: "Audio playback is unavailable. Refresh the page and allow sound to hear the investor panel.",
+                    type: "ai",
+                    speaker: "System",
+                  },
+                ]);
+                return;
+              }
             }
             if (audioContextRef.current.state === "suspended") {
               await audioContextRef.current.resume();
@@ -1679,12 +1687,12 @@ export default function LivePitchRoom() {
       {/* ============================================================== */}
       {/* MOBILE & TABLET LAYOUT (Toggleable tab tray Zoom/Meet style)   */}
       {/* ============================================================== */}
-      <div className="flex lg:hidden flex-1 flex-col p-3 md:p-4 min-h-0 overflow-hidden bg-slate-100/50 dark:bg-zinc-950 transition-colors">
+      <div className="flex lg:hidden flex-1 flex-col p-2 md:p-3 min-h-0 overflow-hidden bg-slate-100/50 dark:bg-zinc-950 transition-colors">
         {/* Tab 1: Room Workspace (Main Pitching Screen & PIP Overlays) */}
         {activeMobileTab === "room" && (
-          <div className="flex-1 flex flex-col min-h-0 justify-start pt-2">
-            {/* Screen Container with locked 16:9 Aspect Ratio to guarantee no distortion */}
-            <div className="w-full aspect-video relative border border-slate-200 dark:border-zinc-800 shadow-xl rounded-[20px] bg-slate-900 overflow-hidden shrink-0 flex items-center justify-center">
+          <div className="flex-1 flex flex-col min-h-0 justify-start">
+            {/* Screen Container — fills available height on mobile for max real estate */}
+            <div className="w-full relative border border-slate-200 dark:border-zinc-800 shadow-xl rounded-2xl bg-slate-900 overflow-hidden flex items-center justify-center" style={{ aspectRatio: '16/9', maxHeight: '35vh' }}>
               {mainView === "slide" ? (
                 // --- SLIDE VIEW (Active) ---
                 <div className="w-full h-full relative flex items-center justify-center">
@@ -1788,7 +1796,7 @@ export default function LivePitchRoom() {
             </div>
 
             {/* Google Meet & Zoom Style bottom tray controls */}
-            <div className="flex items-center justify-center gap-3.5 bg-white dark:bg-zinc-900/90 backdrop-blur-md border border-slate-200 dark:border-zinc-855 p-2.5 rounded-2xl shadow-lg max-w-sm w-full mx-auto mt-4 shrink-0 transition-colors">
+            <div className="flex items-center justify-center gap-3 bg-white dark:bg-zinc-900/90 backdrop-blur-md border border-slate-200 dark:border-zinc-855 p-2 rounded-2xl shadow-lg max-w-sm w-full mx-auto mt-2 shrink-0 transition-colors">
               <button
                 onClick={toggleCamera}
                 className={cn(
@@ -1840,14 +1848,14 @@ export default function LivePitchRoom() {
             </div>
 
             {/* Small informative prompt below controls */}
-            <div className="text-center mt-3 text-[10px] text-slate-400 dark:text-zinc-500 font-bold uppercase tracking-widest animate-pulse shrink-0">
+            <div className="text-center mt-1.5 text-[9px] text-slate-400 dark:text-zinc-500 font-bold uppercase tracking-widest animate-pulse shrink-0">
               {mainView === "slide"
                 ? "Tap Floating camera feed to switch screen"
                 : "Tap Floating deck to view slides"}
             </div>
 
             {/* Embedded Live Chat Transcript (Directly in portrait room tab, hides in landscape) */}
-            <div className="flex-1 min-h-[150px] max-h-[30vh] mt-4 bg-white/70 dark:bg-zinc-900/60 backdrop-blur-xl border border-slate-200 dark:border-zinc-800/50 rounded-2xl p-3 flex flex-col shadow-inner transition-colors portrait:flex landscape:hidden">
+            <div className="flex-1 min-h-[120px] mt-2 bg-white/70 dark:bg-zinc-900/60 backdrop-blur-xl border border-slate-200 dark:border-zinc-800/50 rounded-2xl p-2.5 flex flex-col shadow-inner transition-colors portrait:flex landscape:hidden">
               <div className="flex items-center gap-2 text-slate-500 dark:text-white/50 text-[9px] font-bold uppercase tracking-widest mb-2 shrink-0">
                 <MessageSquare size={12} /> Live Room Chat & Transcript
                 {isSpeaking && (
