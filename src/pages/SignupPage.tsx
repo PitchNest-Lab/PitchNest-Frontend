@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Rocket, Mail, Lock, User, ArrowRight, ChevronDown, Loader2, Eye, EyeOff } from 'lucide-react';
+import { Mail, Lock, User, ArrowRight, ChevronDown, Loader2, Eye, EyeOff } from 'lucide-react';
+import { LogoLink } from '../components/Logo';
 import { motion } from 'framer-motion';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -84,12 +85,7 @@ export default function SignupPage() {
       >
         <div className="flex-1 p-8 md:p-12">
           {/* 🔥 FIX 1: Wrapped the logo in a Link to return to Landing Page */}
-          <Link to="/" className="flex items-center gap-3 mb-10 w-fit hover:opacity-80 transition-opacity">
-            <div className="w-10 h-10 flex items-center justify-center overflow-hidden rounded-xl gradient-brand text-white">
-              <Rocket size={20} fill="currentColor" />
-            </div>
-            <span className="text-lg font-semibold tracking-tight text-slate-900 dark:text-zinc-100">PitchNest</span>
-          </Link>
+          <LogoLink showText size="md" className="mb-10" />
 
           <h2 className="text-3xl font-semibold text-slate-900 dark:text-zinc-100 mb-2 tracking-tight">Create your account</h2>
           <p className="text-slate-500 dark:text-zinc-500 mb-8 text-sm">Start practicing with the investor panel.</p>

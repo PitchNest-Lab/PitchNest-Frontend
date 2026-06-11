@@ -5,8 +5,8 @@ import {
   ArrowUpRight,
   Sparkles,
   ArrowRight,
-  Rocket
 } from 'lucide-react';
+import { LogoMark } from '../components/Logo';
 import { motion } from 'framer-motion';
 import * as Tabs from '@radix-ui/react-tabs';
 import * as Tooltip from '@radix-ui/react-tooltip';
@@ -265,7 +265,7 @@ export default function Analytics() {
                 </div>
               ) : displayChartData.length === 0 ? (
                 <div className="w-full h-full flex flex-col items-center justify-center text-slate-400 dark:text-zinc-600">
-                  <Rocket size={48} className="mb-4 opacity-50" />
+                  <LogoMark size="xl" className="mb-4 opacity-50" />
                   <p className="text-sm font-medium">Complete pitches to see your score trends</p>
                 </div>
               ) : (

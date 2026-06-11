@@ -10,7 +10,6 @@ import {
   Bell,
   Search,
   LogOut,
-  Rocket,
   Menu,
   X,
   Download,
@@ -25,6 +24,7 @@ import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
 import { cn } from '../lib/utils';
 import { ThemeToggle } from './ThemeToggle';
 import { useAuth } from '../contexts/AuthContext';
+import { LogoLink, LogoMark } from './Logo';
 
 const SidebarItem = ({ icon: Icon, label, path, active, onClick }: { icon: any, label: string, path: string, active: boolean, onClick?: () => void }) => (
   <Link to={path} onClick={onClick} className={cn(
@@ -42,7 +42,6 @@ export default function AppLayout() {
   const location = useLocation();
   const navigate = useNavigate();
   const { logout } = useAuth();
-  const [logoError, setLogoError] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
   const [isInstallable, setIsInstallable] = useState(false);
@@ -179,24 +178,7 @@ export default function AppLayout() {
         
         {/* Sidebar Header with Close button for mobile */}
         <div className="flex justify-between items-center mb-10 shrink-0">
-          <Link to="/" className="flex items-center gap-3">
-            <div className={cn(
-              "w-10 h-10 flex items-center justify-center overflow-hidden rounded-xl",
-              logoError && "bg-sky-500 text-white shadow-lg shadow-sky-200"
-            )}>
-              {!logoError ? (
-                <img 
-                  src="/logo.svg" 
-                  alt="PitchNest Logo" 
-                  className="w-full h-full object-contain"
-                  onError={() => setLogoError(true)}
-                />
-              ) : (
-                <Rocket size={24} fill="currentColor" />
-              )}
-            </div>
-            <span className="text-lg font-semibold tracking-tight text-slate-900 dark:text-zinc-100">PitchNest</span>
-          </Link>
+          <LogoLink showText size="md" />
 
           <button 
             onClick={() => setIsMobileMenuOpen(false)}
@@ -221,7 +203,7 @@ export default function AppLayout() {
             <SidebarItem 
               icon={Settings} 
               label="Settings" 
-              path="/settings" 
+              path="/settings"
               active={location.pathname === "/settings"}
               onClick={() => setIsMobileMenuOpen(false)}
             />
@@ -271,7 +253,6 @@ export default function AppLayout() {
 
       {/* Main Content Area */}
       <main className="flex-1 lg:ml-64 min-h-screen flex flex-col p-4 md:p-8 transition-all duration-300 w-full max-w-full overflow-x-hidden min-w-0">
-        
         {/* Top Header */}
         <header className="flex flex-col md:flex-row gap-4 md:items-center justify-between mb-8 md:mb-10">
           <div className="flex items-center justify-between w-full md:w-auto">
@@ -285,9 +266,7 @@ export default function AppLayout() {
 
             {/* Logo in top header (visible on mobile only) */}
             <div className="lg:hidden flex items-center gap-2 mx-auto">
-              <div className="w-8 h-8 flex items-center justify-center overflow-hidden rounded-lg bg-sky-500 text-white shadow-md">
-                <Rocket size={18} fill="currentColor" />
-              </div>
+              <LogoMark size="sm" />
               <span className="font-bold text-slate-900 dark:text-zinc-100">PitchNest</span>
             </div>
 

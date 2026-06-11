@@ -9,7 +9,8 @@
   --color-sidebar-bg: #FFFFFF;
   --color-card-bg: #FFFFFF;
 
-  --font-sans: "Plus Jakarta Sans", ui-sans-serif, system-ui, sans-serif;
+  --font-sans: "Outfit", ui-sans-serif, system-ui, sans-serif;
+  --font-display: "Fraunces", Georgia, "Times New Roman", serif;
 }
 
 @layer base {
@@ -17,6 +18,15 @@
     scroll-behavior: smooth;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
+  }
+
+  html.lenis,
+  html.lenis body {
+    height: auto;
+  }
+
+  .lenis.lenis-smooth {
+    scroll-behavior: auto !important;
   }
 
   body {
@@ -29,7 +39,14 @@
   }
 
   h1, h2, h3, h4, h5, h6 {
+    font-family: var(--font-display);
     @apply font-semibold tracking-tight;
+  }
+}
+
+@layer utilities {
+  .font-display {
+    font-family: var(--font-display);
   }
 }
 
@@ -109,7 +126,12 @@
   }
 
   .section-heading {
+    font-family: var(--font-display);
     @apply text-3xl sm:text-4xl lg:text-5xl font-semibold tracking-tight text-slate-900 dark:text-zinc-50;
+  }
+
+  .footer-gradient {
+    background: linear-gradient(120deg, #0f172a 0%, #1e3a8a 45%, #2563eb 100%);
   }
 
   .section-subheading {
@@ -118,7 +140,16 @@
 
   /* ── Nav ── */
   .nav-glass {
-    @apply bg-white/80 dark:bg-zinc-950/80 backdrop-blur-xl border-b border-slate-200/60 dark:border-zinc-800/60;
+    @apply bg-white/70 dark:bg-zinc-950/70 backdrop-blur-md border-b border-transparent;
+    transition: background-color 0.4s ease, border-color 0.4s ease, backdrop-filter 0.4s ease, box-shadow 0.4s ease;
+  }
+
+  .nav-glass-scrolled {
+    @apply bg-white/90 dark:bg-zinc-950/90 backdrop-blur-xl border-slate-200/60 dark:border-zinc-800/60 shadow-sm;
+  }
+
+  .yc-batch-bar {
+    @apply bg-black border-b border-white/10;
   }
 
   /* ── Inputs ── */
@@ -179,6 +210,27 @@
 
 .animate-marquee {
   animation: marquee 40s linear infinite;
+}
+
+@keyframes marquee-reverse {
+  0% { transform: translateX(-50%); }
+  100% { transform: translateX(0); }
+}
+
+.animate-marquee-reverse {
+  animation: marquee-reverse 40s linear infinite;
+}
+
+.mask-fade-x {
+  mask-image: linear-gradient(to right, transparent, black 8%, black 92%, transparent);
+  -webkit-mask-image: linear-gradient(to right, transparent, black 8%, black 92%, transparent);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-marquee,
+  .animate-marquee-reverse {
+    animation: none;
+  }
 }
 
 @keyframes fade-up {

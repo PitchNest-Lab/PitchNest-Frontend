@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Rocket, Target, Users, TrendingUp, ChevronRight, CheckCircle2, Building2 } from 'lucide-react';
+import { Logo } from '../components/Logo';
 import { cn } from '../lib/utils';
 import { useAuth } from '../contexts/AuthContext';
 
@@ -254,12 +255,7 @@ export default function Onboarding() {
       <div className="w-full max-w-2xl relative z-10 flex flex-col h-[700px]">
         {/* Logo Header */}
         <div className="flex justify-center mb-10 shrink-0">
-          <div className="flex items-center gap-3">
-            <div className="w-12 h-12 flex items-center justify-center overflow-hidden rounded-2xl bg-sky-500 text-white shadow-lg shadow-sky-500/30">
-              <Rocket size={24} fill="currentColor" />
-            </div>
-            <span className="text-2xl font-extrabold tracking-tight text-slate-900 dark:text-zinc-100">PitchNest</span>
-          </div>
+          <Logo showText size="lg" textClassName="text-2xl font-extrabold" />
         </div>
 
         {/* Progress Bar */}

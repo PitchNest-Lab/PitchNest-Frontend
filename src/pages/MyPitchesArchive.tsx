@@ -12,13 +12,13 @@ import {
   Trash2,
   Share2,
   AlertCircle,
-  Rocket,
   Loader2,
 } from "lucide-react";
 import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
 import { cn } from "../lib/utils";
 import { useAuth } from "../contexts/AuthContext";
 import { Skeleton } from "../components/Skeleton";
+import { LogoMark } from "../components/Logo";
 
 const PitchRow = ({
   id,
@@ -385,10 +385,7 @@ export default function MyPitchesArchive() {
               </>
             ) : filteredSessions.length === 0 ? (
               <div className="p-16 text-center border-2 border-dashed border-slate-200 dark:border-zinc-800 rounded-2xl">
-                <Rocket
-                  size={48}
-                  className="mx-auto text-slate-300 dark:text-zinc-700 mb-4 animate-pulse"
-                />
+                <LogoMark size="xl" className="mx-auto mb-4 opacity-40 animate-pulse" />
                 <p className="text-slate-500 dark:text-zinc-500 font-medium mb-4">
                   No pitches found. Start a new boardroom session!
                 </p>

@@ -1,6 +1,5 @@
 import React, { useEffect, useRef, useState, useCallback } from "react";
 import {
-  Rocket,
   Video,
   VideoOff,
   Sparkles,
@@ -22,6 +21,7 @@ import {
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "../lib/utils";
+import { LogoMark } from "../components/Logo";
 import { useMediaRecorder } from "../hooks/useMediaRecorder";
 import { useScreenCapture } from "../hooks/useScreenCapture";
 import { useSocketContext } from "../contexts/SocketContext";
@@ -173,22 +173,22 @@ const AIPanelist = ({
   </div>
 );
 
+const getArchetypeLabel = (archetype: string) => {
+  if (archetype?.includes("Angel")) return "Angel investor panel";
+  if (archetype?.includes("Y Combinator")) return "YC partner panel";
+  if (archetype?.includes("Shark")) return "Shark Tank panel";
+  if (archetype?.includes("Private Equity")) return "PE diligence panel";
+  return archetype || "Seed-stage VC panel";
+};
+
 const getPersonas = (archetype: string, mode: string) => {
-  if (mode === "coach")
-    return [
-      { name: "Riley", role: "Pitch Strategist" },
-      { name: "Taylor", role: "Comm. Expert" },
-    ];
-  if (archetype === "Angel Investor Group")
-    return [
-      { name: "Elena", role: "Lead Angel" },
-      { name: "David", role: "Industry Vet" },
-      { name: "James", role: "Financial Advisor" },
-    ];
+  if (mode === "coach") {
+    return [{ name: "Riley", role: "Pitch Coach" }];
+  }
   return [
-    { name: "Marcus", role: "The Skeptic" },
-    { name: "Sarah", role: "The Analyst" },
-    { name: "Chen", role: "Tech Expert" },
+    { name: "Marcus", role: getArchetypeLabel(archetype).includes("Angel") ? "Lead Angel" : "Lead Partner" },
+    { name: "Sarah", role: "Financial Analyst" },
+    { name: "Chen", role: "Technical Partner" },
   ];
 };
 
@@ -258,13 +258,16 @@ export default function LivePitchRoom() {
       inputMethod?: "voice" | "chat";
     }[]
   >([]);
+  const messagesRef = useRef(messages);
+  useEffect(() => {
+    messagesRef.current = messages;
+  }, [messages]);
   const [isEvaluatingPitch, setIsEvaluatingPitch] = useState(false);
   const [isConcluding, setIsConcluding] = useState(false);
   const [isTurnComplete, setIsTurnComplete] = useState(false);
   const [loadingStatus, setLoadingStatus] = useState(
     "Panel is grading your pitch...",
   );
-  const [logoError, setLogoError] = useState(false);
   const [hasSentReady, setHasSentReady] = useState(false);
 
   const [userData, setUserData] = useState<{ name: string; email?: string }>({
@@ -577,7 +580,14 @@ export default function LivePitchRoom() {
                 inputMethod: "voice",
               },
             ]);
-            socket.send(JSON.stringify({ type: "chat_message", text: finalPayload, timeLeft }));
+            socket.send(
+              JSON.stringify({
+                type: "chat_message",
+                text: finalPayload,
+                timeLeft,
+                inputMethod: "voice",
+              }),
+            );
           }
           transcriptBufferRef.current = "";
           transcriptTimerRef.current = null;
@@ -628,7 +638,19 @@ export default function LivePitchRoom() {
         }
 
         if (data.type === "turn_complete") {
-          setIsTurnComplete(true);
+          const markTurnComplete = () => setIsTurnComplete(true);
+          if (
+            !audioContextRef.current ||
+            activeSourcesRef.current.length === 0
+          ) {
+            markTurnComplete();
+            return;
+          }
+          const remainingMs = Math.max(
+            0,
+            (nextStartTimeRef.current - audioContextRef.current.currentTime) * 1000 + 150,
+          );
+          window.setTimeout(markTurnComplete, remainingMs);
           return;
         }
 
@@ -658,8 +680,14 @@ export default function LivePitchRoom() {
               speaker: "System",
             },
           ]);
-          if (data.code === "TTS_NOT_CONFIGURED" || data.code === "TTS_FAILED") {
+          if (
+            data.code === "TTS_NOT_CONFIGURED" ||
+            data.code === "TTS_FAILED" ||
+            data.code === "AI_FAILED" ||
+            data.code === "AI_NOT_CONFIGURED"
+          ) {
             setSpeakingState(false);
+            setIsTurnComplete(true);
           }
           return;
         }
@@ -670,7 +698,18 @@ export default function LivePitchRoom() {
           const speaker = data.speaker || activeSpeakerName || "Marcus";
 
           if (hasAudio) {
-            if (!audioContextRef.current) return;
+            if (!audioContextRef.current) {
+              setMessages((prev) => [
+                ...prev,
+                {
+                  id: `audio-error-${Date.now()}`,
+                  text: "Audio playback is unavailable. Refresh the page and allow sound to hear the investor panel.",
+                  type: "ai",
+                  speaker: "System",
+                },
+              ]);
+              return;
+            }
             if (audioContextRef.current.state === "suspended") {
               await audioContextRef.current.resume();
             }
@@ -927,7 +966,14 @@ export default function LivePitchRoom() {
         inputMethod: "chat",
       },
     ]);
-    socket.send(JSON.stringify({ type: "chat_message", text: chatInput, timeLeft }));
+    socket.send(
+      JSON.stringify({
+        type: "chat_message",
+        text: chatInput,
+        timeLeft,
+        inputMethod: "chat",
+      }),
+    );
     setChatInput("");
   };
 
@@ -942,7 +988,9 @@ export default function LivePitchRoom() {
       JSON.stringify({
         type: "chat_message",
         text: "[SYSTEM: Time is up or the session is ending. Please conclude the pitch now and deliver your final spoken verdict on whether to accept, reject, or recommend improvements.]",
-      })
+        timeLeft: 0,
+        inputMethod: "chat",
+      }),
     );
 
     // Fallback timer: if the AI doesn't finish speaking (or we don't receive response) within 18 seconds, proceed anyway
@@ -1010,7 +1058,7 @@ export default function LivePitchRoom() {
           JSON.stringify({
             type: "end_session",
             duration: finalDuration,
-            transcript: messages,
+            transcript: messagesRef.current,
           }),
         );
       }
@@ -1143,23 +1191,7 @@ export default function LivePitchRoom() {
       {/* Header */}
       <header className="px-4 md:px-6 py-2.5 md:py-3 flex justify-between items-center border-b border-slate-200 dark:border-white/5 bg-white/80 dark:bg-zinc-950/50 backdrop-blur-md shrink-0 z-20 transition-colors">
         <div className="flex items-center gap-2 md:gap-4">
-          <div
-            className={cn(
-              "w-8 h-8 flex items-center justify-center overflow-hidden rounded-lg bg-sky-500 text-white shadow-md",
-              logoError && "bg-sky-500",
-            )}
-          >
-            {!logoError ? (
-              <img
-                src="/logo.svg"
-                alt="Logo"
-                className="w-full h-full object-contain"
-                onError={() => setLogoError(true)}
-              />
-            ) : (
-              <Rocket size={18} className="text-white" fill="currentColor" />
-            )}
-          </div>
+          <LogoMark size="sm" />
           <span className="text-base md:text-lg font-bold tracking-tight text-slate-900 dark:text-white hidden xs:inline-block">
             PitchNest
           </span>

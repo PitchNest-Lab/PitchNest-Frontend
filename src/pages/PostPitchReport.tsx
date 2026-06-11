@@ -73,7 +73,13 @@ export default function PostPitchReport() {
   const report = session?.evaluation_report || {};
   const rawScores = report.scores || {};
   
-  const isInsufficientData = !rawScores || Object.keys(rawScores).length === 0 || Object.values(rawScores).every(v => v === 0);
+  const evaluationStatus = report.evaluationStatus as string | undefined;
+  const isInsufficientData =
+    evaluationStatus === "insufficient_data" ||
+    evaluationStatus === "failed" ||
+    !rawScores ||
+    Object.keys(rawScores).length === 0 ||
+    Object.values(rawScores).every((v) => v === 0);
   
   const scores = {
     delivery: Number(rawScores.delivery) || 0,
@@ -175,7 +181,9 @@ export default function PostPitchReport() {
             <h3 className="text-lg font-extrabold flex items-center gap-2 mb-4"><Users className="text-indigo-500" size={20} /> Investor Sentiment</h3>
             {isInsufficientData ? (
                <div className="w-full p-8 border-2 border-dashed border-slate-200 dark:border-zinc-800 rounded-3xl text-center text-slate-500 text-sm font-medium">
-                 Your pitch was too short to generate investor sentiment. Please speak for at least 2 minutes.
+                 {evaluationStatus === "failed"
+                   ? "Evaluation could not be completed. Your session was saved — try pitching again."
+                   : "Your pitch was too short to generate investor sentiment. Please speak for at least 2 minutes."}
                </div>
             ) : (
               <div className="grid md:grid-cols-3 gap-4">

@@ -1,7 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import {
-  Rocket,
   Play,
   BarChart3,
   Target,
@@ -17,6 +16,7 @@ import { motion } from "framer-motion";
 import { cn } from "../lib/utils";
 import { Skeleton } from "../components/Skeleton";
 import { useAuth } from "../contexts/AuthContext";
+import { LogoMark } from "../components/Logo";
 
 // --- Components ---
 const RecentPitchItem = ({
@@ -305,12 +305,12 @@ export default function Dashboard() {
             to="/setup"
             className="inline-flex items-center gap-2 px-8 py-3.5 bg-white text-indigo-600 font-semibold rounded-xl shadow-xl hover:bg-white/95 transition-all"
           >
-            <Rocket size={18} fill="currentColor" />
+            <LogoMark size="xs" className="w-[18px] h-[18px]" />
             Start New Pitch
           </Link>
         </div>
         <div className="absolute right-10 top-1/2 -translate-y-1/2 opacity-20 pointer-events-none">
-          <Rocket size={240} fill="currentColor" />
+          <LogoMark className="w-60 h-60" />
         </div>
       </motion.div>
 
@@ -434,10 +434,7 @@ export default function Dashboard() {
               </>
             ) : recentSessions.length === 0 ? (
               <div className="p-12 text-center border-2 border-dashed border-slate-200 dark:border-zinc-800 rounded-2xl">
-                <Rocket
-                  size={48}
-                  className="mx-auto text-slate-300 dark:text-zinc-700 mb-4"
-                />
+                <LogoMark size="xl" className="mx-auto mb-4 opacity-40" />
                 <p className="text-slate-500 dark:text-zinc-500 font-medium mb-4">
                   No pitches yet. Start your first session!
                 </p>
@@ -445,7 +442,7 @@ export default function Dashboard() {
                   to="/setup"
                   className="btn-primary text-sm px-6 py-2.5"
                 >
-                  <Rocket size={16} fill="currentColor" />
+                  <LogoMark size="xs" className="w-4 h-4" />
                   Start Pitching
                 </Link>
               </div>

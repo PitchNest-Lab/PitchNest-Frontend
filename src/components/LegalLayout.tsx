@@ -1,7 +1,7 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { Rocket } from 'lucide-react';
 import { cn } from '../lib/utils';
+import { LogoLink } from './Logo';
 
 const LEGAL_LINKS = [
   { to: '/privacy', label: 'Privacy Policy' },
@@ -23,12 +23,7 @@ export default function LegalLayout({
     <div className="min-h-screen bg-slate-50 dark:bg-zinc-950 text-slate-800 dark:text-zinc-200">
       <header className="border-b border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900">
         <div className="max-w-3xl mx-auto px-6 py-5 flex items-center justify-between gap-4">
-          <Link to="/" className="flex items-center gap-2.5 hover:opacity-80 transition-opacity">
-            <div className="w-9 h-9 rounded-xl bg-sky-500 text-white flex items-center justify-center">
-              <Rocket size={18} fill="currentColor" />
-            </div>
-            <span className="font-bold text-slate-900 dark:text-zinc-100">PitchNest</span>
-          </Link>
+          <LogoLink showText size="sm" />
           <Link
             to="/login"
             className="text-sm font-bold text-sky-600 dark:text-sky-400 hover:underline"

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
-import { Rocket, Mail, Lock, ArrowRight, Loader2, Eye, EyeOff } from 'lucide-react';
+import { Mail, Lock, ArrowRight, Loader2, Eye, EyeOff } from 'lucide-react';
+import { LogoLink } from '../components/Logo';
 import { motion } from 'framer-motion';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -34,7 +35,6 @@ const SLIDES = [
 ];
 
 export default function LoginPage() {
-  const [logoError, setLogoError] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [serverError, setServerError] = useState("");
@@ -78,12 +78,7 @@ export default function LoginPage() {
       >
         <div className="flex-1 p-8 md:p-16">
           {/* 🔥 FIX 1: Wrapped Logo in a Link back to the Landing Page */}
-          <Link to="/" className="flex items-center gap-3 mb-12 w-fit hover:opacity-80 transition-opacity">
-            <div className={cn("w-10 h-10 flex items-center justify-center overflow-hidden rounded-xl", logoError && "gradient-brand text-white")}>
-              {!logoError ? <img src="/logo.svg" alt="Logo" className="w-full h-full object-contain" onError={() => setLogoError(true)} /> : <Rocket size={24} fill="currentColor" />}
-            </div>
-            <span className="text-lg font-semibold tracking-tight text-slate-900 dark:text-zinc-100">PitchNest</span>
-          </Link>
+          <LogoLink showText size="md" className="mb-12" />
 
           <h2 className="text-3xl font-semibold text-slate-900 dark:text-zinc-100 mb-2 tracking-tight">Welcome back</h2>
           <p className="text-slate-500 dark:text-zinc-500 mb-10">Sign in to continue to your workspace</p>
