@@ -330,6 +330,24 @@ export default function LivePitchRoom() {
   }, []);
 
   useEffect(() => {
+    const resumeAudio = async () => {
+      if (audioContextRef.current && audioContextRef.current.state === "suspended") {
+        try {
+          await audioContextRef.current.resume();
+        } catch (e) {
+          console.error("Audio Context resume failed:", e);
+        }
+      }
+    };
+    window.addEventListener("click", resumeAudio);
+    window.addEventListener("touchstart", resumeAudio);
+    return () => {
+      window.removeEventListener("click", resumeAudio);
+      window.removeEventListener("touchstart", resumeAudio);
+    };
+  }, []);
+
+  useEffect(() => {
     const storedUser = localStorage.getItem("user");
     if (storedUser) {
       try {
@@ -952,6 +970,10 @@ export default function LivePitchRoom() {
   };
   const toggleScreenShare = async () => {
     wakeAudio();
+    if (!canScreenShare) {
+      alert("Screen sharing is not supported on mobile browsers. Please use a desktop browser to share your screen.");
+      return;
+    }
     isCapturing ? stopCapture() : await startCapture();
   };
 
@@ -1145,6 +1167,17 @@ export default function LivePitchRoom() {
     return `${apiBase}${url.startsWith("/") ? url : `/${url}`}`;
   };
 
+  const getDeckDisplayUrl = (url: string) => {
+    const deckUrl = getDeckUrl(url);
+    if (!deckUrl) return "";
+    const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+    const isLocal = deckUrl.includes("localhost") || deckUrl.includes("127.0.0.1");
+    if (isMobile && !isLocal && deckUrl.toLowerCase().endsWith(".pdf")) {
+      return `https://docs.google.com/viewer?url=${encodeURIComponent(deckUrl)}&embedded=true`;
+    }
+    return deckUrl;
+  };
+
   return (
     <div className="h-screen max-h-screen bg-slate-50 dark:bg-zinc-950 text-slate-800 dark:text-white font-sans flex flex-col relative overflow-hidden transition-colors">
       <AnimatePresence>
@@ -1252,7 +1285,7 @@ export default function LivePitchRoom() {
             </div>
             <div className="relative">
               <img
-                src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${userData.name}`}
+                src={userData.avatarUrl || `https://api.dicebear.com/7.x/avataaars/svg?seed=${userData.name}`}
                 alt="Avatar"
                 className="w-8 h-8 md:w-10 md:h-10 rounded-full border-2 border-slate-200 dark:border-white/10 bg-sky-100"
               />
@@ -1324,7 +1357,7 @@ export default function LivePitchRoom() {
                   />
                 ) : pitchConfig.selectedDeck ? (
                   <iframe
-                    src={getDeckUrl(pitchConfig.selectedDeck.file_url)}
+                    src={getDeckDisplayUrl(pitchConfig.selectedDeck.file_url)}
                     className="w-full h-full border-none"
                     title="Pitch Deck"
                   />
@@ -1518,7 +1551,7 @@ export default function LivePitchRoom() {
                   />
                 ) : pitchConfig.selectedDeck ? (
                   <iframe
-                    src={getDeckUrl(pitchConfig.selectedDeck.file_url)}
+                    src={getDeckDisplayUrl(pitchConfig.selectedDeck.file_url)}
                     className="w-full h-full border-none opacity-90 scale-105"
                     title="Pitch Deck"
                   />
@@ -1691,142 +1724,156 @@ export default function LivePitchRoom() {
         {/* Tab 1: Room Workspace (Main Pitching Screen & PIP Overlays) */}
         {activeMobileTab === "room" && (
           <div className="flex-1 flex flex-col min-h-0 justify-start">
-            {/* Screen Container — fills available height on mobile for max real estate */}
-            <div className="w-full relative border border-slate-200 dark:border-zinc-800 shadow-xl rounded-2xl bg-slate-900 overflow-hidden flex items-center justify-center" style={{ aspectRatio: '16/9', maxHeight: '35vh' }}>
-              {mainView === "slide" ? (
-                // --- SLIDE VIEW (Active) ---
-                <div className="w-full h-full relative flex items-center justify-center">
-                  {isCapturing ? (
-                    <video
-                      ref={screenRef}
-                      autoPlay
-                      muted
-                      playsInline
-                      className="w-full h-full object-contain"
-                    />
-                  ) : pitchConfig.selectedDeck ? (
-                    <iframe
-                      src={getDeckUrl(pitchConfig.selectedDeck.file_url)}
-                      className="w-full h-full border-none"
-                      title="Pitch Deck"
-                    />
-                  ) : (
-                    <div className="text-slate-500 text-center">
-                      <MonitorOff
-                        size={40}
-                        className="mx-auto mb-2 opacity-50"
-                      />
-                      <p className="text-[10px] font-bold uppercase tracking-widest opacity-50">
-                        No deck selected
-                      </p>
-                    </div>
-                  )}
-
-                  {/* Camera PIP Thumbnail Overlay (Absolute Floating zoomed Zoom-style, ALWAYS render to enable switching) */}
-                  <div
-                    onClick={() => setMainView("camera")}
-                    className="absolute bottom-3 right-3 w-28 h-20 sm:w-36 sm:h-24 rounded-xl border border-white/20 shadow-2xl overflow-hidden cursor-pointer z-20 hover:scale-105 transition-all bg-black/80 flex items-center justify-center"
-                  >
-                    {stream ? (
-                      <video
-                        ref={videoRef}
-                        autoPlay
-                        muted
-                        playsInline
-                        className="w-full h-full object-cover animate-fade-in"
-                      />
-                    ) : (
-                      <div className="flex flex-col items-center justify-center text-white/40">
-                        <VideoOff size={16} />
-                        <span className="text-[7px] font-bold uppercase tracking-wider mt-1">
-                          Camera Off
-                        </span>
-                      </div>
-                    )}
-                    {isPitching && stream && (
-                      <div className="absolute top-1.5 right-1.5 bg-rose-500 w-1.5 h-1.5 rounded-full animate-pulse" />
-                    )}
-                  </div>
-                </div>
-              ) : (
-                // --- CAMERA VIEW (Active) ---
-                <div className="w-full h-full relative flex items-center justify-center">
-                  {stream ? (
-                    <video
-                      ref={videoRef}
-                      autoPlay
-                      muted
-                      playsInline
-                      className="w-full h-full object-cover"
-                    />
-                  ) : (
-                    <VideoOff size={48} className="text-slate-650" />
-                  )}
-                  {isPitching && (
-                    <div className="absolute top-3 left-3 bg-rose-500 px-2 py-0.5 rounded-full text-[8px] font-bold animate-pulse text-white uppercase tracking-widest z-10">
-                      Vision
-                    </div>
-                  )}
-
-                  {/* Slides PIP Thumbnail Overlay */}
-                  <div
-                    onClick={() => setMainView("slide")}
-                    className="absolute bottom-3 right-3 w-28 h-20 sm:w-36 sm:h-24 rounded-xl border border-white/20 shadow-2xl overflow-hidden cursor-pointer z-20 hover:scale-105 transition-all bg-black/80 flex items-center justify-center"
-                  >
+            {/* Box 1: Screen Container & Controls Row */}
+            <div className="bg-white/70 dark:bg-zinc-900/40 backdrop-blur-xl border border-slate-200 dark:border-white/5 rounded-2xl p-2.5 flex flex-col shadow-sm shrink-0 mb-2">
+              {/* Screen Container — fills available height on mobile for max real estate */}
+              <div className="w-full relative border border-slate-200 dark:border-zinc-800 shadow-xl rounded-xl bg-slate-900 overflow-hidden flex items-center justify-center" style={{ aspectRatio: '16/9', maxHeight: '35vh' }}>
+                {mainView === "slide" ? (
+                  // --- SLIDE VIEW (Active) ---
+                  <div className="w-full h-full relative flex items-center justify-center">
                     {isCapturing ? (
                       <video
                         ref={screenRef}
                         autoPlay
                         muted
                         playsInline
-                        className="w-full h-full object-contain pointer-events-none"
+                        className="w-full h-full object-contain"
                       />
                     ) : pitchConfig.selectedDeck ? (
                       <iframe
-                        src={getDeckUrl(pitchConfig.selectedDeck.file_url)}
-                        className="w-full h-full border-none pointer-events-none opacity-80"
-                        title="Pitch Deck Preview"
+                        src={getDeckDisplayUrl(pitchConfig.selectedDeck.file_url)}
+                        className="w-full h-full border-none"
+                        title="Pitch Deck"
                       />
                     ) : (
-                      <MonitorOff size={18} className="text-white/40" />
+                      <div className="text-slate-500 text-center">
+                        <MonitorOff
+                          size={40}
+                          className="mx-auto mb-2 opacity-50"
+                        />
+                        <p className="text-[10px] font-bold uppercase tracking-widest opacity-50">
+                          No deck selected
+                        </p>
+                       </div>
                     )}
-                  </div>
-                </div>
-              )}
-            </div>
 
-            {/* Google Meet & Zoom Style bottom tray controls */}
-            <div className="flex items-center justify-center gap-3 bg-white dark:bg-zinc-900/90 backdrop-blur-md border border-slate-200 dark:border-zinc-855 p-2 rounded-2xl shadow-lg max-w-sm w-full mx-auto mt-2 shrink-0 transition-colors">
-              <button
-                onClick={toggleCamera}
-                className={cn(
-                  "w-11 h-11 rounded-xl transition-all flex items-center justify-center cursor-pointer",
-                  stream
-                    ? "bg-slate-100 dark:bg-zinc-800 text-slate-800 dark:text-white hover:bg-slate-200 dark:hover:bg-zinc-700"
-                    : "bg-rose-500/20 text-rose-500",
+                    {/* Camera PIP Thumbnail Overlay (Absolute Floating zoomed Zoom-style, ALWAYS render to enable switching) */}
+                    <div
+                      onClick={() => setMainView("camera")}
+                      className="absolute bottom-2 right-2 w-24 h-16 sm:w-32 sm:h-20 rounded-lg border border-white/20 shadow-2xl overflow-hidden cursor-pointer z-20 hover:scale-105 transition-all bg-black/80 flex items-center justify-center"
+                    >
+                      {stream ? (
+                        <video
+                          ref={videoRef}
+                          autoPlay
+                          muted
+                          playsInline
+                          className="w-full h-full object-cover animate-fade-in"
+                        />
+                      ) : (
+                        <div className="flex flex-col items-center justify-center text-white/40">
+                          <VideoOff size={12} />
+                          <span className="text-[6px] font-bold uppercase tracking-wider mt-0.5">
+                            Camera Off
+                          </span>
+                        </div>
+                      )}
+                      {isPitching && stream && (
+                        <div className="absolute top-1 right-1 bg-rose-500 w-1.5 h-1.5 rounded-full animate-pulse" />
+                      )}
+                    </div>
+                  </div>
+                ) : (
+                  // --- CAMERA VIEW (Active) ---
+                  <div className="w-full h-full relative flex items-center justify-center">
+                    {stream ? (
+                      <video
+                        ref={videoRef}
+                        autoPlay
+                        muted
+                        playsInline
+                        className="w-full h-full object-cover"
+                      />
+                    ) : (
+                      <VideoOff size={40} className="text-slate-650" />
+                    )}
+                    {isPitching && (
+                      <div className="absolute top-2 left-2 bg-rose-500 px-2 py-0.5 rounded-full text-[8px] font-bold animate-pulse text-white uppercase tracking-widest z-10">
+                        Vision
+                      </div>
+                    )}
+
+                    {/* Slides PIP Thumbnail Overlay */}
+                    <div
+                       onClick={() => setMainView("slide")}
+                      className="absolute bottom-2 right-2 w-24 h-16 sm:w-32 sm:h-20 rounded-lg border border-white/20 shadow-2xl overflow-hidden cursor-pointer z-20 hover:scale-105 transition-all bg-black/80 flex items-center justify-center"
+                    >
+                      {isCapturing ? (
+                        <video
+                          ref={screenRef}
+                          autoPlay
+                          muted
+                          playsInline
+                          className="w-full h-full object-contain pointer-events-none"
+                        />
+                      ) : pitchConfig.selectedDeck ? (
+                        <iframe
+                          src={getDeckDisplayUrl(pitchConfig.selectedDeck.file_url)}
+                          className="w-full h-full border-none pointer-events-none opacity-80"
+                          title="Pitch Deck Preview"
+                        />
+                      ) : (
+                        <MonitorOff size={14} className="text-white/40" />
+                      )}
+                    </div>
+                  </div>
                 )}
-              >
-                {stream ? <Video size={18} /> : <VideoOff size={18} />}
-              </button>
-              <button
-                onClick={toggleMic}
-                className={cn(
-                  "w-11 h-11 rounded-xl transition-all flex items-center justify-center cursor-pointer",
-                  !isMicMuted
-                    ? "bg-sky-500 text-white shadow-md shadow-sky-500/20 hover:bg-sky-600"
-                    : "bg-rose-500/20 text-rose-500",
-                )}
-              >
-                {!isMicMuted ? <Mic size={18} /> : <MicOff size={18} />}
-              </button>
-              {canScreenShare && (
+
+                {/* Swap View Button Overlay (Top Left) */}
+                <button
+                  onClick={() =>
+                    setMainView((v) => (v === "slide" ? "camera" : "slide"))
+                  }
+                  className="absolute top-2.5 left-2.5 px-2.5 py-1 bg-black/60 hover:bg-black/80 backdrop-blur-md border border-white/10 rounded-lg text-white transition-all z-20 flex items-center gap-1.5 shadow-md cursor-pointer"
+                >
+                  <ArrowRightLeft size={10} />{" "}
+                  <span className="text-[8px] font-bold uppercase tracking-wider">
+                    Swap View
+                  </span>
+                </button>
+              </div>
+
+              {/* Google Meet & Zoom Style bottom tray controls */}
+              <div className="flex items-center justify-center gap-3 mt-3 w-full">
+                <button
+                  onClick={toggleCamera}
+                  className={cn(
+                    "w-11 h-11 rounded-xl transition-all flex items-center justify-center cursor-pointer",
+                    stream
+                      ? "bg-slate-100 dark:bg-zinc-800 text-slate-800 dark:text-white hover:bg-slate-200 dark:hover:bg-zinc-700"
+                      : "bg-rose-500/20 text-rose-500",
+                  )}
+                >
+                  {stream ? <Video size={18} /> : <VideoOff size={18} />}
+                </button>
+                <button
+                  onClick={toggleMic}
+                  className={cn(
+                    "w-11 h-11 rounded-xl transition-all flex items-center justify-center cursor-pointer",
+                    !isMicMuted
+                      ? "bg-sky-500 text-white shadow-md shadow-sky-500/20 hover:bg-sky-600"
+                      : "bg-rose-500/20 text-rose-500",
+                  )}
+                >
+                  {!isMicMuted ? <Mic size={18} /> : <MicOff size={18} />}
+                </button>
                 <button
                   onClick={toggleScreenShare}
                   className={cn(
                     "w-11 h-11 rounded-xl transition-all flex items-center justify-center cursor-pointer",
                     isCapturing
                       ? "bg-emerald-500 text-white shadow-lg"
-                      : "bg-slate-100 dark:bg-zinc-800 text-slate-800 dark:text-white",
+                      : "bg-slate-100 dark:bg-zinc-800 text-slate-800 dark:text-white hover:bg-slate-200 dark:hover:bg-zinc-700",
                   )}
                 >
                   {isCapturing ? (
@@ -1835,27 +1882,27 @@ export default function LivePitchRoom() {
                     <MonitorOff size={18} />
                   )}
                 </button>
-              )}
-              <div className="w-px h-6 bg-slate-200 dark:bg-white/10 mx-1" />
-              <button
-                onClick={triggerConclusion}
-                disabled={(!isConnected && !isPitching) || isConcluding}
-                className="px-5 h-11 bg-rose-500 text-white text-xs font-bold rounded-xl hover:bg-rose-600 shadow-md flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-50"
-              >
-                <MonitorOff className="w-4 h-4" />
-                {isConcluding ? "Concluding..." : "End Session"}
-              </button>
+                <div className="w-px h-6 bg-slate-200 dark:bg-white/10 mx-1" />
+                <button
+                  onClick={triggerConclusion}
+                  disabled={(!isConnected && !isPitching) || isConcluding}
+                  className="px-5 h-11 bg-rose-500 text-white text-xs font-bold rounded-xl hover:bg-rose-600 shadow-md flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-50"
+                >
+                  <VolumeX className="w-4 h-4" />
+                  {isConcluding ? "Concluding..." : "End Session"}
+                </button>
+              </div>
+
+              {/* Small informative prompt below controls */}
+              <div className="text-center mt-2 text-[9px] text-slate-400 dark:text-zinc-500 font-bold uppercase tracking-widest animate-pulse shrink-0">
+                {mainView === "slide"
+                  ? "Tap Floating camera feed to switch screen"
+                  : "Tap Floating deck to view slides"}
+              </div>
             </div>
 
-            {/* Small informative prompt below controls */}
-            <div className="text-center mt-1.5 text-[9px] text-slate-400 dark:text-zinc-500 font-bold uppercase tracking-widest animate-pulse shrink-0">
-              {mainView === "slide"
-                ? "Tap Floating camera feed to switch screen"
-                : "Tap Floating deck to view slides"}
-            </div>
-
-            {/* Embedded Live Chat Transcript (Directly in portrait room tab, hides in landscape) */}
-            <div className="flex-1 min-h-[120px] mt-2 bg-white/70 dark:bg-zinc-900/60 backdrop-blur-xl border border-slate-200 dark:border-zinc-800/50 rounded-2xl p-2.5 flex flex-col shadow-inner transition-colors portrait:flex landscape:hidden">
+            {/* Box 2: Messages List Card */}
+            <div className="flex-1 min-h-[140px] bg-white/70 dark:bg-zinc-900/60 backdrop-blur-xl border border-slate-200 dark:border-zinc-800/50 rounded-2xl p-3 flex flex-col shadow-inner transition-colors portrait:flex landscape:hidden overflow-hidden mb-2">
               <div className="flex items-center gap-2 text-slate-500 dark:text-white/50 text-[9px] font-bold uppercase tracking-widest mb-2 shrink-0">
                 <MessageSquare size={12} /> Live Room Chat & Transcript
                 {isSpeaking && (
@@ -1867,7 +1914,7 @@ export default function LivePitchRoom() {
 
               <div
                 ref={mobileEmbeddedScrollRef}
-                className="flex-1 overflow-y-auto space-y-2 pr-1 custom-scrollbar mb-2 min-h-0"
+                className="flex-1 overflow-y-auto space-y-2 pr-1 custom-scrollbar mb-1 min-h-0"
               >
                 {messages.length === 0 ? (
                   <p className="text-slate-400 dark:text-white/30 text-[10px] text-center mt-4 font-bold uppercase tracking-wider opacity-60">
@@ -1902,27 +1949,28 @@ export default function LivePitchRoom() {
                   ))
                 )}
               </div>
-
-              <form
-                onSubmit={handleSendChat}
-                className="flex items-center gap-2 shrink-0 mt-auto bg-slate-100/50 dark:bg-zinc-950/50 border border-slate-200 dark:border-white/10 rounded-lg p-1"
-              >
-                <input
-                  type="text"
-                  value={chatInput}
-                  onChange={(e) => setChatInput(e.target.value)}
-                  placeholder="Type a message to panel..."
-                  className="flex-1 bg-transparent border-none focus:ring-0 text-xs text-slate-800 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500 px-2 outline-none"
-                />
-                <button
-                  type="submit"
-                  disabled={!isConnected}
-                  className="px-3 py-1.5 bg-sky-500 text-white font-bold text-slate-100 hover:text-white text-[10px] uppercase tracking-wider rounded hover:bg-sky-600 transition-colors disabled:opacity-50 cursor-pointer"
-                >
-                  Send
-                </button>
-              </form>
             </div>
+
+            {/* Box 3: Chat Message Input Card */}
+            <form
+              onSubmit={handleSendChat}
+              className="shrink-0 bg-white/70 dark:bg-zinc-900/60 backdrop-blur-xl border border-slate-200 dark:border-zinc-800/50 rounded-xl p-1 flex items-center gap-2 portrait:flex landscape:hidden"
+            >
+              <input
+                type="text"
+                value={chatInput}
+                onChange={(e) => setChatInput(e.target.value)}
+                placeholder="Type a message to panel..."
+                className="flex-1 bg-transparent border-none focus:ring-0 text-xs text-slate-800 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500 px-2 outline-none"
+              />
+              <button
+                type="submit"
+                disabled={!isConnected}
+                className="px-3.5 py-1.5 bg-sky-500 text-white font-bold text-slate-100 hover:text-white text-[10px] uppercase tracking-wider rounded hover:bg-sky-600 transition-colors disabled:opacity-50 cursor-pointer shadow-sm"
+              >
+                Send
+              </button>
+            </form>
           </div>
         )}
 
