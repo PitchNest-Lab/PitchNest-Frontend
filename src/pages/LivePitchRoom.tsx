@@ -186,7 +186,12 @@ const getPersonas = (archetype: string, mode: string) => {
     return [{ name: "Riley", role: "Pitch Coach" }];
   }
   return [
-    { name: "Marcus", role: getArchetypeLabel(archetype).includes("Angel") ? "Lead Angel" : "Lead Partner" },
+    {
+      name: "Marcus",
+      role: getArchetypeLabel(archetype).includes("Angel")
+        ? "Lead Angel"
+        : "Lead Partner",
+    },
     { name: "Sarah", role: "Financial Analyst" },
     { name: "Chen", role: "Technical Partner" },
   ];
@@ -270,7 +275,12 @@ export default function LivePitchRoom() {
   );
   const sentReadyForSocketRef = useRef<WebSocket | null>(null);
 
-  const [userData, setUserData] = useState<{ name: string; email?: string; bio?: string; avatarUrl?: string }>({
+  const [userData, setUserData] = useState<{
+    name: string;
+    email?: string;
+    bio?: string;
+    avatarUrl?: string;
+  }>({
     name: "Founder",
   });
   const [scores, setScores] = useState<{
@@ -331,7 +341,10 @@ export default function LivePitchRoom() {
 
   useEffect(() => {
     const resumeAudio = async () => {
-      if (audioContextRef.current && audioContextRef.current.state === "suspended") {
+      if (
+        audioContextRef.current &&
+        audioContextRef.current.state === "suspended"
+      ) {
         try {
           await audioContextRef.current.resume();
         } catch (e) {
@@ -353,7 +366,7 @@ export default function LivePitchRoom() {
       try {
         setUserData(JSON.parse(storedUser));
       } catch (e) {}
-    };
+    }
   }, []);
 
   const streamRef = useRef<MediaStream | null>(null);
@@ -409,13 +422,16 @@ export default function LivePitchRoom() {
   // Auto-scroll chat views to bottom when new messages arrive
   useEffect(() => {
     if (desktopScrollRef.current) {
-      desktopScrollRef.current.scrollTop = desktopScrollRef.current.scrollHeight;
+      desktopScrollRef.current.scrollTop =
+        desktopScrollRef.current.scrollHeight;
     }
     if (mobileEmbeddedScrollRef.current) {
-      mobileEmbeddedScrollRef.current.scrollTop = mobileEmbeddedScrollRef.current.scrollHeight;
+      mobileEmbeddedScrollRef.current.scrollTop =
+        mobileEmbeddedScrollRef.current.scrollHeight;
     }
     if (mobileFullScrollRef.current) {
-      mobileFullScrollRef.current.scrollTop = mobileFullScrollRef.current.scrollHeight;
+      mobileFullScrollRef.current.scrollTop =
+        mobileFullScrollRef.current.scrollHeight;
     }
   }, [messages]);
 
@@ -525,112 +541,123 @@ export default function LivePitchRoom() {
     }
   }, [isPitching, isConnected, socket, pitchConfig, user?.id]);
 
-  useEffect(() => {
-    if (isPitching && stream && !mediaRecorderRef.current) {
-      chunksRef.current = [];
-      try {
-        const mediaRecorder = new MediaRecorder(stream, {
-          mimeType: "video/webm;codecs=vp8",
-          videoBitsPerSecond: 250000,
-        });
-        mediaRecorder.ondataavailable = (e) => {
-          if (e.data && e.data.size > 0) chunksRef.current.push(e.data);
-        };
+  // useEffect(() => {
+  //   if (isPitching && stream && !mediaRecorderRef.current) {
+  //     chunksRef.current = [];
+  //     try {
+  //       const mediaRecorder = new MediaRecorder(stream, {
+  //         mimeType: "video/webm;codecs=vp8",
+  //         videoBitsPerSecond: 250000,
+  //       });
+  //       mediaRecorder.ondataavailable = (e) => {
+  //         if (e.data && e.data.size > 0) chunksRef.current.push(e.data);
+  //       };
 
-        // 🔥 FIX 1: Smaller chunk size (250ms instead of 1000ms) for upload stability
-        mediaRecorder.start(250);
-        mediaRecorderRef.current = mediaRecorder;
-      } catch (e) {}
-    }
-  }, [isPitching, stream]);
+  //       // 🔥 FIX 1: Smaller chunk size (250ms instead of 1000ms) for upload stability
+  //       mediaRecorder.start(250);
+  //       mediaRecorderRef.current = mediaRecorder;
+  //     } catch (e) {}
+  //   }
+  // }, [isPitching, stream]);
 
   // We'll use a ref to buffer the transcript and debounce the send to the backend
   const transcriptBufferRef = useRef<string>("");
   const transcriptTimerRef = useRef<number | null>(null);
+  const recognitionRef = useRef<any>(null);
 
   useEffect(() => {
-    if (!isPitching || !socket || !isConnected) return;
-
-    let active = true;
-
-    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
-    if (!SpeechRecognition) {
-      console.warn("SpeechRecognition API not supported in this browser.");
+    if (!isPitching || !socket || !isConnected || isMicMuted) {
+      if (recognitionRef.current) {
+        recognitionRef.current.abort();
+        recognitionRef.current = null;
+      }
       return;
     }
+
+    if (recognitionRef.current) return; // already running, don't recreate
+
+    const SpeechRecognition =
+      (window as any).SpeechRecognition ||
+      (window as any).webkitSpeechRecognition;
+    if (!SpeechRecognition) return;
 
     const recognition = new SpeechRecognition();
     recognition.continuous = true;
     recognition.interimResults = false;
     recognition.lang = "en-US";
+    recognitionRef.current = recognition;
+
+    recognition.onstart = () => console.log("🎤 Recognition Started");
 
     recognition.onresult = (event: any) => {
       const now = Date.now();
       const timeSinceAiSpoke = now - lastAiSpeakingEndedTimeRef.current;
-      if (!active || isMicMuted || isSpeakingRef.current || timeSinceAiSpoke < 1200) return;
+      if (isSpeakingRef.current || timeSinceAiSpoke < 1200) return;
+
       const lastResult = event.results[event.results.length - 1];
-      if (lastResult.isFinal) {
-        const text = lastResult[0].transcript.trim();
-        if (!text) return;
-        
-        // Append to buffer
-        transcriptBufferRef.current += (transcriptBufferRef.current ? " " : "") + text;
+      if (!lastResult.isFinal) return;
 
-        // Clear existing timer
-        if (transcriptTimerRef.current) {
-          window.clearTimeout(transcriptTimerRef.current);
-        }
+      const text = lastResult[0].transcript.trim();
+      if (!text) return;
 
-        // Set a new timer to send after 1.0s of silence to reduce response delay
-        transcriptTimerRef.current = window.setTimeout(() => {
-          const finalPayload = transcriptBufferRef.current.trim();
-          if (finalPayload && socket.readyState === WebSocket.OPEN) {
-            setIsTurnComplete(false);
-            pendingTimeoutsRef.current.forEach((t) => clearTimeout(t));
-            pendingTimeoutsRef.current = [];
+      transcriptBufferRef.current +=
+        (transcriptBufferRef.current ? " " : "") + text;
+      if (transcriptTimerRef.current)
+        window.clearTimeout(transcriptTimerRef.current);
 
-            setMessages((prev) => [
-              ...prev,
-              {
-                id: `user-voice-${Date.now()}`,
-                text: finalPayload,
-                type: "user",
-                speaker: userData.name,
-                inputMethod: "voice",
-              },
-            ]);
-            socket.send(
-              JSON.stringify({
-                type: "chat_message",
-                text: finalPayload,
-                timeLeft,
-                inputMethod: "voice",
-              }),
-            );
-          }
-          transcriptBufferRef.current = "";
-          transcriptTimerRef.current = null;
-        }, 1000);
-      }
+      transcriptTimerRef.current = window.setTimeout(() => {
+        const finalPayload = transcriptBufferRef.current.trim();
+        transcriptBufferRef.current = "";
+        transcriptTimerRef.current = null;
+        if (!finalPayload || socket.readyState !== WebSocket.OPEN) return;
+
+        console.log("✅ Sending to backend:", finalPayload);
+        setMessages((prev) => [
+          ...prev,
+          {
+            id: `user-voice-${Date.now()}`,
+            text: finalPayload,
+            type: "user",
+            speaker: userData.name,
+            inputMethod: "voice",
+          },
+        ]);
+        socket.send(
+          JSON.stringify({
+            type: "chat_message",
+            text: finalPayload,
+            timeLeft,
+            inputMethod: "voice",
+          }),
+        );
+      }, 1000);
     };
 
     recognition.onend = () => {
-      if (active && isPitching && !isMicMuted) {
-        try { recognition.start(); } catch (e) {}
+      console.log("Recognition ended, restarting...");
+      if (recognitionRef.current) {
+        try {
+          recognition.start();
+        } catch (e) {}
       }
     };
 
-    if (!isMicMuted && isPitching) {
-      try { recognition.start(); } catch (e) {}
-    }
+    recognition.onerror = (e: any) => {
+      console.log("❌ Recognition Error:", e.error);
+      if (e.error === "aborted") return; // ignore intentional aborts
+    };
+
+    try {
+      recognition.start();
+    } catch (e) {}
 
     return () => {
-      active = false;
-      try { recognition.abort(); } catch (e) {}
-      if (transcriptTimerRef.current) window.clearTimeout(transcriptTimerRef.current);
+      recognitionRef.current = null;
+      try {
+        recognition.abort();
+      } catch (e) {}
     };
-  }, [isPitching, socket, isConnected, isMicMuted, userData.name]);
-
+  }, [isPitching, socket, isConnected, isMicMuted]);
   useEffect(() => {
     if (!socket) return;
 
@@ -667,7 +694,9 @@ export default function LivePitchRoom() {
           }
           const remainingMs = Math.max(
             0,
-            (nextStartTimeRef.current - audioContextRef.current.currentTime) * 1000 + 150,
+            (nextStartTimeRef.current - audioContextRef.current.currentTime) *
+              1000 +
+              150,
           );
           window.setTimeout(markTurnComplete, remainingMs);
           return;
@@ -782,7 +811,8 @@ export default function LivePitchRoom() {
               if (
                 activeSourcesRef.current.length === 0 ||
                 (audioContextRef.current &&
-                  audioContextRef.current.currentTime >= nextStartTimeRef.current)
+                  audioContextRef.current.currentTime >=
+                    nextStartTimeRef.current)
               ) {
                 setSpeakingState(false);
                 setActiveSpeakerName("");
@@ -799,7 +829,10 @@ export default function LivePitchRoom() {
                     const last = prev[prev.length - 1];
                     if (last.type === "ai" && last.speaker === speaker) {
                       const updated = [...prev];
-                      const needsSpace = last.text.length > 0 && !last.text.endsWith(" ") && !data.text.startsWith(" ");
+                      const needsSpace =
+                        last.text.length > 0 &&
+                        !last.text.endsWith(" ") &&
+                        !data.text.startsWith(" ");
                       updated[updated.length - 1] = {
                         ...last,
                         text: last.text + (needsSpace ? " " : "") + data.text,
@@ -819,7 +852,9 @@ export default function LivePitchRoom() {
                 });
 
                 // Remove from pending list
-                pendingTimeoutsRef.current = pendingTimeoutsRef.current.filter((t) => t !== textTimeout);
+                pendingTimeoutsRef.current = pendingTimeoutsRef.current.filter(
+                  (t) => t !== textTimeout,
+                );
               }, delayMs);
               pendingTimeoutsRef.current.push(textTimeout);
             }
@@ -831,7 +866,10 @@ export default function LivePitchRoom() {
                 const last = prev[prev.length - 1];
                 if (last.type === "ai" && last.speaker === speaker) {
                   const updated = [...prev];
-                  const needsSpace = last.text.length > 0 && !last.text.endsWith(" ") && !data.text.startsWith(" ");
+                  const needsSpace =
+                    last.text.length > 0 &&
+                    !last.text.endsWith(" ") &&
+                    !data.text.startsWith(" ");
                   updated[updated.length - 1] = {
                     ...last,
                     text: last.text + (needsSpace ? " " : "") + data.text,
@@ -906,7 +944,20 @@ export default function LivePitchRoom() {
   }, [socket, navigate, pitchConfig, activeSpeakerName]);
 
   useEffect(() => {
-    if (!isPitching || !isConnected || !socket) return;
+    console.log("🔁 Recognition useEffect ran", {
+      isPitching,
+      isConnected,
+      socket: !!socket,
+    });
+
+    if (!isPitching || !socket || !isConnected) {
+      console.warn("❌ Gate blocked", {
+        isPitching,
+        isConnected,
+        socket: !!socket,
+      });
+      return;
+    }
     const visionInterval = setInterval(() => {
       if (socket.readyState !== WebSocket.OPEN) return;
 
@@ -944,7 +995,7 @@ export default function LivePitchRoom() {
     }, 4000);
 
     return () => clearInterval(visionInterval);
-  }, [isPitching, isConnected, isCapturing, socket]);
+  }, [isPitching, socket, isConnected, isMicMuted, userData.name]);
 
   // Already handled by layout-specific auto-scroll effects
   useEffect(() => {
@@ -975,7 +1026,9 @@ export default function LivePitchRoom() {
   const toggleScreenShare = async () => {
     wakeAudio();
     if (!canScreenShare) {
-      alert("Screen sharing is not supported on mobile browsers. Please use a desktop browser to share your screen.");
+      alert(
+        "Screen sharing is not supported on mobile browsers. Please use a desktop browser to share your screen.",
+      );
       return;
     }
     isCapturing ? stopCapture() : await startCapture();
@@ -985,7 +1038,7 @@ export default function LivePitchRoom() {
     e.preventDefault();
     wakeAudio();
     if (!chatInput.trim() || !socket || !isConnected) return;
-    
+
     setIsTurnComplete(false);
     pendingTimeoutsRef.current.forEach((t) => clearTimeout(t));
     pendingTimeoutsRef.current = [];
@@ -1016,7 +1069,7 @@ export default function LivePitchRoom() {
     setIsConcluding(true);
     setIsTurnComplete(false);
     wakeAudio();
-    
+
     // Add an invisible system message to trigger the final verdict
     socket.send(
       JSON.stringify({
@@ -1174,8 +1227,12 @@ export default function LivePitchRoom() {
   const getDeckDisplayUrl = (url: string) => {
     const deckUrl = getDeckUrl(url);
     if (!deckUrl) return "";
-    const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
-    const isLocal = deckUrl.includes("localhost") || deckUrl.includes("127.0.0.1");
+    const isMobile =
+      /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(
+        navigator.userAgent,
+      );
+    const isLocal =
+      deckUrl.includes("localhost") || deckUrl.includes("127.0.0.1");
     if (isMobile && !isLocal && deckUrl.toLowerCase().endsWith(".pdf")) {
       return `https://docs.google.com/viewer?url=${encodeURIComponent(deckUrl)}&embedded=true`;
     }
@@ -1289,7 +1346,10 @@ export default function LivePitchRoom() {
             </div>
             <div className="relative">
               <img
-                src={userData.avatarUrl || `https://api.dicebear.com/7.x/avataaars/svg?seed=${userData.name}`}
+                src={
+                  userData.avatarUrl ||
+                  `https://api.dicebear.com/7.x/avataaars/svg?seed=${userData.name}`
+                }
                 alt="Avatar"
                 className="w-8 h-8 md:w-10 md:h-10 rounded-full border-2 border-slate-200 dark:border-white/10 bg-sky-100"
               />
@@ -1731,7 +1791,10 @@ export default function LivePitchRoom() {
             {/* Box 1: Screen Container & Controls Row */}
             <div className="bg-white/70 dark:bg-zinc-900/40 backdrop-blur-xl border border-slate-200 dark:border-white/5 rounded-2xl p-2.5 flex flex-col shadow-sm shrink-0 mb-2">
               {/* Screen Container — fills available height on mobile for max real estate */}
-              <div className="w-full relative border border-slate-200 dark:border-zinc-800 shadow-xl rounded-xl bg-slate-900 overflow-hidden flex items-center justify-center" style={{ aspectRatio: '16/9', maxHeight: '35vh' }}>
+              <div
+                className="w-full relative border border-slate-200 dark:border-zinc-800 shadow-xl rounded-xl bg-slate-900 overflow-hidden flex items-center justify-center"
+                style={{ aspectRatio: "16/9", maxHeight: "35vh" }}
+              >
                 {mainView === "slide" ? (
                   // --- SLIDE VIEW (Active) ---
                   <div className="w-full h-full relative flex items-center justify-center">
@@ -1745,7 +1808,9 @@ export default function LivePitchRoom() {
                       />
                     ) : pitchConfig.selectedDeck ? (
                       <iframe
-                        src={getDeckDisplayUrl(pitchConfig.selectedDeck.file_url)}
+                        src={getDeckDisplayUrl(
+                          pitchConfig.selectedDeck.file_url,
+                        )}
                         className="w-full h-full border-none"
                         title="Pitch Deck"
                       />
@@ -1758,7 +1823,7 @@ export default function LivePitchRoom() {
                         <p className="text-[10px] font-bold uppercase tracking-widest opacity-50">
                           No deck selected
                         </p>
-                       </div>
+                      </div>
                     )}
 
                     {/* Camera PIP Thumbnail Overlay (Absolute Floating zoomed Zoom-style, ALWAYS render to enable switching) */}
@@ -1809,7 +1874,7 @@ export default function LivePitchRoom() {
 
                     {/* Slides PIP Thumbnail Overlay */}
                     <div
-                       onClick={() => setMainView("slide")}
+                      onClick={() => setMainView("slide")}
                       className="absolute bottom-2 right-2 w-24 h-16 sm:w-32 sm:h-20 rounded-lg border border-white/20 shadow-2xl overflow-hidden cursor-pointer z-20 hover:scale-105 transition-all bg-black/80 flex items-center justify-center"
                     >
                       {isCapturing ? (
@@ -1822,7 +1887,9 @@ export default function LivePitchRoom() {
                         />
                       ) : pitchConfig.selectedDeck ? (
                         <iframe
-                          src={getDeckDisplayUrl(pitchConfig.selectedDeck.file_url)}
+                          src={getDeckDisplayUrl(
+                            pitchConfig.selectedDeck.file_url,
+                          )}
                           className="w-full h-full border-none pointer-events-none opacity-80"
                           title="Pitch Deck Preview"
                         />
