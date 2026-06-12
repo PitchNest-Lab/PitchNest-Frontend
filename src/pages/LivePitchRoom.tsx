@@ -133,7 +133,6 @@ const AIPanelist = ({
     )}
 
     <div className="relative aspect-[4/3] w-full bg-slate-100 dark:bg-slate-800 overflow-hidden">
-      {/* Realistic Avatar for Dashboard look */}
       <img
         src={getPanelistAvatar(name)}
         alt={name}
@@ -142,8 +141,6 @@ const AIPanelist = ({
           isActive ? "scale-110" : "scale-100",
         )}
       />
-
-      {/* Active Recording Icon top right */}
       <div className="absolute top-3 right-3 flex items-center gap-1.5 bg-white/60 dark:bg-black/40 backdrop-blur-md px-2 py-1 rounded-md border border-slate-200/60 dark:border-white/10">
         <Video
           size={10}
@@ -195,6 +192,204 @@ const getPersonas = (archetype: string, mode: string) => {
     { name: "Sarah", role: "Financial Analyst" },
     { name: "Chen", role: "Technical Partner" },
   ];
+};
+
+// ─── Verdict phase overlay ───────────────────────────────────────────────────
+const VerdictOverlay = ({
+  verdictPhase,
+  verdictCountdown,
+  verdictMessages,
+  activeSpeakerName,
+  isSpeaking,
+}: {
+  verdictPhase: boolean;
+  verdictCountdown: number;
+  verdictMessages: {
+    speaker: string;
+    text: string;
+    verdict: "invest" | "pass" | "maybe";
+  }[];
+  activeSpeakerName: string;
+  isSpeaking: boolean;
+}) => {
+  if (!verdictPhase) return null;
+  return (
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      className="absolute inset-0 z-[90] bg-slate-950/85 backdrop-blur-md flex flex-col items-center justify-center p-6 text-center"
+    >
+      <div className="mb-4">
+        <div className="inline-flex items-center gap-2 px-4 py-1.5 bg-sky-500/20 border border-sky-500/40 rounded-full mb-4">
+          <span className="w-2 h-2 rounded-full bg-sky-400 animate-pulse" />
+          <span className="text-sky-300 text-xs font-bold uppercase tracking-widest">
+            Panel Verdict
+          </span>
+        </div>
+        <h2 className="text-2xl md:text-3xl font-extrabold text-white mb-1">
+          The Panel is Deliberating
+        </h2>
+        <p className="text-slate-400 text-sm">
+          Closing in{" "}
+          <span className="text-sky-400 font-bold">{verdictCountdown}s</span>{" "}
+          after verdicts
+        </p>
+      </div>
+
+      {isSpeaking && (
+        <div className="flex items-center gap-2 mb-4 px-4 py-2 bg-sky-500/10 border border-sky-500/20 rounded-xl">
+          <VoiceWaveform isActive={true} />
+          <span className="text-sky-300 text-xs font-medium">
+            {activeSpeakerName} is speaking…
+          </span>
+        </div>
+      )}
+
+      <div className="w-full max-w-lg space-y-3 max-h-64 overflow-y-auto custom-scrollbar">
+        {verdictMessages.map((vm, i) => (
+          <motion.div
+            key={i}
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: i * 0.15 }}
+            className="flex items-start gap-3 bg-white/5 border border-white/10 rounded-2xl p-3 text-left"
+          >
+            <img
+              src={getPanelistAvatar(vm.speaker)}
+              alt={vm.speaker}
+              className="w-9 h-9 rounded-full object-cover shrink-0 border-2 border-white/10"
+            />
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-2 mb-1">
+                <span className="text-[10px] font-bold text-white uppercase tracking-widest">
+                  {vm.speaker}
+                </span>
+                <span
+                  className={cn(
+                    "text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full",
+                    vm.verdict === "invest"
+                      ? "bg-emerald-500/20 text-emerald-400"
+                      : vm.verdict === "pass"
+                        ? "bg-rose-500/20 text-rose-400"
+                        : "bg-amber-500/20 text-amber-400",
+                  )}
+                >
+                  {vm.verdict === "invest"
+                    ? "✓ Invest"
+                    : vm.verdict === "pass"
+                      ? "✗ Pass"
+                      : "◎ Maybe"}
+                </span>
+              </div>
+              <p className="text-slate-300 text-xs leading-relaxed">
+                {vm.text}
+              </p>
+            </div>
+          </motion.div>
+        ))}
+        {verdictMessages.length === 0 && (
+          <div className="text-slate-500 text-xs py-4">
+            Waiting for panelists…
+          </div>
+        )}
+      </div>
+    </motion.div>
+  );
+};
+// Move this OUTSIDE LivePitchRoom, near the top with other components
+const DeckViewer = React.memo(
+  ({
+    className = "",
+    isCapturing,
+    screenRef,
+    selectedDeck,
+    getDeckDisplayUrl,
+  }: {
+    className?: string;
+    isCapturing: boolean;
+    screenRef: React.RefObject<HTMLVideoElement | null>;
+    selectedDeck?: { file_url: string } | null;
+    getDeckDisplayUrl: (url: string) => string;
+  }) => {
+    // Remove the useEffect with console logs - it causes re-mounting issues
+
+    if (isCapturing) {
+      return (
+        <video
+          ref={screenRef}
+          autoPlay
+          muted
+          playsInline
+          className={cn("w-full h-full object-contain bg-black/40", className)}
+        />
+      );
+    }
+
+    const deckUrl = selectedDeck
+      ? getDeckDisplayUrl(selectedDeck.file_url)
+      : "";
+
+    if (!deckUrl) {
+      return (
+        <div
+          className={cn(
+            "w-full h-full flex flex-col items-center justify-center bg-slate-100 dark:bg-slate-900",
+            className,
+          )}
+        >
+          <MonitorOff
+            size={40}
+            className="text-slate-400 dark:text-slate-500 opacity-50 mb-2"
+          />
+          <p className="text-xs font-bold uppercase tracking-widest text-slate-400 opacity-50">
+            No deck selected
+          </p>
+        </div>
+      );
+    }
+
+    return (
+      <div
+        className={cn(
+          "w-full h-full overflow-auto overscroll-contain",
+          className,
+        )}
+        style={{ WebkitOverflowScrolling: "touch" }}
+      >
+        <iframe
+          src={deckUrl}
+          className="w-full h-full border-none"
+          title="Pitch Deck"
+          allow="fullscreen"
+        />
+      </div>
+    );
+  },
+);
+const getDeckUrl = (url: string) => {
+  if (!url) return "";
+  if (url.startsWith("http://") || url.startsWith("https://")) return url;
+  const apiBase =
+    window.location.hostname === "localhost" ||
+    window.location.hostname === "127.0.0.1"
+      ? "http://localhost:3000"
+      : "https://pitchnest-live.onrender.com";
+  return `${apiBase}${url.startsWith("/") ? url : `/${url}`}`;
+};
+
+const getDeckDisplayUrl = (url: string) => {
+  const deckUrl = getDeckUrl(url);
+  if (!deckUrl) return "";
+  const isMobile =
+    /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(
+      navigator.userAgent,
+    );
+  const isLocal =
+    deckUrl.includes("localhost") || deckUrl.includes("127.0.0.1");
+  if (isMobile && !isLocal && deckUrl.toLowerCase().endsWith(".pdf")) {
+    return `https://docs.google.com/viewer?url=${encodeURIComponent(deckUrl)}&embedded=true`;
+  }
+  return deckUrl;
 };
 
 export default function LivePitchRoom() {
@@ -275,6 +470,16 @@ export default function LivePitchRoom() {
   );
   const sentReadyForSocketRef = useRef<WebSocket | null>(null);
 
+  // ── Verdict phase state ──────────────────────────────────────────────────
+  const [verdictPhase, setVerdictPhase] = useState(false);
+  const [verdictCountdown, setVerdictCountdown] = useState(120);
+  const [verdictMessages, setVerdictMessages] = useState<
+    { speaker: string; text: string; verdict: "invest" | "pass" | "maybe" }[]
+  >([]);
+  const verdictCountdownRef = useRef<NodeJS.Timeout | null>(null);
+  const verdictMaxTimerRef = useRef<NodeJS.Timeout | null>(null);
+  // ────────────────────────────────────────────────────────────────────────
+
   const [userData, setUserData] = useState<{
     name: string;
     email?: string;
@@ -290,7 +495,6 @@ export default function LivePitchRoom() {
     readiness: number | null;
   }>({ clarity: null, confidence: null, marketFit: null, readiness: null });
 
-  // Responsive Tab State for mobile screen viewports
   const [activeMobileTab, setActiveMobileTab] = useState<
     "room" | "panelists" | "chat" | "vitals"
   >("room");
@@ -380,7 +584,6 @@ export default function LivePitchRoom() {
     screenStreamRef.current = screenStream;
   }, [screenStream]);
 
-  // Cleanup media streams and AudioContext on unmount to prevent microphone leak and audio bleed
   useEffect(() => {
     return () => {
       try {
@@ -392,34 +595,29 @@ export default function LivePitchRoom() {
         }
         stopStream();
         stopCapture();
-
-        // Close AudioContext to stop any ongoing speech synthesis
         if (audioContextRef.current) {
           audioContextRef.current.close().catch(() => {});
           audioContextRef.current = null;
         }
-
-        // Cancel active audio source nodes
         activeSourcesRef.current.forEach((src) => {
           try {
             src.stop();
           } catch (e) {}
         });
         activeSourcesRef.current = [];
-
-        // Clear pending scheduled text display timeouts
         pendingTimeoutsRef.current.forEach((t) => clearTimeout(t));
         pendingTimeoutsRef.current = [];
-
-        // Cancel browser native synthesis just in case
         if (typeof window !== "undefined" && window.speechSynthesis) {
           window.speechSynthesis.cancel();
         }
+        if (verdictCountdownRef.current)
+          clearInterval(verdictCountdownRef.current);
+        if (verdictMaxTimerRef.current)
+          clearTimeout(verdictMaxTimerRef.current);
       } catch (e) {}
     };
   }, [stopStream, stopCapture]);
 
-  // Auto-scroll chat views to bottom when new messages arrive
   useEffect(() => {
     if (desktopScrollRef.current) {
       desktopScrollRef.current.scrollTop =
@@ -436,15 +634,15 @@ export default function LivePitchRoom() {
   }, [messages]);
 
   useEffect(() => {
-    if (!isPitching || isEvaluatingPitch || isConcluding) return;
-
+    if (!isPitching || isEvaluatingPitch || isConcluding || verdictPhase)
+      return;
     if (timeLeft <= 0) {
-      triggerConclusion();
+      triggerVerdictPhase();
       return;
     }
     const timer = setInterval(() => setTimeLeft((prev) => prev - 1), 1000);
     return () => clearInterval(timer);
-  }, [isPitching, timeLeft, isEvaluatingPitch, isConcluding]);
+  }, [isPitching, timeLeft, isEvaluatingPitch, isConcluding, verdictPhase]);
 
   const formatTime = (seconds: number) => {
     const m = Math.floor(seconds / 60);
@@ -541,26 +739,6 @@ export default function LivePitchRoom() {
     }
   }, [isPitching, isConnected, socket, pitchConfig, user?.id]);
 
-  // useEffect(() => {
-  //   if (isPitching && stream && !mediaRecorderRef.current) {
-  //     chunksRef.current = [];
-  //     try {
-  //       const mediaRecorder = new MediaRecorder(stream, {
-  //         mimeType: "video/webm;codecs=vp8",
-  //         videoBitsPerSecond: 250000,
-  //       });
-  //       mediaRecorder.ondataavailable = (e) => {
-  //         if (e.data && e.data.size > 0) chunksRef.current.push(e.data);
-  //       };
-
-  //       // 🔥 FIX 1: Smaller chunk size (250ms instead of 1000ms) for upload stability
-  //       mediaRecorder.start(250);
-  //       mediaRecorderRef.current = mediaRecorder;
-  //     } catch (e) {}
-  //   }
-  // }, [isPitching, stream]);
-
-  // We'll use a ref to buffer the transcript and debounce the send to the backend
   const transcriptBufferRef = useRef<string>("");
   const transcriptTimerRef = useRef<number | null>(null);
   const recognitionRef = useRef<any>(null);
@@ -573,8 +751,7 @@ export default function LivePitchRoom() {
       }
       return;
     }
-
-    if (recognitionRef.current) return; // already running, don't recreate
+    if (recognitionRef.current) return;
 
     const SpeechRecognition =
       (window as any).SpeechRecognition ||
@@ -644,7 +821,7 @@ export default function LivePitchRoom() {
 
     recognition.onerror = (e: any) => {
       console.log("❌ Recognition Error:", e.error);
-      if (e.error === "aborted") return; // ignore intentional aborts
+      if (e.error === "aborted") return;
     };
 
     try {
@@ -658,6 +835,7 @@ export default function LivePitchRoom() {
       } catch (e) {}
     };
   }, [isPitching, socket, isConnected, isMicMuted]);
+
   useEffect(() => {
     if (!socket) return;
 
@@ -672,11 +850,8 @@ export default function LivePitchRoom() {
             } catch (e) {}
           });
           activeSourcesRef.current = [];
-
-          // Clear any scheduled text timeouts immediately
           pendingTimeoutsRef.current.forEach((t) => clearTimeout(t));
           pendingTimeoutsRef.current = [];
-
           nextStartTimeRef.current = 0;
           setSpeakingState(false);
           setActiveSpeakerName("");
@@ -699,6 +874,36 @@ export default function LivePitchRoom() {
               150,
           );
           window.setTimeout(markTurnComplete, remainingMs);
+          return;
+        }
+
+        // ── Handle verdict_message from server ─────────────────────────
+        if (data.type === "verdict_message" && data.speaker && data.text) {
+          const verdictValue: "invest" | "pass" | "maybe" =
+            data.verdict === "invest"
+              ? "invest"
+              : data.verdict === "pass"
+                ? "pass"
+                : "maybe";
+          setVerdictMessages((prev) => [
+            ...prev,
+            { speaker: data.speaker, text: data.text, verdict: verdictValue },
+          ]);
+          setMessages((prev) => [
+            ...prev,
+            {
+              id: `verdict-${Date.now()}`,
+              text: `[Verdict] ${data.text}`,
+              type: "ai",
+              speaker: data.speaker,
+            },
+          ]);
+          return;
+        }
+
+        // ── All verdicts done — close verdict phase and end session ─────
+        if (data.type === "verdict_complete") {
+          startVerdictCountdownToClose();
           return;
         }
 
@@ -746,7 +951,6 @@ export default function LivePitchRoom() {
           const speaker = data.speaker || activeSpeakerName || "Marcus";
 
           if (hasAudio) {
-            // Lazily create AudioContext if it wasn't initialized during user gesture
             if (!audioContextRef.current) {
               try {
                 audioContextRef.current = new (
@@ -793,9 +997,7 @@ export default function LivePitchRoom() {
 
             const currentTime = audioContextRef.current.currentTime;
             let startTime = nextStartTimeRef.current;
-
             if (startTime < currentTime) {
-              // Add a 150ms jitter buffer delay to smooth out network gaps
               startTime = currentTime + 0.15;
             }
 
@@ -819,7 +1021,6 @@ export default function LivePitchRoom() {
               }
             };
 
-            // Queue transcript display to sync with audio start
             if (hasText) {
               const delayMs = Math.max(0, (startTime - currentTime) * 1000);
               const textTimeout = window.setTimeout(() => {
@@ -846,12 +1047,10 @@ export default function LivePitchRoom() {
                       id: Date.now().toString(),
                       text: data.text,
                       type: "ai",
-                      speaker: speaker,
+                      speaker,
                     },
                   ];
                 });
-
-                // Remove from pending list
                 pendingTimeoutsRef.current = pendingTimeoutsRef.current.filter(
                   (t) => t !== textTimeout,
                 );
@@ -859,7 +1058,6 @@ export default function LivePitchRoom() {
               pendingTimeoutsRef.current.push(textTimeout);
             }
           } else if (hasText) {
-            // Text-only message chunk (no audio) -> append immediately
             setActiveSpeakerName(speaker);
             setMessages((prev) => {
               if (prev.length > 0) {
@@ -883,7 +1081,7 @@ export default function LivePitchRoom() {
                   id: Date.now().toString(),
                   text: data.text,
                   type: "ai",
-                  speaker: speaker,
+                  speaker,
                 },
               ];
             });
@@ -904,7 +1102,6 @@ export default function LivePitchRoom() {
               speaker: "System",
             },
           ]);
-          // Auto-trigger end session after a brief delay
           setTimeout(() => handleEndSession(), 1500);
         }
 
@@ -923,9 +1120,7 @@ export default function LivePitchRoom() {
             };
             navigate(
               `/report${data.sessionId ? `?session=${data.sessionId}` : ""}`,
-              {
-                state: { session: mockSessionDbRow },
-              },
+              { state: { session: mockSessionDbRow } },
             );
           };
 
@@ -949,7 +1144,6 @@ export default function LivePitchRoom() {
       isConnected,
       socket: !!socket,
     });
-
     if (!isPitching || !socket || !isConnected) {
       console.warn("❌ Gate blocked", {
         isPitching,
@@ -960,7 +1154,6 @@ export default function LivePitchRoom() {
     }
     const visionInterval = setInterval(() => {
       if (socket.readyState !== WebSocket.OPEN) return;
-
       const frames: any[] = [];
       const canvas = document.createElement("canvas");
 
@@ -997,10 +1190,10 @@ export default function LivePitchRoom() {
     return () => clearInterval(visionInterval);
   }, [isPitching, socket, isConnected, isMicMuted, userData.name]);
 
-  // Already handled by layout-specific auto-scroll effects
   useEffect(() => {
     if (videoRef.current && stream) videoRef.current.srcObject = stream;
   }, [stream, mainView]);
+
   useEffect(() => {
     if (screenRef.current && screenStream)
       screenRef.current.srcObject = screenStream;
@@ -1010,10 +1203,12 @@ export default function LivePitchRoom() {
     if (audioContextRef.current?.state === "suspended")
       audioContextRef.current.resume();
   };
+
   const toggleCamera = async () => {
     wakeAudio();
     stream ? stopStream() : await startStream();
   };
+
   const toggleMic = () => {
     wakeAudio();
     if (stream) {
@@ -1023,6 +1218,7 @@ export default function LivePitchRoom() {
       setIsMicMuted(!isMicMuted);
     }
   };
+
   const toggleScreenShare = async () => {
     wakeAudio();
     if (!canScreenShare) {
@@ -1064,49 +1260,96 @@ export default function LivePitchRoom() {
     setChatInput("");
   };
 
+  // ── Verdict phase logic ──────────────────────────────────────────────────
+  const startVerdictCountdownToClose = useCallback(() => {
+    // Start a 15-second countdown then auto-close after verdicts done
+    let secs = 15;
+    setVerdictCountdown(secs);
+    if (verdictCountdownRef.current) clearInterval(verdictCountdownRef.current);
+    verdictCountdownRef.current = setInterval(() => {
+      secs -= 1;
+      setVerdictCountdown(secs);
+      if (secs <= 0) {
+        if (verdictCountdownRef.current)
+          clearInterval(verdictCountdownRef.current);
+        setVerdictPhase(false);
+        handleEndSession();
+      }
+    }, 1000);
+  }, []);
+
+  const triggerVerdictPhase = useCallback(() => {
+    if (verdictPhase) return;
+    setVerdictPhase(true);
+    setVerdictMessages([]);
+    setVerdictCountdown(120);
+    wakeAudio();
+
+    // Tell server to trigger verdict speeches from all panelists
+    if (socket && socket.readyState === WebSocket.OPEN) {
+      socket.send(
+        JSON.stringify({
+          type: "verdict_request",
+          personas: pitchConfig
+            ? getPersonas(pitchConfig.investorArchetype, pitchConfig.mode)
+            : [],
+          timeLeft: 0,
+        }),
+      );
+    }
+
+    // Also send a chat message that triggers the verdict via the existing AI pipeline
+    if (socket && socket.readyState === WebSocket.OPEN) {
+      socket.send(
+        JSON.stringify({
+          type: "chat_message",
+          text: "[SYSTEM: The pitch session has ended. Each panelist must now give their individual verdict: whether they would invest or pass, and one clear reason why. Speak each verdict aloud in turn. Keep each verdict to 2-3 sentences. After all verdicts, send a verdict_complete message.]",
+          timeLeft: 0,
+          inputMethod: "chat",
+          isVerdictRequest: true,
+        }),
+      );
+    }
+
+    // Hard max: if server never sends verdict_complete, close after 2 min
+    if (verdictMaxTimerRef.current) clearTimeout(verdictMaxTimerRef.current);
+    verdictMaxTimerRef.current = setTimeout(() => {
+      if (verdictCountdownRef.current)
+        clearInterval(verdictCountdownRef.current);
+      setVerdictPhase(false);
+      handleEndSession();
+    }, 120000);
+  }, [verdictPhase, socket, pitchConfig]);
+
+  // Trigger verdict when isConcluding + turn is complete (manual End Session)
   const triggerConclusion = async () => {
-    if (isConcluding || !socket || !isConnected) return;
+    if (isConcluding || verdictPhase) return;
     setIsConcluding(true);
     setIsTurnComplete(false);
     wakeAudio();
-
-    // Add an invisible system message to trigger the final verdict
-    socket.send(
-      JSON.stringify({
-        type: "chat_message",
-        text: "[SYSTEM: Time is up or the session is ending. Please conclude the pitch now and deliver your final spoken verdict on whether to accept, reject, or recommend improvements.]",
-        timeLeft: 0,
-        inputMethod: "chat",
-      }),
-    );
-
-    // Fallback timer: if the AI doesn't finish speaking (or we don't receive response) within 18 seconds, proceed anyway
-    setTimeout(() => {
-      setIsPitching((prev) => {
-        if (prev) {
-          console.warn("Conclusion timeout fallback triggered.");
-          handleEndSession();
-        }
-        return prev;
-      });
-    }, 18000);
+    // Trigger the verdict phase directly (which handles everything)
+    triggerVerdictPhase();
   };
 
   useEffect(() => {
-    if (isConcluding && isTurnComplete && !isSpeaking) {
-      // Add a small delay to ensure audio is truly finished and not just between sentences
+    if (isConcluding && isTurnComplete && !isSpeaking && !verdictPhase) {
       const timer = setTimeout(() => {
-        if (!isSpeaking) handleEndSession();
+        if (!isSpeaking && !verdictPhase) triggerVerdictPhase();
       }, 1500);
       return () => clearTimeout(timer);
     }
-  }, [isConcluding, isTurnComplete, isSpeaking]);
+  }, [isConcluding, isTurnComplete, isSpeaking, verdictPhase]);
+  // ────────────────────────────────────────────────────────────────────────
 
   const handleEndSession = async () => {
     wakeAudio();
     setIsPitching(false);
+    setVerdictPhase(false);
     setIsEvaluatingPitch(true);
     setLoadingStatus("Stopping recording...");
+
+    if (verdictCountdownRef.current) clearInterval(verdictCountdownRef.current);
+    if (verdictMaxTimerRef.current) clearTimeout(verdictMaxTimerRef.current);
 
     const statusMessages = [
       "Panel is grading your pitch...",
@@ -1123,7 +1366,7 @@ export default function LivePitchRoom() {
     fallbackTimerRef.current = setTimeout(() => {
       if (statusIntervalRef.current) clearInterval(statusIntervalRef.current);
       navigate("/report");
-    }, 300000); // 5 minute fallback in case of slow video upload
+    }, 300000);
 
     const stopAndEvaluate = async () => {
       if (stream) {
@@ -1135,7 +1378,6 @@ export default function LivePitchRoom() {
       }
       if (isCapturing) stopCapture();
 
-      // 1. Immediately send end_session so AI can start grading without waiting for large video upload
       setLoadingStatus("Panel is grading your pitch while video uploads...");
       if (socket && socket.readyState === WebSocket.OPEN) {
         const finalDuration = Math.floor(
@@ -1150,7 +1392,6 @@ export default function LivePitchRoom() {
         );
       }
 
-      // 2. Upload video in parallel
       if (chunksRef.current && chunksRef.current.length > 0) {
         const blob = new Blob(chunksRef.current, { type: "video/webm" });
         const formData = new FormData();
@@ -1213,31 +1454,33 @@ export default function LivePitchRoom() {
     );
   }
 
-  const getDeckUrl = (url: string) => {
-    if (!url) return "";
-    if (url.startsWith("http://") || url.startsWith("https://")) return url;
-    const apiBase =
-      window.location.hostname === "localhost" ||
-      window.location.hostname === "127.0.0.1"
-        ? "http://localhost:3000"
-        : "https://pitchnest-live.onrender.com";
-    return `${apiBase}${url.startsWith("/") ? url : `/${url}`}`;
-  };
+  // ── Deck viewer component — scrollable, touch-friendly ───────────────────
 
-  const getDeckDisplayUrl = (url: string) => {
-    const deckUrl = getDeckUrl(url);
-    if (!deckUrl) return "";
-    const isMobile =
-      /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(
-        navigator.userAgent,
-      );
-    const isLocal =
-      deckUrl.includes("localhost") || deckUrl.includes("127.0.0.1");
-    if (isMobile && !isLocal && deckUrl.toLowerCase().endsWith(".pdf")) {
-      return `https://docs.google.com/viewer?url=${encodeURIComponent(deckUrl)}&embedded=true`;
-    }
-    return deckUrl;
-  };
+  const CameraViewer = ({ className = "" }: { className?: string }) => (
+    <div
+      className={cn(
+        "w-full h-full relative flex items-center justify-center",
+        className,
+      )}
+    >
+      {stream ? (
+        <video
+          ref={videoRef}
+          autoPlay
+          muted
+          playsInline
+          className="w-full h-full object-cover"
+        />
+      ) : (
+        <VideoOff size={48} className="text-slate-300 dark:text-white/20" />
+      )}
+      {isPitching && (
+        <div className="absolute top-3 right-3 bg-rose-500 px-2.5 py-1 rounded-full text-[8px] font-bold animate-pulse shadow-lg z-10 uppercase tracking-widest text-white">
+          Vision On
+        </div>
+      )}
+    </div>
+  );
 
   return (
     <div className="h-screen max-h-screen bg-slate-50 dark:bg-zinc-950 text-slate-800 dark:text-white font-sans flex flex-col relative overflow-hidden transition-colors">
@@ -1251,28 +1494,28 @@ export default function LivePitchRoom() {
               <motion.div
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
-                className="text-center flex flex-col items-center"
+                className="text-center flex flex-col items-center px-6"
               >
-                <div className="w-24 h-24 bg-sky-500/20 text-sky-500 rounded-full flex items-center justify-center mb-6 border border-sky-500/30">
-                  <Mic size={48} />
+                <div className="w-20 h-20 md:w-24 md:h-24 bg-sky-500/20 text-sky-500 rounded-full flex items-center justify-center mb-5 md:mb-6 border border-sky-500/30">
+                  <Mic size={40} />
                 </div>
-                <h2 className="text-3xl font-bold text-white mb-4">
+                <h2 className="text-2xl md:text-3xl font-bold text-white mb-3 md:mb-4">
                   Ready to Pitch?
                 </h2>
-                <p className="text-slate-400 mb-8 max-w-md">
+                <p className="text-slate-400 mb-6 md:mb-8 max-w-md text-sm md:text-base">
                   Your camera and microphone will activate securely when you
                   start the session.
                 </p>
                 <button
                   onClick={handleStartClick}
-                  className="px-10 py-4 bg-sky-500 text-white font-bold rounded-2xl hover:bg-sky-600 transition-all text-xl shadow-[0_0_40px_rgba(14,165,233,0.3)] flex items-center gap-3 cursor-pointer"
+                  className="px-8 md:px-10 py-3 md:py-4 bg-sky-500 text-white font-bold rounded-2xl hover:bg-sky-600 transition-all text-lg md:text-xl shadow-[0_0_40px_rgba(14,165,233,0.3)] flex items-center gap-3 cursor-pointer"
                 >
-                  <Sparkles size={24} /> Enter Live Room
+                  <Sparkles size={22} /> Enter Live Room
                 </button>
               </motion.div>
             ) : (
               <>
-                <h2 className="text-2xl font-bold text-slate-400 uppercase tracking-widest mb-4">
+                <h2 className="text-xl md:text-2xl font-bold text-slate-400 uppercase tracking-widest mb-4 px-4 text-center">
                   Initializing AI Panel
                 </h2>
                 <motion.div
@@ -1280,7 +1523,7 @@ export default function LivePitchRoom() {
                   initial={{ opacity: 0, scale: 0.5 }}
                   animate={{ opacity: 1, scale: 1 }}
                   exit={{ opacity: 0, scale: 1.5 }}
-                  className="text-9xl font-black text-sky-500 drop-shadow-[0_0_40px_rgba(14,165,233,0.5)]"
+                  className="text-8xl md:text-9xl font-black text-sky-500 drop-shadow-[0_0_40px_rgba(14,165,233,0.5)]"
                 >
                   {countdown === 0 ? "PITCH!" : countdown}
                 </motion.div>
@@ -1291,20 +1534,18 @@ export default function LivePitchRoom() {
       </AnimatePresence>
 
       {/* Header */}
-      <header className="px-4 md:px-6 py-2.5 md:py-3 flex justify-between items-center border-b border-slate-200 dark:border-white/5 bg-white/80 dark:bg-zinc-950/50 backdrop-blur-md shrink-0 z-20 transition-colors">
+      <header className="px-3 md:px-6 py-2 md:py-3 flex justify-between items-center border-b border-slate-200 dark:border-white/5 bg-white/80 dark:bg-zinc-950/50 backdrop-blur-md shrink-0 z-20 transition-colors">
         <div className="flex items-center gap-2 md:gap-4">
           <LogoMark size="sm" />
-          <span className="text-base md:text-lg font-bold tracking-tight text-slate-900 dark:text-white hidden xs:inline-block">
+          <span className="text-sm md:text-lg font-bold tracking-tight text-slate-900 dark:text-white hidden xs:inline-block">
             PitchNest
           </span>
-
           <div className="h-5 w-px bg-slate-200 dark:bg-white/10 mx-1 hidden sm:block" />
           <ThemeToggle />
-
           <div className="h-5 w-px bg-slate-200 dark:bg-white/10 mx-1 hidden sm:block" />
           <div
             className={cn(
-              "flex items-center gap-1.5 px-2.5 py-1 rounded-full border transition-all",
+              "flex items-center gap-1.5 px-2 py-1 rounded-full border transition-all",
               isConnected
                 ? "bg-emerald-500/10 text-emerald-500 border-emerald-500/20"
                 : "bg-rose-500/10 text-rose-500 border-rose-500/20",
@@ -1312,7 +1553,7 @@ export default function LivePitchRoom() {
           >
             <div
               className={cn(
-                "w-1.5 h-1.5 rounded-full",
+                "w-1.5 h-1.5 rounded-full shrink-0",
                 isConnected ? "bg-emerald-500 animate-pulse" : "bg-rose-500",
               )}
             />
@@ -1324,42 +1565,40 @@ export default function LivePitchRoom() {
 
         <div
           className={cn(
-            "flex items-center gap-1.5 px-3 py-1.5 rounded-full font-mono text-xs md:text-sm font-bold border transition-colors",
+            "flex items-center gap-1 px-2.5 py-1.5 rounded-full font-mono text-xs md:text-sm font-bold border transition-colors",
             timeLeft < 180
               ? "bg-rose-500/20 text-rose-500 border-rose-500/50 animate-pulse"
               : "bg-slate-100 dark:bg-zinc-900 text-slate-800 dark:text-white border-slate-200 dark:border-zinc-850",
           )}
         >
-          <Timer size={14} />
-          {formatTime(timeLeft)}
+          <Timer size={12} className="shrink-0" />
+          <span className="text-xs">{formatTime(timeLeft)}</span>
         </div>
 
-        <div className="flex items-center gap-3 pl-3 md:pl-6 border-l border-slate-200 dark:border-white/10">
-          <div className="flex items-center gap-2 md:gap-3">
-            <div className="text-right hidden md:block">
-              <p className="text-sm font-bold text-slate-800 dark:text-white truncate max-w-[120px]">
-                {userData.name}
-              </p>
-              <p className="text-[10px] text-slate-400 dark:text-white/40 font-medium">
-                Founder
-              </p>
-            </div>
-            <div className="relative">
-              <img
-                src={
-                  userData.avatarUrl ||
-                  `https://api.dicebear.com/7.x/avataaars/svg?seed=${userData.name}`
-                }
-                alt="Avatar"
-                className="w-8 h-8 md:w-10 md:h-10 rounded-full border-2 border-slate-200 dark:border-white/10 bg-sky-100"
-              />
-            </div>
+        <div className="flex items-center gap-2 md:gap-3 pl-2 md:pl-6 border-l border-slate-200 dark:border-white/10">
+          <div className="text-right hidden md:block">
+            <p className="text-sm font-bold text-slate-800 dark:text-white truncate max-w-[120px]">
+              {userData.name}
+            </p>
+            <p className="text-[10px] text-slate-400 dark:text-white/40 font-medium">
+              Founder
+            </p>
+          </div>
+          <div className="relative">
+            <img
+              src={
+                userData.avatarUrl ||
+                `https://api.dicebear.com/7.x/avataaars/svg?seed=${userData.name}`
+              }
+              alt="Avatar"
+              className="w-8 h-8 md:w-10 md:h-10 rounded-full border-2 border-slate-200 dark:border-white/10 bg-sky-100"
+            />
           </div>
         </div>
       </header>
 
       {/* ============================================================== */}
-      {/* DESKTOP LAYOUT (Full grid structure, perfectly locked on lg+) */}
+      {/* DESKTOP LAYOUT                                                  */}
       {/* ============================================================== */}
       <div className="hidden lg:flex flex-1 flex-row p-3.5 gap-4 min-h-0 overflow-hidden bg-slate-100/50 dark:bg-zinc-950 transition-colors">
         {/* LEFT COLUMN: AI Panelists */}
@@ -1379,7 +1618,6 @@ export default function LivePitchRoom() {
                 : pitchConfig.investorArchetype}
             </p>
           </div>
-
           <div className="flex flex-col gap-3 overflow-y-auto flex-1 pr-2 custom-scrollbar">
             {pitchConfig.mode !== "solo" &&
               visiblePersonas.map((persona, idx) => (
@@ -1395,7 +1633,6 @@ export default function LivePitchRoom() {
                   }
                 />
               ))}
-
             {pitchConfig.mode === "solo" && (
               <div className="p-4 border border-dashed border-slate-200 dark:border-white/10 rounded-2xl text-center text-slate-500 text-xs mt-2">
                 AI Interruption Disabled.
@@ -1405,56 +1642,32 @@ export default function LivePitchRoom() {
           </div>
         </div>
 
-        {/* CENTER COLUMN: Main Screen, Controls, Chat */}
+        {/* CENTER COLUMN */}
         <div className="flex-1 flex flex-col gap-3.5 min-h-0">
           {/* Main Viewing Area */}
           <div className="flex-1 relative border border-slate-200 dark:border-white/10 shadow-xl dark:shadow-2xl group rounded-[24px] min-h-0 bg-white dark:bg-zinc-900/80 overflow-hidden backdrop-blur-lg transition-colors">
+            {/* Verdict phase overlay on desktop */}
+            <VerdictOverlay
+              verdictPhase={verdictPhase}
+              verdictCountdown={verdictCountdown}
+              verdictMessages={verdictMessages}
+              activeSpeakerName={activeSpeakerName}
+              isSpeaking={isSpeaking}
+            />
+
             {mainView === "slide" ? (
               <div className="w-full h-full relative flex items-center justify-center rounded-[24px] overflow-hidden">
-                {isCapturing ? (
-                  <video
-                    ref={screenRef}
-                    autoPlay
-                    muted
-                    playsInline
-                    className="w-full h-full object-contain bg-black/40"
-                  />
-                ) : pitchConfig.selectedDeck ? (
-                  <iframe
-                    src={getDeckDisplayUrl(pitchConfig.selectedDeck.file_url)}
-                    className="w-full h-full border-none"
-                    title="Pitch Deck"
-                  />
-                ) : (
-                  <div className="text-slate-400 dark:text-slate-500 text-center bg-slate-100 dark:bg-slate-900 w-full h-full flex flex-col items-center justify-center">
-                    <MonitorOff size={64} className="mx-auto mb-2 opacity-50" />
-                    <p className="text-xs font-bold uppercase tracking-widest opacity-50">
-                      No deck selected
-                    </p>
-                  </div>
-                )}
+                <DeckViewer
+                  className="rounded-[24px]"
+                  isCapturing={isCapturing}
+                  screenRef={screenRef}
+                  selectedDeck={pitchConfig?.selectedDeck}
+                  getDeckDisplayUrl={getDeckDisplayUrl}
+                />
               </div>
             ) : (
               <div className="w-full h-full relative flex items-center justify-center rounded-[24px] overflow-hidden">
-                {stream ? (
-                  <video
-                    ref={videoRef}
-                    autoPlay
-                    muted
-                    playsInline
-                    className="w-full h-full object-cover"
-                  />
-                ) : (
-                  <VideoOff
-                    size={64}
-                    className="text-slate-300 dark:text-white/20"
-                  />
-                )}
-                {isPitching && (
-                  <div className="absolute top-4 right-4 bg-rose-500 px-3 py-1 rounded-full text-[9px] font-bold animate-pulse shadow-lg z-10 uppercase tracking-widest text-white">
-                    Vision On
-                  </div>
-                )}
+                <CameraViewer />
               </div>
             )}
 
@@ -1464,13 +1677,13 @@ export default function LivePitchRoom() {
               }
               className="absolute top-4 left-4 px-4 py-2 bg-black/60 hover:bg-black/80 backdrop-blur-md border border-white/10 rounded-xl text-white transition-all z-20 flex items-center gap-2 shadow-lg cursor-pointer"
             >
-              <ArrowRightLeft size={14} />{" "}
+              <ArrowRightLeft size={14} />
               <span className="text-[10px] font-bold uppercase tracking-widest">
                 Swap View
               </span>
             </button>
 
-            {/* Control Bar Overlay (Bottom Center) */}
+            {/* Control Bar */}
             <div className="absolute bottom-6 left-1/2 -translate-x-1/2 flex items-center gap-3 bg-white/95 dark:bg-zinc-900/90 backdrop-blur-xl border border-slate-200 dark:border-white/10 p-2 rounded-2xl shadow-xl dark:shadow-2xl z-20 transition-colors">
               <button
                 onClick={toggleCamera}
@@ -1514,11 +1727,17 @@ export default function LivePitchRoom() {
               <div className="w-px h-8 bg-slate-200 dark:bg-white/10 mx-2" />
               <button
                 onClick={triggerConclusion}
-                disabled={(!isConnected && !isPitching) || isConcluding}
-                className="px-6 h-12 bg-rose-500 text-white text-sm font-bold rounded-xl hover:bg-rose-600 transition-all disabled:bg-slate-200 dark:disabled:bg-slate-700 disabled:opacity-50 shadow-lg shadow-rose-500/20 flex items-center justify-center gap-2 cursor-pointer"
+                disabled={
+                  (!isConnected && !isPitching) || isConcluding || verdictPhase
+                }
+                className="px-6 h-12 bg-rose-500 text-white text-sm font-bold rounded-xl hover:bg-rose-600 transition-all disabled:opacity-50 shadow-lg shadow-rose-500/20 flex items-center justify-center gap-2 cursor-pointer"
               >
                 <VolumeX size={18} />
-                {isConcluding ? "Concluding..." : "End Session"}
+                {verdictPhase
+                  ? "Getting Verdicts..."
+                  : isConcluding
+                    ? "Concluding..."
+                    : "End Session"}
               </button>
             </div>
           </div>
@@ -1533,7 +1752,6 @@ export default function LivePitchRoom() {
                 </span>
               )}
             </div>
-
             <div
               ref={desktopScrollRef}
               className="flex-1 overflow-y-auto space-y-4 pr-2 custom-scrollbar mb-3"
@@ -1571,7 +1789,6 @@ export default function LivePitchRoom() {
                 ))
               )}
             </div>
-
             <form
               onSubmit={handleSendChat}
               className="flex items-center gap-3 shrink-0 mt-auto bg-slate-100/50 dark:bg-zinc-950/50 border border-slate-200 dark:border-white/10 rounded-xl p-1.5 shadow-inner"
@@ -1586,7 +1803,7 @@ export default function LivePitchRoom() {
               <button
                 type="submit"
                 disabled={!isConnected}
-                className="px-4 py-2 bg-sky-500 text-white font-bold text-slate-100 hover:text-white text-xs uppercase tracking-wider rounded-lg hover:bg-sky-600 transition-colors disabled:opacity-50 shadow-md cursor-pointer"
+                className="px-4 py-2 bg-sky-500 text-white font-bold text-xs uppercase tracking-wider rounded-lg hover:bg-sky-600 transition-colors disabled:opacity-50 shadow-md cursor-pointer"
               >
                 Send
               </button>
@@ -1594,9 +1811,9 @@ export default function LivePitchRoom() {
           </div>
         </div>
 
-        {/* RIGHT COLUMN: Deck, Vitals, Analytics */}
+        {/* RIGHT COLUMN */}
         <div className="w-96 shrink-0 flex flex-col gap-3.5 min-h-0 overflow-y-auto custom-scrollbar pr-1">
-          {/* Deck Preview Box */}
+          {/* Deck/Camera Preview (thumbnail, swaps on click) */}
           <div
             className="h-36 shrink-0 relative shadow-xl dark:shadow-2xl border-4 border-slate-250 dark:border-white/10 rounded-[24px] overflow-hidden bg-white dark:bg-zinc-900 cursor-pointer group transition-transform hover:scale-[1.02]"
             onClick={() =>
@@ -1604,52 +1821,23 @@ export default function LivePitchRoom() {
             }
           >
             {mainView === "camera" ? (
-              <div className="w-full h-full relative flex items-center justify-center bg-slate-100 dark:bg-zinc-900 pointer-events-none">
-                {isCapturing ? (
-                  <video
-                    ref={screenRef}
-                    autoPlay
-                    muted
-                    playsInline
-                    className="w-full h-full object-contain"
-                  />
-                ) : pitchConfig.selectedDeck ? (
-                  <iframe
-                    src={getDeckDisplayUrl(pitchConfig.selectedDeck.file_url)}
-                    className="w-full h-full border-none opacity-90 scale-105"
-                    title="Pitch Deck"
-                  />
-                ) : (
-                  <div className="text-slate-400 dark:text-white/20 text-center">
-                    <MonitorOff size={32} className="mx-auto mb-2" />
-                    <p className="text-[10px] font-bold uppercase tracking-widest">
-                      No Deck
-                    </p>
-                  </div>
-                )}
+              <div className="w-full h-full pointer-events-none">
+                <DeckViewer
+                  className="rounded-[24px]"
+                  isCapturing={isCapturing}
+                  screenRef={screenRef}
+                  selectedDeck={pitchConfig?.selectedDeck}
+                  getDeckDisplayUrl={getDeckDisplayUrl}
+                />
               </div>
             ) : (
-              <div className="w-full h-full relative flex items-center justify-center pointer-events-none">
-                {stream ? (
-                  <video
-                    ref={videoRef}
-                    autoPlay
-                    muted
-                    playsInline
-                    className="w-full h-full object-cover"
-                  />
-                ) : (
-                  <VideoOff
-                    size={32}
-                    className="text-slate-300 dark:text-white/20"
-                  />
-                )}
+              <div className="w-full h-full pointer-events-none">
+                <CameraViewer />
               </div>
             )}
-
             <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center backdrop-blur-sm">
               <ArrowRightLeft className="text-white drop-shadow-xl" size={32} />
-              <span className="absolute bottom-4 text-[10px] font-bold uppercase tracking-widest text-white shadow-black drop-shadow-lg">
+              <span className="absolute bottom-4 text-[10px] font-bold uppercase tracking-widest text-white drop-shadow-lg">
                 Switch to Main Screen
               </span>
             </div>
@@ -1660,79 +1848,60 @@ export default function LivePitchRoom() {
             <div className="flex items-center gap-2 text-slate-500 dark:text-white/50 text-[10px] font-bold uppercase tracking-widest shrink-0 mb-2.5">
               <Activity size={14} /> Live Session Monitor
             </div>
-
             <h4 className="text-[11px] font-bold text-slate-700 dark:text-white/80 uppercase tracking-widest mb-3">
               Boardroom Vitals
             </h4>
-
             <div className="space-y-2.5">
-              <div className="flex justify-between items-center text-sm">
-                <span className="text-slate-500 dark:text-slate-400 font-medium">
-                  Brain Link
-                </span>
-                <span
-                  className={cn(
-                    "text-[10px] font-bold uppercase tracking-wider",
-                    isConnected
-                      ? "text-emerald-500 dark:text-emerald-450"
-                      : "text-rose-500 dark:text-rose-455",
-                  )}
+              {[
+                {
+                  label: "Brain Link",
+                  val: isConnected ? "Connected" : "Offline",
+                  active: isConnected,
+                },
+                {
+                  label: "Audio Pipeline",
+                  val: stream && !isMicMuted ? "Active" : "Muted",
+                  active: !!(stream && !isMicMuted),
+                },
+                {
+                  label: "Vision Input",
+                  val: stream ? "Active" : "Disabled",
+                  active: !!stream,
+                },
+                {
+                  label: "Interactive Sharing",
+                  val: isCapturing ? "Casting" : "Inactive",
+                  active: isCapturing,
+                  amber: true,
+                },
+              ].map(({ label, val, active, amber }) => (
+                <div
+                  key={label}
+                  className="flex justify-between items-center text-sm"
                 >
-                  {isConnected ? "Connected" : "Offline"}
-                </span>
-              </div>
-
-              <div className="flex justify-between items-center text-sm">
-                <span className="text-slate-500 dark:text-slate-455 font-medium">
-                  Audio Pipeline
-                </span>
-                <span
-                  className={cn(
-                    "text-[10px] font-bold uppercase tracking-wider",
-                    stream && !isMicMuted
-                      ? "text-sky-600 dark:text-sky-400"
-                      : "text-rose-500 dark:text-rose-455",
-                  )}
-                >
-                  {stream && !isMicMuted ? "Active" : "Muted"}
-                </span>
-              </div>
-
-              <div className="flex justify-between items-center text-sm">
-                <span className="text-slate-500 dark:text-slate-455 font-medium">
-                  Vision Input
-                </span>
-                <span
-                  className={cn(
-                    "text-[10px] font-bold uppercase tracking-wider",
-                    stream
-                      ? "text-sky-600 dark:text-sky-400"
-                      : "text-slate-400 dark:text-slate-500",
-                  )}
-                >
-                  {stream ? "Active" : "Disabled"}
-                </span>
-              </div>
-
-              <div className="flex justify-between items-center text-sm">
-                <span className="text-slate-500 dark:text-slate-455 font-medium">
-                  Interactive Sharing
-                </span>
-                <span
-                  className={cn(
-                    "text-[10px] font-bold uppercase tracking-wider",
-                    isCapturing
-                      ? "text-amber-500 dark:text-amber-400"
-                      : "text-slate-400 dark:text-slate-500",
-                  )}
-                >
-                  {isCapturing ? "Casting" : "Inactive"}
-                </span>
-              </div>
+                  <span className="text-slate-500 dark:text-slate-400 font-medium">
+                    {label}
+                  </span>
+                  <span
+                    className={cn(
+                      "text-[10px] font-bold uppercase tracking-wider",
+                      amber
+                        ? active
+                          ? "text-amber-500 dark:text-amber-400"
+                          : "text-slate-400 dark:text-slate-500"
+                        : active
+                          ? "text-emerald-500 dark:text-emerald-450"
+                          : "text-rose-500 dark:text-rose-455",
+                    )}
+                  >
+                    {val}
+                  </span>
+                </div>
+              ))}
             </div>
           </div>
 
-          {/* Data Chart Area */}
+          {/* Data Chart */}
           {(() => {
             const userMsgCount = messages.filter(
               (m) => m.type === "user",
@@ -1743,13 +1912,11 @@ export default function LivePitchRoom() {
               totalMsgCount > 0
                 ? Math.round((userMsgCount / totalMsgCount) * 100)
                 : 50;
-
             return (
               <div className="bg-white/70 dark:bg-zinc-900/40 backdrop-blur-xl rounded-[24px] p-4 border border-slate-200 dark:border-white/5 flex flex-col justify-between shadow-xl min-h-[125px] transition-colors">
                 <h4 className="text-[11px] font-bold text-slate-700 dark:text-white/80 uppercase tracking-widest mb-3">
                   Data Chart
                 </h4>
-
                 <div className="flex items-end justify-between h-14 gap-3 pb-2 border-b border-slate-200 dark:border-white/10">
                   {[
                     dialogueBalance,
@@ -1782,54 +1949,64 @@ export default function LivePitchRoom() {
       </div>
 
       {/* ============================================================== */}
-      {/* MOBILE & TABLET LAYOUT (Toggleable tab tray Zoom/Meet style)   */}
+      {/* MOBILE & TABLET LAYOUT                                         */}
       {/* ============================================================== */}
-      <div className="flex lg:hidden flex-1 flex-col p-2 md:p-3 min-h-0 overflow-hidden bg-slate-100/50 dark:bg-zinc-950 transition-colors">
-        {/* Tab 1: Room Workspace (Main Pitching Screen & PIP Overlays) */}
+      <div className="flex lg:hidden flex-1 flex-col min-h-0 overflow-hidden bg-slate-100/50 dark:bg-zinc-950 transition-colors">
+        {/* Tab 1: Room */}
         {activeMobileTab === "room" && (
-          <div className="flex-1 flex flex-col min-h-0 justify-start">
-            {/* Box 1: Screen Container & Controls Row */}
-            <div className="bg-white/70 dark:bg-zinc-900/40 backdrop-blur-xl border border-slate-200 dark:border-white/5 rounded-2xl p-2.5 flex flex-col shadow-sm shrink-0 mb-2">
-              {/* Screen Container — fills available height on mobile for max real estate */}
+          <div className="flex-1 flex flex-col min-h-0 p-2 gap-2 overflow-hidden">
+            {/* Video + Controls card */}
+            <div className="bg-white/70 dark:bg-zinc-900/40 backdrop-blur-xl border border-slate-200 dark:border-white/5 rounded-2xl p-2 flex flex-col shadow-sm shrink-0">
+              {/* Screen container */}
               <div
-                className="w-full relative border border-slate-200 dark:border-zinc-800 shadow-xl rounded-xl bg-slate-900 overflow-hidden flex items-center justify-center"
-                style={{ aspectRatio: "16/9", maxHeight: "35vh" }}
+                className="w-full relative border border-slate-200 dark:border-zinc-800 rounded-xl bg-slate-900 overflow-hidden flex items-center justify-center"
+                style={{ aspectRatio: "16/9", maxHeight: "32vh" }}
               >
-                {mainView === "slide" ? (
-                  // --- SLIDE VIEW (Active) ---
-                  <div className="w-full h-full relative flex items-center justify-center">
-                    {isCapturing ? (
-                      <video
-                        ref={screenRef}
-                        autoPlay
-                        muted
-                        playsInline
-                        className="w-full h-full object-contain"
-                      />
-                    ) : pitchConfig.selectedDeck ? (
-                      <iframe
-                        src={getDeckDisplayUrl(
-                          pitchConfig.selectedDeck.file_url,
-                        )}
-                        className="w-full h-full border-none"
-                        title="Pitch Deck"
-                      />
-                    ) : (
-                      <div className="text-slate-500 text-center">
-                        <MonitorOff
-                          size={40}
-                          className="mx-auto mb-2 opacity-50"
-                        />
-                        <p className="text-[10px] font-bold uppercase tracking-widest opacity-50">
-                          No deck selected
-                        </p>
+                {/* Verdict overlay on mobile too */}
+                <AnimatePresence>
+                  {verdictPhase && (
+                    <motion.div
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      className="absolute inset-0 z-30 bg-slate-950/90 backdrop-blur-sm flex flex-col items-center justify-center p-3 text-center"
+                    >
+                      <div className="inline-flex items-center gap-1.5 px-3 py-1 bg-sky-500/20 border border-sky-500/40 rounded-full mb-2">
+                        <span className="w-1.5 h-1.5 rounded-full bg-sky-400 animate-pulse" />
+                        <span className="text-sky-300 text-[9px] font-bold uppercase tracking-widest">
+                          Panel Verdict
+                        </span>
                       </div>
-                    )}
+                      {isSpeaking && (
+                        <div className="flex items-center gap-1.5 mb-2">
+                          <VoiceWaveform isActive={true} />
+                          <span className="text-sky-300 text-[9px] font-medium">
+                            {activeSpeakerName}…
+                          </span>
+                        </div>
+                      )}
+                      <p className="text-slate-400 text-[9px]">
+                        Closing in{" "}
+                        <span className="text-sky-400 font-bold">
+                          {verdictCountdown}s
+                        </span>
+                      </p>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
 
-                    {/* Camera PIP Thumbnail Overlay (Absolute Floating zoomed Zoom-style, ALWAYS render to enable switching) */}
+                {mainView === "slide" ? (
+                  <div className="w-full h-[70vh] relative">
+                    <DeckViewer
+                      className="rounded-[24px]"
+                      isCapturing={isCapturing}
+                      screenRef={screenRef}
+                      selectedDeck={pitchConfig?.selectedDeck}
+                      getDeckDisplayUrl={getDeckDisplayUrl}
+                    />
+                    {/* Camera PIP */}
                     <div
                       onClick={() => setMainView("camera")}
-                      className="absolute bottom-2 right-2 w-24 h-16 sm:w-32 sm:h-20 rounded-lg border border-white/20 shadow-2xl overflow-hidden cursor-pointer z-20 hover:scale-105 transition-all bg-black/80 flex items-center justify-center"
+                      className="absolute bottom-2 right-2 w-20 h-14 sm:w-28 rounded-lg border border-white/20 shadow-2xl overflow-hidden cursor-pointer z-20 hover:scale-105 transition-all bg-black/80 flex items-center justify-center"
                     >
                       {stream ? (
                         <video
@@ -1837,13 +2014,13 @@ export default function LivePitchRoom() {
                           autoPlay
                           muted
                           playsInline
-                          className="w-full h-full object-cover animate-fade-in"
+                          className="w-full h-full object-cover"
                         />
                       ) : (
                         <div className="flex flex-col items-center justify-center text-white/40">
                           <VideoOff size={12} />
                           <span className="text-[6px] font-bold uppercase tracking-wider mt-0.5">
-                            Camera Off
+                            Off
                           </span>
                         </div>
                       )}
@@ -1853,29 +2030,12 @@ export default function LivePitchRoom() {
                     </div>
                   </div>
                 ) : (
-                  // --- CAMERA VIEW (Active) ---
-                  <div className="w-full h-full relative flex items-center justify-center">
-                    {stream ? (
-                      <video
-                        ref={videoRef}
-                        autoPlay
-                        muted
-                        playsInline
-                        className="w-full h-full object-cover"
-                      />
-                    ) : (
-                      <VideoOff size={40} className="text-slate-650" />
-                    )}
-                    {isPitching && (
-                      <div className="absolute top-2 left-2 bg-rose-500 px-2 py-0.5 rounded-full text-[8px] font-bold animate-pulse text-white uppercase tracking-widest z-10">
-                        Vision
-                      </div>
-                    )}
-
-                    {/* Slides PIP Thumbnail Overlay */}
+                  <div className="w-full h-full relative">
+                    <CameraViewer />
+                    {/* Slides PIP */}
                     <div
                       onClick={() => setMainView("slide")}
-                      className="absolute bottom-2 right-2 w-24 h-16 sm:w-32 sm:h-20 rounded-lg border border-white/20 shadow-2xl overflow-hidden cursor-pointer z-20 hover:scale-105 transition-all bg-black/80 flex items-center justify-center"
+                      className="absolute bottom-2 right-2 w-20 h-14 sm:w-28 rounded-lg border border-white/20 shadow-2xl overflow-hidden cursor-pointer z-20 hover:scale-105 transition-all bg-black/80 flex items-center justify-center"
                     >
                       {isCapturing ? (
                         <video
@@ -1891,7 +2051,7 @@ export default function LivePitchRoom() {
                             pitchConfig.selectedDeck.file_url,
                           )}
                           className="w-full h-full border-none pointer-events-none opacity-80"
-                          title="Pitch Deck Preview"
+                          title="Deck Preview"
                         />
                       ) : (
                         <MonitorOff size={14} className="text-white/40" />
@@ -1900,92 +2060,99 @@ export default function LivePitchRoom() {
                   </div>
                 )}
 
-                {/* Swap View Button Overlay (Top Left) */}
                 <button
                   onClick={() =>
                     setMainView((v) => (v === "slide" ? "camera" : "slide"))
                   }
-                  className="absolute top-2.5 left-2.5 px-2.5 py-1 bg-black/60 hover:bg-black/80 backdrop-blur-md border border-white/10 rounded-lg text-white transition-all z-20 flex items-center gap-1.5 shadow-md cursor-pointer"
+                  className="absolute top-2 left-2 px-2 py-1 bg-black/60 hover:bg-black/80 backdrop-blur-md border border-white/10 rounded-lg text-white transition-all z-20 flex items-center gap-1 shadow-md cursor-pointer"
                 >
-                  <ArrowRightLeft size={10} />{" "}
+                  <ArrowRightLeft size={10} />
                   <span className="text-[8px] font-bold uppercase tracking-wider">
-                    Swap View
+                    Swap
                   </span>
                 </button>
               </div>
 
-              {/* Google Meet & Zoom Style bottom tray controls */}
-              <div className="flex items-center justify-center gap-3 mt-3 w-full">
+              {/* Controls row */}
+              <div className="flex items-center justify-center gap-2 mt-2 w-full">
                 <button
                   onClick={toggleCamera}
                   className={cn(
-                    "w-11 h-11 rounded-xl transition-all flex items-center justify-center cursor-pointer",
+                    "w-10 h-10 rounded-xl transition-all flex items-center justify-center cursor-pointer shrink-0",
                     stream
-                      ? "bg-slate-100 dark:bg-zinc-800 text-slate-800 dark:text-white hover:bg-slate-200 dark:hover:bg-zinc-700"
+                      ? "bg-slate-100 dark:bg-zinc-800 text-slate-800 dark:text-white"
                       : "bg-rose-500/20 text-rose-500",
                   )}
                 >
-                  {stream ? <Video size={18} /> : <VideoOff size={18} />}
+                  {stream ? <Video size={17} /> : <VideoOff size={17} />}
                 </button>
                 <button
                   onClick={toggleMic}
                   className={cn(
-                    "w-11 h-11 rounded-xl transition-all flex items-center justify-center cursor-pointer",
+                    "w-10 h-10 rounded-xl transition-all flex items-center justify-center cursor-pointer shrink-0",
                     !isMicMuted
-                      ? "bg-sky-500 text-white shadow-md shadow-sky-500/20 hover:bg-sky-600"
+                      ? "bg-sky-500 text-white shadow-md shadow-sky-500/20"
                       : "bg-rose-500/20 text-rose-500",
                   )}
                 >
-                  {!isMicMuted ? <Mic size={18} /> : <MicOff size={18} />}
+                  {!isMicMuted ? <Mic size={17} /> : <MicOff size={17} />}
                 </button>
                 <button
                   onClick={toggleScreenShare}
                   className={cn(
-                    "w-11 h-11 rounded-xl transition-all flex items-center justify-center cursor-pointer",
+                    "w-10 h-10 rounded-xl transition-all flex items-center justify-center cursor-pointer shrink-0",
                     isCapturing
                       ? "bg-emerald-500 text-white shadow-lg"
-                      : "bg-slate-100 dark:bg-zinc-800 text-slate-800 dark:text-white hover:bg-slate-200 dark:hover:bg-zinc-700",
+                      : "bg-slate-100 dark:bg-zinc-800 text-slate-800 dark:text-white",
                   )}
                 >
                   {isCapturing ? (
-                    <Monitor size={18} />
+                    <Monitor size={17} />
                   ) : (
-                    <MonitorOff size={18} />
+                    <MonitorOff size={17} />
                   )}
                 </button>
-                <div className="w-px h-6 bg-slate-200 dark:bg-white/10 mx-1" />
+                <div className="w-px h-6 bg-slate-200 dark:bg-white/10 mx-1 shrink-0" />
                 <button
                   onClick={triggerConclusion}
-                  disabled={(!isConnected && !isPitching) || isConcluding}
-                  className="px-5 h-11 bg-rose-500 text-white text-xs font-bold rounded-xl hover:bg-rose-600 shadow-md flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-50"
+                  disabled={
+                    (!isConnected && !isPitching) ||
+                    isConcluding ||
+                    verdictPhase
+                  }
+                  className="flex-1 min-w-0 h-10 bg-rose-500 text-white text-xs font-bold rounded-xl hover:bg-rose-600 shadow-md flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-50 px-2"
                 >
-                  <VolumeX className="w-4 h-4" />
-                  {isConcluding ? "Concluding..." : "End Session"}
+                  <VolumeX className="w-4 h-4 shrink-0" />
+                  <span className="truncate">
+                    {verdictPhase
+                      ? "Getting Verdicts..."
+                      : isConcluding
+                        ? "Concluding..."
+                        : "End Session"}
+                  </span>
                 </button>
               </div>
 
-              {/* Small informative prompt below controls */}
-              <div className="text-center mt-2 text-[9px] text-slate-400 dark:text-zinc-500 font-bold uppercase tracking-widest animate-pulse shrink-0">
+              <p className="text-center mt-1.5 text-[9px] text-slate-400 dark:text-zinc-500 font-bold uppercase tracking-widest">
                 {mainView === "slide"
-                  ? "Tap Floating camera feed to switch screen"
-                  : "Tap Floating deck to view slides"}
-              </div>
+                  ? "Tap camera feed to switch"
+                  : "Tap deck thumbnail to view slides"}
+              </p>
             </div>
 
-            {/* Box 2: Messages List Card */}
-            <div className="flex-1 min-h-[140px] bg-white/70 dark:bg-zinc-900/60 backdrop-blur-xl border border-slate-200 dark:border-zinc-800/50 rounded-2xl p-3 flex flex-col shadow-inner transition-colors portrait:flex landscape:hidden overflow-hidden mb-2">
+            {/* Chat messages */}
+            <div className="flex-1 min-h-0 bg-white/70 dark:bg-zinc-900/60 backdrop-blur-xl border border-slate-200 dark:border-zinc-800/50 rounded-2xl p-3 flex flex-col shadow-inner transition-colors overflow-hidden">
               <div className="flex items-center gap-2 text-slate-500 dark:text-white/50 text-[9px] font-bold uppercase tracking-widest mb-2 shrink-0">
-                <MessageSquare size={12} /> Live Room Chat & Transcript
+                <MessageSquare size={12} /> Live Chat & Transcript
                 {isSpeaking && (
-                  <span className="text-sky-500 dark:text-sky-400 animate-pulse ml-auto font-medium text-[8px]">
-                    AI is responding...
+                  <span className="text-sky-500 dark:text-sky-400 animate-pulse ml-auto text-[8px] font-medium">
+                    AI responding...
                   </span>
                 )}
               </div>
-
               <div
                 ref={mobileEmbeddedScrollRef}
-                className="flex-1 overflow-y-auto space-y-2 pr-1 custom-scrollbar mb-1 min-h-0"
+                className="flex-1 overflow-y-auto space-y-2 pr-1 custom-scrollbar min-h-0"
               >
                 {messages.length === 0 ? (
                   <p className="text-slate-400 dark:text-white/30 text-[10px] text-center mt-4 font-bold uppercase tracking-wider opacity-60">
@@ -2020,35 +2187,33 @@ export default function LivePitchRoom() {
                   ))
                 )}
               </div>
-            </div>
-
-            {/* Box 3: Chat Message Input Card */}
-            <form
-              onSubmit={handleSendChat}
-              className="shrink-0 bg-white/70 dark:bg-zinc-900/60 backdrop-blur-xl border border-slate-200 dark:border-zinc-800/50 rounded-xl p-1 flex items-center gap-2 portrait:flex landscape:hidden"
-            >
-              <input
-                type="text"
-                value={chatInput}
-                onChange={(e) => setChatInput(e.target.value)}
-                placeholder="Type a message to panel..."
-                className="flex-1 bg-transparent border-none focus:ring-0 text-xs text-slate-800 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500 px-2 outline-none"
-              />
-              <button
-                type="submit"
-                disabled={!isConnected}
-                className="px-3.5 py-1.5 bg-sky-500 text-white font-bold text-slate-100 hover:text-white text-[10px] uppercase tracking-wider rounded hover:bg-sky-600 transition-colors disabled:opacity-50 cursor-pointer shadow-sm"
+              <form
+                onSubmit={handleSendChat}
+                className="shrink-0 mt-2 bg-slate-100/50 dark:bg-zinc-950/50 border border-slate-200 dark:border-white/10 rounded-xl p-1 flex items-center gap-2"
               >
-                Send
-              </button>
-            </form>
+                <input
+                  type="text"
+                  value={chatInput}
+                  onChange={(e) => setChatInput(e.target.value)}
+                  placeholder="Message the panel..."
+                  className="flex-1 bg-transparent border-none focus:ring-0 text-xs text-slate-800 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500 px-2 outline-none min-w-0"
+                />
+                <button
+                  type="submit"
+                  disabled={!isConnected}
+                  className="shrink-0 px-3 py-1.5 bg-sky-500 text-white font-bold text-[10px] uppercase tracking-wider rounded hover:bg-sky-600 transition-colors disabled:opacity-50 cursor-pointer shadow-sm"
+                >
+                  Send
+                </button>
+              </form>
+            </div>
           </div>
         )}
 
-        {/* Tab 2: AI Investor Panelists List (Full viewport, clean and spacious) */}
+        {/* Tab 2: Panelists */}
         {activeMobileTab === "panelists" && (
-          <div className="flex-1 flex flex-col min-h-0 bg-white/70 dark:bg-zinc-900/40 backdrop-blur-xl border border-slate-200 dark:border-zinc-800/50 rounded-3xl p-5 shadow-xl transition-colors">
-            <div className="mb-5 shrink-0">
+          <div className="flex-1 flex flex-col min-h-0 m-2 bg-white/70 dark:bg-zinc-900/40 backdrop-blur-xl border border-slate-200 dark:border-zinc-800/50 rounded-3xl p-4 shadow-xl transition-colors overflow-hidden h-[60vh]">
+            <div className="mb-4 shrink-0">
               <h3 className="text-xs font-bold text-slate-700 dark:text-white flex items-center gap-2 uppercase tracking-widest">
                 {pitchConfig.mode === "solo"
                   ? "Solo Practice"
@@ -2063,10 +2228,9 @@ export default function LivePitchRoom() {
                   : pitchConfig.investorArchetype}
               </p>
             </div>
-
             <div className="flex-1 overflow-y-auto custom-scrollbar pr-1 min-h-0">
               {pitchConfig.mode !== "solo" ? (
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 justify-items-center pb-4">
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 justify-items-center pb-4">
                   {visiblePersonas.map((persona, idx) => (
                     <AIPanelist
                       key={idx}
@@ -2082,18 +2246,57 @@ export default function LivePitchRoom() {
                   ))}
                 </div>
               ) : (
-                <div className="p-12 border border-dashed border-slate-200 dark:border-white/10 rounded-2xl text-center text-slate-500 text-xs mt-10">
+                <div className="p-10 border border-dashed border-slate-200 dark:border-white/10 rounded-2xl text-center text-slate-500 text-xs mt-8">
                   AI Interruption Disabled.
                   <br /> Record your pitch uninterrupted.
                 </div>
               )}
             </div>
+            {/* Verdict messages in panelists tab when verdict phase active */}
+            {verdictPhase && verdictMessages.length > 0 && (
+              <div className="mt-3 shrink-0">
+                <p className="text-[9px] font-bold uppercase tracking-widest text-sky-500 mb-2">
+                  Verdicts
+                </p>
+                <div className="space-y-2 max-h-32 overflow-y-auto">
+                  {verdictMessages.map((vm, i) => (
+                    <div
+                      key={i}
+                      className="flex items-start gap-2 bg-white/50 dark:bg-zinc-800/60 rounded-xl p-2"
+                    >
+                      <img
+                        src={getPanelistAvatar(vm.speaker)}
+                        alt={vm.speaker}
+                        className="w-7 h-7 rounded-full object-cover shrink-0"
+                      />
+                      <div>
+                        <span
+                          className={cn(
+                            "text-[8px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded-full mr-1",
+                            vm.verdict === "invest"
+                              ? "bg-emerald-500/20 text-emerald-500"
+                              : vm.verdict === "pass"
+                                ? "bg-rose-500/20 text-rose-500"
+                                : "bg-amber-500/20 text-amber-500",
+                          )}
+                        >
+                          {vm.verdict}
+                        </span>
+                        <span className="text-[10px] text-slate-600 dark:text-slate-300">
+                          {vm.text}
+                        </span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         )}
 
-        {/* Tab 3: Message / Chat Transcript (Native messaging layout style) */}
+        {/* Tab 3: Chat */}
         {activeMobileTab === "chat" && (
-          <div className="flex-1 flex flex-col min-h-0 bg-white/70 dark:bg-zinc-900/60 backdrop-blur-xl border border-slate-200 dark:border-zinc-800/50 rounded-3xl p-4 shadow-xl transition-colors">
+          <div className="flex-1 flex flex-col min-h-0 m-2 bg-white/70 dark:bg-zinc-900/60 backdrop-blur-xl border border-slate-200 dark:border-zinc-800/50 rounded-3xl p-4 shadow-xl transition-colors overflow-hidden">
             <div className="flex items-center gap-2 text-slate-500 dark:text-white/50 text-[10px] font-bold uppercase tracking-widest mb-3 shrink-0">
               <MessageSquare size={14} /> Chatbox & Transcript
               {isSpeaking && (
@@ -2102,10 +2305,9 @@ export default function LivePitchRoom() {
                 </span>
               )}
             </div>
-
             <div
               ref={mobileFullScrollRef}
-              className="flex-1 overflow-y-auto space-y-4 pr-1 custom-scrollbar mb-3 min-h-0"
+              className="flex-1 overflow-y-auto space-y-3 pr-1 custom-scrollbar min-h-0"
             >
               {messages.length === 0 ? (
                 <p className="text-slate-400 dark:text-white/30 text-xs text-center mt-8 font-medium tracking-wide">
@@ -2140,22 +2342,21 @@ export default function LivePitchRoom() {
                 ))
               )}
             </div>
-
             <form
               onSubmit={handleSendChat}
-              className="flex items-center gap-3 shrink-0 mt-auto bg-slate-100/50 dark:bg-zinc-950/50 border border-slate-200 dark:border-white/10 rounded-xl p-1.5 shadow-inner"
+              className="flex items-center gap-2 shrink-0 mt-3 bg-slate-100/50 dark:bg-zinc-950/50 border border-slate-200 dark:border-white/10 rounded-xl p-1.5 shadow-inner"
             >
               <input
                 type="text"
                 value={chatInput}
                 onChange={(e) => setChatInput(e.target.value)}
                 placeholder="Type a message to the panel..."
-                className="flex-1 bg-transparent border-none focus:ring-0 text-sm text-slate-800 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500 px-3 outline-none"
+                className="flex-1 bg-transparent border-none focus:ring-0 text-sm text-slate-800 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500 px-3 outline-none min-w-0"
               />
               <button
                 type="submit"
                 disabled={!isConnected}
-                className="px-4 py-2 bg-sky-500 text-white font-bold text-slate-100 hover:text-white text-xs uppercase tracking-wider rounded-lg hover:bg-sky-600 transition-colors disabled:opacity-50 shadow-md cursor-pointer"
+                className="shrink-0 px-4 py-2 bg-sky-500 text-white font-bold text-xs uppercase tracking-wider rounded-lg hover:bg-sky-600 transition-colors disabled:opacity-50 shadow-md cursor-pointer"
               >
                 Send
               </button>
@@ -2163,86 +2364,66 @@ export default function LivePitchRoom() {
           </div>
         )}
 
-        {/* Tab 4: Vitals and Charts Monitor (Clean metrics display) */}
+        {/* Tab 4: Vitals */}
         {activeMobileTab === "vitals" && (
-          <div className="flex-1 flex flex-col gap-4 overflow-y-auto pr-1 custom-scrollbar min-h-0">
-            {/* Live Boardroom Vitals */}
-            <div className="bg-white/70 dark:bg-zinc-900/45 backdrop-blur-xl rounded-[24px] p-5 border border-slate-200 dark:border-zinc-850 shadow-xl flex flex-col shrink-0 transition-colors">
-              <div className="flex items-center gap-2 text-slate-500 dark:text-white/50 text-[10px] font-bold uppercase tracking-widest shrink-0 mb-3.5">
+          <div className="flex-1 flex flex-col gap-3 overflow-y-auto px-2 pt-2 pb-2 custom-scrollbar min-h-0">
+            <div className="bg-white/70 dark:bg-zinc-900/45 backdrop-blur-xl rounded-[24px] p-4 border border-slate-200 dark:border-zinc-850 shadow-xl flex flex-col shrink-0 transition-colors">
+              <div className="flex items-center gap-2 text-slate-500 dark:text-white/50 text-[10px] font-bold uppercase tracking-widest shrink-0 mb-3">
                 <Activity size={14} /> Live Session Monitor
               </div>
-              <h4 className="text-[11px] font-bold text-slate-700 dark:text-white/80 uppercase tracking-widest mb-3.5">
+              <h4 className="text-[11px] font-bold text-slate-700 dark:text-white/80 uppercase tracking-widest mb-3">
                 Boardroom Vitals
               </h4>
-
               <div className="space-y-3">
-                <div className="flex justify-between items-center text-sm">
-                  <span className="text-slate-500 dark:text-slate-455 font-medium">
-                    Brain Link
-                  </span>
-                  <span
-                    className={cn(
-                      "text-[10px] font-bold uppercase tracking-wider",
-                      isConnected
-                        ? "text-emerald-500 dark:text-emerald-450"
-                        : "text-rose-500 dark:text-rose-455",
-                    )}
+                {[
+                  {
+                    label: "Brain Link",
+                    val: isConnected ? "Connected" : "Offline",
+                    active: isConnected,
+                  },
+                  {
+                    label: "Audio Pipeline",
+                    val: stream && !isMicMuted ? "Active" : "Muted",
+                    active: !!(stream && !isMicMuted),
+                  },
+                  {
+                    label: "Vision Input",
+                    val: stream ? "Active" : "Disabled",
+                    active: !!stream,
+                  },
+                  {
+                    label: "Interactive Sharing",
+                    val: isCapturing ? "Casting" : "Inactive",
+                    active: isCapturing,
+                    amber: true,
+                  },
+                ].map(({ label, val, active, amber }) => (
+                  <div
+                    key={label}
+                    className="flex justify-between items-center text-sm"
                   >
-                    {isConnected ? "Connected" : "Offline"}
-                  </span>
-                </div>
-
-                <div className="flex justify-between items-center text-sm">
-                  <span className="text-slate-500 dark:text-slate-455 font-medium">
-                    Audio Pipeline
-                  </span>
-                  <span
-                    className={cn(
-                      "text-[10px] font-bold uppercase tracking-wider",
-                      stream && !isMicMuted
-                        ? "text-sky-600 dark:text-sky-400"
-                        : "text-rose-500 dark:text-rose-455",
-                    )}
-                  >
-                    {stream && !isMicMuted ? "Active" : "Muted"}
-                  </span>
-                </div>
-
-                <div className="flex justify-between items-center text-sm">
-                  <span className="text-slate-500 dark:text-slate-455 font-medium">
-                    Vision Input
-                  </span>
-                  <span
-                    className={cn(
-                      "text-[10px] font-bold uppercase tracking-wider",
-                      stream
-                        ? "text-sky-600 dark:text-sky-400"
-                        : "text-slate-400 dark:text-slate-500",
-                    )}
-                  >
-                    {stream ? "Active" : "Disabled"}
-                  </span>
-                </div>
-
-                <div className="flex justify-between items-center text-sm">
-                  <span className="text-slate-500 dark:text-slate-455 font-medium">
-                    Interactive Sharing
-                  </span>
-                  <span
-                    className={cn(
-                      "text-[10px] font-bold uppercase tracking-wider",
-                      isCapturing
-                        ? "text-amber-500 dark:text-amber-400"
-                        : "text-slate-400 dark:text-slate-500",
-                    )}
-                  >
-                    {isCapturing ? "Casting" : "Inactive"}
-                  </span>
-                </div>
+                    <span className="text-slate-500 dark:text-slate-455 font-medium">
+                      {label}
+                    </span>
+                    <span
+                      className={cn(
+                        "text-[10px] font-bold uppercase tracking-wider",
+                        amber
+                          ? active
+                            ? "text-amber-500 dark:text-amber-400"
+                            : "text-slate-400 dark:text-slate-500"
+                          : active
+                            ? "text-sky-600 dark:text-sky-400"
+                            : "text-rose-500 dark:text-rose-455",
+                      )}
+                    >
+                      {val}
+                    </span>
+                  </div>
+                ))}
               </div>
             </div>
 
-            {/* Dialogue Analytics Data Chart */}
             {(() => {
               const userMsgCount = messages.filter(
                 (m) => m.type === "user",
@@ -2253,14 +2434,12 @@ export default function LivePitchRoom() {
                 totalMsgCount > 0
                   ? Math.round((userMsgCount / totalMsgCount) * 100)
                   : 50;
-
               return (
-                <div className="bg-white/70 dark:bg-zinc-900/45 backdrop-blur-xl rounded-[24px] p-5 border border-slate-200 dark:border-zinc-850 flex flex-col justify-between shadow-xl min-h-[140px] shrink-0 transition-colors">
-                  <h4 className="text-[11px] font-bold text-slate-700 dark:text-white/80 uppercase tracking-widest mb-3.5">
+                <div className="bg-white/70 dark:bg-zinc-900/45 backdrop-blur-xl rounded-[24px] p-4 border border-slate-200 dark:border-zinc-850 flex flex-col justify-between shadow-xl shrink-0 transition-colors">
+                  <h4 className="text-[11px] font-bold text-slate-700 dark:text-white/80 uppercase tracking-widest mb-3">
                     Data Chart
                   </h4>
-
-                  <div className="flex items-end justify-between h-20 gap-3.5 pb-2 border-b border-slate-200 dark:border-white/10">
+                  <div className="flex items-end justify-between h-20 gap-3 pb-2 border-b border-slate-200 dark:border-white/10">
                     {[
                       dialogueBalance,
                       100 - dialogueBalance,
@@ -2271,7 +2450,7 @@ export default function LivePitchRoom() {
                     ].map((val, i) => (
                       <div
                         key={i}
-                        className="flex-1 flex flex-col justify-end group animate-all"
+                        className="flex-1 flex flex-col justify-end group"
                       >
                         <div
                           className="w-full rounded-t-sm transition-all duration-500 bg-gradient-to-t from-sky-600 to-sky-400 opacity-80 group-hover:opacity-100"
@@ -2280,7 +2459,7 @@ export default function LivePitchRoom() {
                       </div>
                     ))}
                   </div>
-                  <div className="flex justify-between text-[9px] font-bold text-slate-400 dark:text-white/40 uppercase tracking-widest mt-3.5">
+                  <div className="flex justify-between text-[9px] font-bold text-slate-400 dark:text-white/40 uppercase tracking-widest mt-3">
                     <span>Founder</span>
                     <span>Dynamics</span>
                     <span>Panel</span>
@@ -2293,52 +2472,119 @@ export default function LivePitchRoom() {
       </div>
 
       {/* ============================================================== */}
-      {/* MOBILE BOTTOM TAB BAR TRAY (Google Meet / Zoom responsive bar) */}
+      {/* MOBILE BOTTOM TAB BAR                                          */}
       {/* ============================================================== */}
-      <div className="lg:hidden flex justify-around items-center bg-white dark:bg-zinc-900 border-t border-slate-200 dark:border-zinc-800 py-3 px-4 shrink-0 shadow-lg z-30 transition-colors">
-        <button
-          onClick={() => setActiveMobileTab("room")}
-          className={cn(
-            "flex flex-col items-center gap-1 cursor-pointer transition-all",
-            activeMobileTab === "room"
-              ? "text-sky-500 scale-105"
-              : "text-slate-400 dark:text-zinc-500",
-          )}
-        >
-          <Video size={19} />
-          <span className="text-[9px] font-bold uppercase tracking-wider">
-            Room
-          </span>
-        </button>
-        <button
-          onClick={() => setActiveMobileTab("panelists")}
-          className={cn(
-            "flex flex-col items-center gap-1 cursor-pointer transition-all",
-            activeMobileTab === "panelists"
-              ? "text-sky-500 scale-105"
-              : "text-slate-400 dark:text-zinc-500",
-          )}
-        >
-          <Users size={19} />
-          <span className="text-[9px] font-bold uppercase tracking-wider">
-            Panelists
-          </span>
-        </button>
-        <button
-          onClick={() => setActiveMobileTab("vitals")}
-          className={cn(
-            "flex flex-col items-center gap-1 cursor-pointer transition-all",
-            activeMobileTab === "vitals"
-              ? "text-sky-500 scale-105"
-              : "text-slate-400 dark:text-zinc-500",
-          )}
-        >
-          <Activity size={19} />
-          <span className="text-[9px] font-bold uppercase tracking-wider">
-            Monitor
-          </span>
-        </button>
+      <div className="lg:hidden flex justify-around items-center bg-white dark:bg-zinc-900 border-t border-slate-200 dark:border-zinc-800 py-2.5 px-2 shrink-0 shadow-lg z-30 transition-colors">
+        {[
+          { tab: "room", icon: <Video size={19} />, label: "Room" },
+          { tab: "panelists", icon: <Users size={19} />, label: "Panelists" },
+          { tab: "chat", icon: <MessageSquare size={19} />, label: "Chat" },
+          { tab: "vitals", icon: <Activity size={19} />, label: "Monitor" },
+        ].map(({ tab, icon, label }) => (
+          <button
+            key={tab}
+            onClick={() => setActiveMobileTab(tab as any)}
+            className={cn(
+              "flex flex-col items-center gap-0.5 cursor-pointer transition-all px-3 py-1",
+              activeMobileTab === tab
+                ? "text-sky-500 scale-105"
+                : "text-slate-400 dark:text-zinc-500",
+            )}
+          >
+            {icon}
+            <span className="text-[9px] font-bold uppercase tracking-wider">
+              {label}
+            </span>
+          </button>
+        ))}
       </div>
+
+      {/* Verdict phase full overlay (mobile — shows as modal over everything) */}
+      <AnimatePresence>
+        {verdictPhase && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="lg:hidden absolute inset-0 z-[80] bg-slate-950/90 backdrop-blur-md flex flex-col items-center justify-start pt-8 p-4 overflow-y-auto"
+          >
+            <div className="w-full max-w-sm">
+              <div className="inline-flex items-center gap-2 px-4 py-1.5 bg-sky-500/20 border border-sky-500/40 rounded-full mb-4">
+                <span className="w-2 h-2 rounded-full bg-sky-400 animate-pulse" />
+                <span className="text-sky-300 text-xs font-bold uppercase tracking-widest">
+                  Panel Verdict
+                </span>
+              </div>
+              <h2 className="text-xl font-extrabold text-white mb-1">
+                The Panel is Deliberating
+              </h2>
+              <p className="text-slate-400 text-sm mb-4">
+                Closing in{" "}
+                <span className="text-sky-400 font-bold">
+                  {verdictCountdown}s
+                </span>{" "}
+                after verdicts
+              </p>
+              {isSpeaking && (
+                <div className="flex items-center gap-2 mb-4 px-4 py-2 bg-sky-500/10 border border-sky-500/20 rounded-xl">
+                  <VoiceWaveform isActive={true} />
+                  <span className="text-sky-300 text-xs font-medium">
+                    {activeSpeakerName} is speaking…
+                  </span>
+                </div>
+              )}
+              <div className="space-y-3 w-full">
+                {verdictMessages.length === 0 && (
+                  <div className="text-slate-500 text-xs py-4 text-center">
+                    Waiting for panelists…
+                  </div>
+                )}
+                {verdictMessages.map((vm, i) => (
+                  <motion.div
+                    key={i}
+                    initial={{ opacity: 0, y: 12 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: i * 0.15 }}
+                    className="flex items-start gap-3 bg-white/5 border border-white/10 rounded-2xl p-3"
+                  >
+                    <img
+                      src={getPanelistAvatar(vm.speaker)}
+                      alt={vm.speaker}
+                      className="w-9 h-9 rounded-full object-cover shrink-0 border-2 border-white/10"
+                    />
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 mb-1 flex-wrap">
+                        <span className="text-[10px] font-bold text-white uppercase tracking-widest">
+                          {vm.speaker}
+                        </span>
+                        <span
+                          className={cn(
+                            "text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full",
+                            vm.verdict === "invest"
+                              ? "bg-emerald-500/20 text-emerald-400"
+                              : vm.verdict === "pass"
+                                ? "bg-rose-500/20 text-rose-400"
+                                : "bg-amber-500/20 text-amber-400",
+                          )}
+                        >
+                          {vm.verdict === "invest"
+                            ? "✓ Invest"
+                            : vm.verdict === "pass"
+                              ? "✗ Pass"
+                              : "◎ Maybe"}
+                        </span>
+                      </div>
+                      <p className="text-slate-300 text-xs leading-relaxed">
+                        {vm.text}
+                      </p>
+                    </div>
+                  </motion.div>
+                ))}
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       <AnimatePresence>
         {isEvaluatingPitch && (
