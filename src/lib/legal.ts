@@ -1,5 +1,5 @@
 /** Public legal / support contact — used in policies and store listings */
-export const CONTACT_EMAIL = 'prestonjaysusanto@gmail.com';
+export const CONTACT_EMAIL = 'pitchnestapp@gmail.com';
 export const APP_NAME = 'PitchNest';
 export const MIN_AGE = 13;
 export const LEGAL_LAST_UPDATED = 'May 29, 2026';

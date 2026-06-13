@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { 
   Users, Target, User, Upload, FileText, Camera, Mic, CheckCircle2,
-  PlayCircle, Clock, Loader2, Monitor, Briefcase, AlignLeft
+  PlayCircle, Clock, Loader2, Monitor, Briefcase, AlignLeft, X
 } from 'lucide-react';
 import * as Switch from '@radix-ui/react-switch';
 import { useForm } from 'react-hook-form';
@@ -333,14 +333,25 @@ export default function PrePitchSetup() {
               )}
             </div>
 
-            <div className="shrink-0 mt-4 space-y-4">
-              <button 
-                type="button"
-                onClick={() => deckFileInputRef.current?.click()}
-                className="flex items-center justify-center gap-2 w-full py-3 rounded-xl border border-white/20 text-xs font-bold text-white/70 hover:bg-white/10 hover:text-white transition-colors cursor-pointer"
-              >
-                <Upload size={14} /> Upload New
-              </button>
+            <div className="shrink-0 mt-4 space-y-3">
+              <div className="flex gap-2">
+                <button 
+                  type="button"
+                  onClick={() => deckFileInputRef.current?.click()}
+                  className="flex-1 flex items-center justify-center gap-2 py-3 rounded-xl border border-white/20 text-xs font-bold text-white/70 hover:bg-white/10 hover:text-white transition-colors cursor-pointer"
+                >
+                  <Upload size={14} /> Upload New
+                </button>
+                {selectedDeck && (
+                  <button
+                    type="button"
+                    onClick={() => setSelectedDeck(null)}
+                    className="flex items-center justify-center gap-2 px-4 py-3 rounded-xl border border-rose-500/30 text-xs font-bold text-rose-400/80 hover:bg-rose-500/10 hover:text-rose-400 transition-colors cursor-pointer"
+                  >
+                    <X size={14} /> Clear
+                  </button>
+                )}
+              </div>
               <input 
                 type="file"
                 ref={deckFileInputRef}

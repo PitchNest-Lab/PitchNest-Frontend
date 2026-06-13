@@ -122,17 +122,17 @@ const AIPanelist = ({
 }) => (
   <div
     className={cn(
-      "w-full max-w-[190px] lg:max-w-none lg:w-full shrink-0 relative overflow-hidden bg-white/80 dark:bg-zinc-900/60 backdrop-blur-md rounded-[20px] transition-all duration-500 group flex flex-col border",
+      "w-full shrink-0 relative overflow-hidden bg-white/80 dark:bg-zinc-900/60 backdrop-blur-md rounded-2xl transition-all duration-500 group flex flex-row items-center gap-3 p-2.5 border",
       isActive
         ? "border-sky-500 shadow-[0_0_20px_rgba(14,165,233,0.15)] bg-sky-50/50 dark:bg-zinc-800"
         : "border-slate-200 dark:border-white/5",
     )}
   >
     {isActive && (
-      <div className="absolute inset-0 bg-gradient-to-b from-sky-500/10 to-transparent pointer-events-none" />
+      <div className="absolute inset-0 bg-gradient-to-r from-sky-500/10 to-transparent pointer-events-none" />
     )}
 
-    <div className="relative aspect-[4/3] w-full bg-slate-100 dark:bg-slate-800 overflow-hidden">
+    <div className="relative w-14 h-14 shrink-0 rounded-xl bg-slate-100 dark:bg-slate-800 overflow-hidden">
       <img
         src={getPanelistAvatar(name)}
         alt={name}
@@ -141,31 +141,22 @@ const AIPanelist = ({
           isActive ? "scale-110" : "scale-100",
         )}
       />
-      <div className="absolute top-3 right-3 flex items-center gap-1.5 bg-white/60 dark:bg-black/40 backdrop-blur-md px-2 py-1 rounded-md border border-slate-200/60 dark:border-white/10">
-        <Video
-          size={10}
-          className={
-            isActive ? "text-sky-400" : "text-slate-500 dark:text-white/40"
-          }
-        />
-        {isActive && (
-          <span className="w-1.5 h-1.5 rounded-full bg-rose-500 animate-pulse" />
-        )}
-      </div>
+      {isActive && (
+        <span className="absolute top-1 right-1 w-2 h-2 rounded-full bg-rose-500 animate-pulse" />
+      )}
     </div>
 
-    <div className="p-3 flex items-center justify-between border-t border-slate-200/65 dark:border-white/5 relative bg-slate-50 dark:bg-slate-900">
-      <div className="relative z-10">
-        <p className="text-[11px] font-bold text-slate-800 dark:text-white uppercase tracking-wider">
-          {name}
-        </p>
-        <span className="text-[9px] font-bold text-sky-600 dark:text-sky-400/80 uppercase tracking-widest">
-          {role}
-        </span>
-      </div>
-      <div className="opacity-70 group-hover:opacity-100 transition-opacity">
-        <VoiceWaveform isActive={isActive} />
-      </div>
+    <div className="flex-1 min-w-0 relative z-10">
+      <p className="text-[11px] font-bold text-slate-800 dark:text-white uppercase tracking-wider truncate">
+        {name}
+      </p>
+      <span className="text-[9px] font-bold text-sky-600 dark:text-sky-400/80 uppercase tracking-widest">
+        {role}
+      </span>
+    </div>
+
+    <div className="opacity-70 group-hover:opacity-100 transition-opacity shrink-0">
+      <VoiceWaveform isActive={isActive} />
     </div>
   </div>
 );
@@ -522,6 +513,13 @@ export default function LivePitchRoom() {
   const activeSourcesRef = useRef<AudioBufferSourceNode[]>([]);
   const pendingTimeoutsRef = useRef<number[]>([]);
 
+  // ── Audio streaming pipeline refs ──────────────────────────────────────
+  const audioStreamContextRef = useRef<AudioContext | null>(null);
+  const audioStreamProcessorRef = useRef<ScriptProcessorNode | null>(null);
+  const audioStreamSourceRef = useRef<MediaStreamAudioSourceNode | null>(null);
+  const noSpeechCountRef = useRef(0);
+  // ──────────────────────────────────────────────────────────────────────
+
   useEffect(() => {
     if (!("speechSynthesis" in window)) return;
     const pickVoice = () => {
@@ -614,6 +612,19 @@ export default function LivePitchRoom() {
           clearInterval(verdictCountdownRef.current);
         if (verdictMaxTimerRef.current)
           clearTimeout(verdictMaxTimerRef.current);
+        // Cleanup audio capture pipeline
+        if (audioStreamProcessorRef.current) {
+          try { audioStreamProcessorRef.current.disconnect(); } catch {}
+          audioStreamProcessorRef.current = null;
+        }
+        if (audioStreamSourceRef.current) {
+          try { audioStreamSourceRef.current.disconnect(); } catch {}
+          audioStreamSourceRef.current = null;
+        }
+        if (audioStreamContextRef.current) {
+          try { audioStreamContextRef.current.close(); } catch {}
+          audioStreamContextRef.current = null;
+        }
       } catch (e) {}
     };
   }, [stopStream, stopCapture]);
@@ -743,12 +754,110 @@ export default function LivePitchRoom() {
   const transcriptTimerRef = useRef<number | null>(null);
   const recognitionRef = useRef<any>(null);
 
+  // ── Raw PCM audio streaming to backend (so Gemini can hear the user) ───
   useEffect(() => {
-    if (!isPitching || !socket || !isConnected || isMicMuted) {
+    if (!isPitching || !socket || !isConnected || isMicMuted || verdictPhase) {
+      // Cleanup audio pipeline
+      if (audioStreamProcessorRef.current) {
+        try { audioStreamProcessorRef.current.disconnect(); } catch {}
+        audioStreamProcessorRef.current = null;
+      }
+      if (audioStreamSourceRef.current) {
+        try { audioStreamSourceRef.current.disconnect(); } catch {}
+        audioStreamSourceRef.current = null;
+      }
+      if (audioStreamContextRef.current) {
+        try { audioStreamContextRef.current.close(); } catch {}
+        audioStreamContextRef.current = null;
+      }
+      return;
+    }
+
+    let cancelled = false;
+
+    const startAudioCapture = async () => {
+      try {
+        // Get a dedicated audio-only stream for sending to Gemini
+        const micStream = await navigator.mediaDevices.getUserMedia({
+          audio: { echoCancellation: true, noiseSuppression: true, sampleRate: 16000 },
+          video: false,
+        });
+        if (cancelled) { micStream.getTracks().forEach(t => t.stop()); return; }
+
+        const ctx = new (window.AudioContext || (window as any).webkitAudioContext)({ sampleRate: 16000 });
+        audioStreamContextRef.current = ctx;
+
+        const source = ctx.createMediaStreamSource(micStream);
+        audioStreamSourceRef.current = source;
+
+        // ScriptProcessorNode: capture PCM chunks (4096 samples ~ 256ms at 16kHz)
+        const processor = ctx.createScriptProcessor(4096, 1, 1);
+        audioStreamProcessorRef.current = processor;
+
+        processor.onaudioprocess = (e) => {
+          if (!socket || socket.readyState !== WebSocket.OPEN || verdictPhase) return;
+          // Don't send audio while AI is speaking (prevents echo)
+          if (isSpeakingRef.current) return;
+
+          const inputData = e.inputBuffer.getChannelData(0);
+          // Convert Float32 [-1,1] to Int16 PCM
+          const pcm = new Int16Array(inputData.length);
+          for (let i = 0; i < inputData.length; i++) {
+            const s = Math.max(-1, Math.min(1, inputData[i]));
+            pcm[i] = s < 0 ? s * 0x8000 : s * 0x7FFF;
+          }
+
+          // Convert to base64
+          const bytes = new Uint8Array(pcm.buffer);
+          let binary = '';
+          for (let i = 0; i < bytes.length; i++) {
+            binary += String.fromCharCode(bytes[i]);
+          }
+          const base64 = btoa(binary);
+
+          // Send as Gemini realtimeInput format
+          socket.send(JSON.stringify({
+            realtimeInput: {
+              mediaChunks: [{ mimeType: 'audio/pcm;rate=16000', data: base64 }]
+            }
+          }));
+        };
+
+        source.connect(processor);
+        processor.connect(ctx.destination); // Required for ScriptProcessorNode to work
+        console.log('🎙️ Audio capture pipeline started (16kHz PCM → Gemini)');
+      } catch (err) {
+        console.error('❌ Failed to start audio capture pipeline:', err);
+      }
+    };
+
+    startAudioCapture();
+
+    return () => {
+      cancelled = true;
+      if (audioStreamProcessorRef.current) {
+        try { audioStreamProcessorRef.current.disconnect(); } catch {}
+        audioStreamProcessorRef.current = null;
+      }
+      if (audioStreamSourceRef.current) {
+        try { audioStreamSourceRef.current.disconnect(); } catch {}
+        audioStreamSourceRef.current = null;
+      }
+      if (audioStreamContextRef.current) {
+        try { audioStreamContextRef.current.close(); } catch {}
+        audioStreamContextRef.current = null;
+      }
+    };
+  }, [isPitching, socket, isConnected, isMicMuted, verdictPhase]);
+
+  // ── SpeechRecognition for live text transcript display ─────────────────
+  useEffect(() => {
+    if (!isPitching || !socket || !isConnected || isMicMuted || verdictPhase) {
       if (recognitionRef.current) {
         recognitionRef.current.abort();
         recognitionRef.current = null;
       }
+      noSpeechCountRef.current = 0;
       return;
     }
     if (recognitionRef.current) return;
@@ -763,10 +872,15 @@ export default function LivePitchRoom() {
     recognition.interimResults = false;
     recognition.lang = "en-US";
     recognitionRef.current = recognition;
+    noSpeechCountRef.current = 0;
 
-    recognition.onstart = () => console.log("🎤 Recognition Started");
+    recognition.onstart = () => {
+      console.log("🎤 Recognition Started");
+      noSpeechCountRef.current = 0;
+    };
 
     recognition.onresult = (event: any) => {
+      noSpeechCountRef.current = 0; // Reset on successful speech
       const now = Date.now();
       const timeSinceAiSpoke = now - lastAiSpeakingEndedTimeRef.current;
       if (isSpeakingRef.current || timeSinceAiSpoke < 1200) return;
@@ -777,6 +891,7 @@ export default function LivePitchRoom() {
       const text = lastResult[0].transcript.trim();
       if (!text) return;
 
+      // Display the voice message in the chat transcript
       transcriptBufferRef.current +=
         (transcriptBufferRef.current ? " " : "") + text;
       if (transcriptTimerRef.current)
@@ -786,9 +901,9 @@ export default function LivePitchRoom() {
         const finalPayload = transcriptBufferRef.current.trim();
         transcriptBufferRef.current = "";
         transcriptTimerRef.current = null;
-        if (!finalPayload || socket.readyState !== WebSocket.OPEN) return;
+        if (!finalPayload) return;
 
-        console.log("✅ Sending to backend:", finalPayload);
+        console.log("✅ Voice transcript:", finalPayload);
         setMessages((prev) => [
           ...prev,
           {
@@ -799,42 +914,59 @@ export default function LivePitchRoom() {
             inputMethod: "voice",
           },
         ]);
-        socket.send(
-          JSON.stringify({
-            type: "chat_message",
-            text: finalPayload,
-            timeLeft,
-            inputMethod: "voice",
-          }),
-        );
+        // Note: Raw audio is already being sent via the PCM pipeline above.
+        // We still send the text transcript for the chat log and backend eval.
+        if (socket && socket.readyState === WebSocket.OPEN) {
+          socket.send(
+            JSON.stringify({
+              type: "chat_message",
+              text: finalPayload,
+              timeLeft,
+              inputMethod: "voice",
+            }),
+          );
+        }
       }, 1000);
     };
 
     recognition.onend = () => {
-      console.log("Recognition ended, restarting...");
-      if (recognitionRef.current) {
-        try {
-          recognition.start();
-        } catch (e) {}
+      if (!recognitionRef.current) return;
+      // Rate-limited restart: back off after repeated no-speech errors
+      if (noSpeechCountRef.current >= 5) {
+        console.log("🎤 Too many no-speech errors, backing off 5s...");
+        setTimeout(() => {
+          noSpeechCountRef.current = 0;
+          if (recognitionRef.current) {
+            try { recognitionRef.current.start(); } catch {}
+          }
+        }, 5000);
+        return;
       }
+      try {
+        recognition.start();
+      } catch {}
     };
 
     recognition.onerror = (e: any) => {
-      console.log("❌ Recognition Error:", e.error);
       if (e.error === "aborted") return;
+      if (e.error === "no-speech") {
+        noSpeechCountRef.current++;
+        return; // onend will handle restart with backoff
+      }
+      console.log("❌ Recognition Error:", e.error);
     };
 
     try {
       recognition.start();
-    } catch (e) {}
+    } catch {}
 
     return () => {
       recognitionRef.current = null;
       try {
         recognition.abort();
-      } catch (e) {}
+      } catch {}
     };
-  }, [isPitching, socket, isConnected, isMicMuted]);
+  }, [isPitching, socket, isConnected, isMicMuted, verdictPhase]);
 
   useEffect(() => {
     if (!socket) return;
@@ -901,9 +1033,18 @@ export default function LivePitchRoom() {
           return;
         }
 
-        // ── All verdicts done — close verdict phase and end session ─────
+        // ── All verdicts done — wait for audio to finish, then end session ─
         if (data.type === "verdict_complete") {
-          startVerdictCountdownToClose();
+          // Wait a few seconds for the last verdict audio to finish playing,
+          // then auto-transition to evaluation (no restart, no overlay)
+          const waitForAudio = () => {
+            const delay = activeSourcesRef.current.length > 0 ? 4000 : 1500;
+            setTimeout(() => {
+              setVerdictPhase(false);
+              handleEndSession();
+            }, delay);
+          };
+          waitForAudio();
           return;
         }
 
@@ -1233,7 +1374,7 @@ export default function LivePitchRoom() {
   const handleSendChat = (e: React.FormEvent) => {
     e.preventDefault();
     wakeAudio();
-    if (!chatInput.trim() || !socket || !isConnected) return;
+    if (!chatInput.trim() || !socket || !isConnected || verdictPhase) return;
 
     setIsTurnComplete(false);
     pendingTimeoutsRef.current.forEach((t) => clearTimeout(t));
@@ -1282,10 +1423,16 @@ export default function LivePitchRoom() {
     if (verdictPhase) return;
     setVerdictPhase(true);
     setVerdictMessages([]);
-    setVerdictCountdown(120);
+    setVerdictCountdown(45);
     wakeAudio();
 
-    // Tell server to trigger verdict speeches from all panelists
+    // Stop speech recognition and audio capture during verdict phase
+    if (recognitionRef.current) {
+      recognitionRef.current.abort();
+      recognitionRef.current = null;
+    }
+
+    // Tell server to trigger sequential verdict speeches from all panelists
     if (socket && socket.readyState === WebSocket.OPEN) {
       socket.send(
         JSON.stringify({
@@ -1298,19 +1445,6 @@ export default function LivePitchRoom() {
       );
     }
 
-    // Also send a chat message that triggers the verdict via the existing AI pipeline
-    if (socket && socket.readyState === WebSocket.OPEN) {
-      socket.send(
-        JSON.stringify({
-          type: "chat_message",
-          text: "[SYSTEM: The pitch session has ended. Each panelist must now give their individual verdict: whether they would invest or pass, and one clear reason why. Speak each verdict aloud in turn. Keep each verdict to 2-3 sentences. After all verdicts, send a verdict_complete message.]",
-          timeLeft: 0,
-          inputMethod: "chat",
-          isVerdictRequest: true,
-        }),
-      );
-    }
-
     // Hard max: if server never sends verdict_complete, close after 2 min
     if (verdictMaxTimerRef.current) clearTimeout(verdictMaxTimerRef.current);
     verdictMaxTimerRef.current = setTimeout(() => {
@@ -1318,7 +1452,7 @@ export default function LivePitchRoom() {
         clearInterval(verdictCountdownRef.current);
       setVerdictPhase(false);
       handleEndSession();
-    }, 120000);
+    }, 45000);
   }, [verdictPhase, socket, pitchConfig]);
 
   // Trigger verdict when isConcluding + turn is complete (manual End Session)
@@ -1618,7 +1752,7 @@ export default function LivePitchRoom() {
                 : pitchConfig.investorArchetype}
             </p>
           </div>
-          <div className="flex flex-col gap-3 overflow-y-auto flex-1 pr-2 custom-scrollbar">
+          <div className="flex flex-col gap-2 overflow-y-auto flex-1 pr-2 custom-scrollbar">
             {pitchConfig.mode !== "solo" &&
               visiblePersonas.map((persona, idx) => (
                 <AIPanelist
@@ -1647,13 +1781,15 @@ export default function LivePitchRoom() {
           {/* Main Viewing Area */}
           <div className="flex-1 relative border border-slate-200 dark:border-white/10 shadow-xl dark:shadow-2xl group rounded-[24px] min-h-0 bg-white dark:bg-zinc-900/80 overflow-hidden backdrop-blur-lg transition-colors">
             {/* Verdict phase overlay on desktop */}
-            <VerdictOverlay
-              verdictPhase={verdictPhase}
-              verdictCountdown={verdictCountdown}
-              verdictMessages={verdictMessages}
-              activeSpeakerName={activeSpeakerName}
-              isSpeaking={isSpeaking}
-            />
+            {/* Verdict status indicator (inline, not overlay) */}
+            {verdictPhase && (
+              <div className="absolute top-4 right-4 z-30 flex items-center gap-2 px-4 py-2 bg-sky-500/20 border border-sky-500/40 rounded-full backdrop-blur-md">
+                <span className="w-2 h-2 rounded-full bg-sky-400 animate-pulse" />
+                <span className="text-sky-300 text-xs font-bold uppercase tracking-widest">
+                  {activeSpeakerName ? `${activeSpeakerName} — Verdict` : 'Panel Deliberating...'}
+                </span>
+              </div>
+            )}
 
             {mainView === "slide" ? (
               <div className="w-full h-full relative flex items-center justify-center rounded-[24px] overflow-hidden">
@@ -1791,18 +1927,22 @@ export default function LivePitchRoom() {
             </div>
             <form
               onSubmit={handleSendChat}
-              className="flex items-center gap-3 shrink-0 mt-auto bg-slate-100/50 dark:bg-zinc-950/50 border border-slate-200 dark:border-white/10 rounded-xl p-1.5 shadow-inner"
+              className={cn(
+                "flex items-center gap-3 shrink-0 mt-auto bg-slate-100/50 dark:bg-zinc-950/50 border border-slate-200 dark:border-white/10 rounded-xl p-1.5 shadow-inner",
+                verdictPhase && "opacity-50 pointer-events-none"
+              )}
             >
               <input
                 type="text"
                 value={chatInput}
                 onChange={(e) => setChatInput(e.target.value)}
-                placeholder="Type a message to the panel..."
-                className="flex-1 bg-transparent border-none focus:ring-0 text-sm text-slate-800 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500 px-3 outline-none"
+                placeholder={verdictPhase ? "Panel is giving verdicts..." : "Type a message to the panel..."}
+                disabled={verdictPhase}
+                className="flex-1 bg-transparent border-none focus:ring-0 text-sm text-slate-800 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500 px-3 outline-none disabled:cursor-not-allowed"
               />
               <button
                 type="submit"
-                disabled={!isConnected}
+                disabled={!isConnected || verdictPhase}
                 className="px-4 py-2 bg-sky-500 text-white font-bold text-xs uppercase tracking-wider rounded-lg hover:bg-sky-600 transition-colors disabled:opacity-50 shadow-md cursor-pointer"
               >
                 Send
@@ -1962,37 +2102,15 @@ export default function LivePitchRoom() {
                 className="w-full relative border border-slate-200 dark:border-zinc-800 rounded-xl bg-slate-900 overflow-hidden flex items-center justify-center"
                 style={{ aspectRatio: "16/9", maxHeight: "32vh" }}
               >
-                {/* Verdict overlay on mobile too */}
-                <AnimatePresence>
-                  {verdictPhase && (
-                    <motion.div
-                      initial={{ opacity: 0 }}
-                      animate={{ opacity: 1 }}
-                      className="absolute inset-0 z-30 bg-slate-950/90 backdrop-blur-sm flex flex-col items-center justify-center p-3 text-center"
-                    >
-                      <div className="inline-flex items-center gap-1.5 px-3 py-1 bg-sky-500/20 border border-sky-500/40 rounded-full mb-2">
-                        <span className="w-1.5 h-1.5 rounded-full bg-sky-400 animate-pulse" />
-                        <span className="text-sky-300 text-[9px] font-bold uppercase tracking-widest">
-                          Panel Verdict
-                        </span>
-                      </div>
-                      {isSpeaking && (
-                        <div className="flex items-center gap-1.5 mb-2">
-                          <VoiceWaveform isActive={true} />
-                          <span className="text-sky-300 text-[9px] font-medium">
-                            {activeSpeakerName}…
-                          </span>
-                        </div>
-                      )}
-                      <p className="text-slate-400 text-[9px]">
-                        Closing in{" "}
-                        <span className="text-sky-400 font-bold">
-                          {verdictCountdown}s
-                        </span>
-                      </p>
-                    </motion.div>
-                  )}
-                </AnimatePresence>
+                {/* Verdict status badge on mobile */}
+                {verdictPhase && (
+                  <div className="absolute top-2 right-2 z-30 flex items-center gap-1.5 px-3 py-1 bg-sky-500/20 border border-sky-500/40 rounded-full backdrop-blur-md">
+                    <span className="w-1.5 h-1.5 rounded-full bg-sky-400 animate-pulse" />
+                    <span className="text-sky-300 text-[9px] font-bold uppercase tracking-widest">
+                      {activeSpeakerName ? `${activeSpeakerName} — Verdict` : 'Deliberating...'}
+                    </span>
+                  </div>
+                )}
 
                 {mainView === "slide" ? (
                   <div className="w-full h-[70vh] relative">
@@ -2499,92 +2617,7 @@ export default function LivePitchRoom() {
         ))}
       </div>
 
-      {/* Verdict phase full overlay (mobile — shows as modal over everything) */}
-      <AnimatePresence>
-        {verdictPhase && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="lg:hidden absolute inset-0 z-[80] bg-slate-950/90 backdrop-blur-md flex flex-col items-center justify-start pt-8 p-4 overflow-y-auto"
-          >
-            <div className="w-full max-w-sm">
-              <div className="inline-flex items-center gap-2 px-4 py-1.5 bg-sky-500/20 border border-sky-500/40 rounded-full mb-4">
-                <span className="w-2 h-2 rounded-full bg-sky-400 animate-pulse" />
-                <span className="text-sky-300 text-xs font-bold uppercase tracking-widest">
-                  Panel Verdict
-                </span>
-              </div>
-              <h2 className="text-xl font-extrabold text-white mb-1">
-                The Panel is Deliberating
-              </h2>
-              <p className="text-slate-400 text-sm mb-4">
-                Closing in{" "}
-                <span className="text-sky-400 font-bold">
-                  {verdictCountdown}s
-                </span>{" "}
-                after verdicts
-              </p>
-              {isSpeaking && (
-                <div className="flex items-center gap-2 mb-4 px-4 py-2 bg-sky-500/10 border border-sky-500/20 rounded-xl">
-                  <VoiceWaveform isActive={true} />
-                  <span className="text-sky-300 text-xs font-medium">
-                    {activeSpeakerName} is speaking…
-                  </span>
-                </div>
-              )}
-              <div className="space-y-3 w-full">
-                {verdictMessages.length === 0 && (
-                  <div className="text-slate-500 text-xs py-4 text-center">
-                    Waiting for panelists…
-                  </div>
-                )}
-                {verdictMessages.map((vm, i) => (
-                  <motion.div
-                    key={i}
-                    initial={{ opacity: 0, y: 12 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: i * 0.15 }}
-                    className="flex items-start gap-3 bg-white/5 border border-white/10 rounded-2xl p-3"
-                  >
-                    <img
-                      src={getPanelistAvatar(vm.speaker)}
-                      alt={vm.speaker}
-                      className="w-9 h-9 rounded-full object-cover shrink-0 border-2 border-white/10"
-                    />
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 mb-1 flex-wrap">
-                        <span className="text-[10px] font-bold text-white uppercase tracking-widest">
-                          {vm.speaker}
-                        </span>
-                        <span
-                          className={cn(
-                            "text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full",
-                            vm.verdict === "invest"
-                              ? "bg-emerald-500/20 text-emerald-400"
-                              : vm.verdict === "pass"
-                                ? "bg-rose-500/20 text-rose-400"
-                                : "bg-amber-500/20 text-amber-400",
-                          )}
-                        >
-                          {vm.verdict === "invest"
-                            ? "✓ Invest"
-                            : vm.verdict === "pass"
-                              ? "✗ Pass"
-                              : "◎ Maybe"}
-                        </span>
-                      </div>
-                      <p className="text-slate-300 text-xs leading-relaxed">
-                        {vm.text}
-                      </p>
-                    </div>
-                  </motion.div>
-                ))}
-              </div>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+
 
       <AnimatePresence>
         {isEvaluatingPitch && (
@@ -2601,7 +2634,7 @@ export default function LivePitchRoom() {
               {loadingStatus}
             </h2>
             <p className="text-sky-450/80 max-w-sm text-sm font-medium tracking-wide">
-              Please wait while Gemini evaluates your pitch dynamics and
+              Please wait while our AI panel evaluates your pitch dynamics and
               calculates readiness scoring.
             </p>
           </motion.div>
