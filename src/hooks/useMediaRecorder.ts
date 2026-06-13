@@ -9,7 +9,11 @@ export const useMediaRecorder = () => {
   const startStream = useCallback(async () => {
     try {
       const newStream = await navigator.mediaDevices.getUserMedia({
-        video: true,
+        video: {
+          width: { ideal: 640 },
+          height: { ideal: 360 },
+          facingMode: "user"
+        },
         // 🚨 FIX: Advanced Audio Constraints added here!
         audio: {
           echoCancellation: true, // Stops the mic from hearing the AI speaking
@@ -20,8 +24,22 @@ export const useMediaRecorder = () => {
       setStream(newStream);
       return newStream;
     } catch (err) {
-      console.error("Error accessing media devices:", err);
-      return null;
+      console.warn("Error accessing video/audio devices, trying audio-only fallback...", err);
+      try {
+        const audioOnlyStream = await navigator.mediaDevices.getUserMedia({
+          video: false,
+          audio: {
+            echoCancellation: true,
+            noiseSuppression: true,
+            autoGainControl: true
+          },
+        });
+        setStream(audioOnlyStream);
+        return audioOnlyStream;
+      } catch (err2) {
+        console.error("Error accessing audio fallback device:", err2);
+        return null;
+      }
     }
   }, []);
 

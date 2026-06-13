@@ -440,6 +440,7 @@ export default function LivePitchRoom() {
     }
   }, []);
   const [isMicMuted, setIsMicMuted] = useState(false);
+  const [isCameraMuted, setIsCameraMuted] = useState(false);
   const [messages, setMessages] = useState<
     {
       id: string;
@@ -460,6 +461,7 @@ export default function LivePitchRoom() {
     "Panel is grading your pitch...",
   );
   const sentReadyForSocketRef = useRef<WebSocket | null>(null);
+  const sessionLockedRef = useRef(false);
 
   // ── Verdict phase state ──────────────────────────────────────────────────
   const [verdictPhase, setVerdictPhase] = useState(false);
@@ -774,20 +776,31 @@ export default function LivePitchRoom() {
     }
 
     let cancelled = false;
+    let localFallbackStream: MediaStream | null = null;
 
     const startAudioCapture = async () => {
       try {
-        // Get a dedicated audio-only stream for sending to Gemini
-        const micStream = await navigator.mediaDevices.getUserMedia({
-          audio: { echoCancellation: true, noiseSuppression: true, sampleRate: 16000 },
-          video: false,
-        });
-        if (cancelled) { micStream.getTracks().forEach(t => t.stop()); return; }
+        let activeStream = stream;
+        if (!activeStream) {
+          console.warn("⚠️ No active stream found for audio capture. Trying fallback getUserMedia...");
+          localFallbackStream = await navigator.mediaDevices.getUserMedia({
+            audio: { echoCancellation: true, noiseSuppression: true, sampleRate: 16000 },
+            video: false,
+          });
+          activeStream = localFallbackStream;
+        }
+
+        if (cancelled) {
+          if (localFallbackStream) {
+            localFallbackStream.getTracks().forEach(t => t.stop());
+          }
+          return;
+        }
 
         const ctx = new (window.AudioContext || (window as any).webkitAudioContext)({ sampleRate: 16000 });
         audioStreamContextRef.current = ctx;
 
-        const source = ctx.createMediaStreamSource(micStream);
+        const source = ctx.createMediaStreamSource(activeStream);
         audioStreamSourceRef.current = source;
 
         // ScriptProcessorNode: capture PCM chunks (4096 samples ~ 256ms at 16kHz)
@@ -835,6 +848,9 @@ export default function LivePitchRoom() {
 
     return () => {
       cancelled = true;
+      if (localFallbackStream) {
+        localFallbackStream.getTracks().forEach(t => t.stop());
+      }
       if (audioStreamProcessorRef.current) {
         try { audioStreamProcessorRef.current.disconnect(); } catch {}
         audioStreamProcessorRef.current = null;
@@ -848,7 +864,7 @@ export default function LivePitchRoom() {
         audioStreamContextRef.current = null;
       }
     };
-  }, [isPitching, socket, isConnected, isMicMuted, verdictPhase]);
+  }, [isPitching, socket, isConnected, isMicMuted, verdictPhase, stream]);
 
   // ── SpeechRecognition for live text transcript display ─────────────────
   useEffect(() => {
@@ -974,6 +990,10 @@ export default function LivePitchRoom() {
     const handleMessage = async (event: MessageEvent) => {
       try {
         const data = JSON.parse(event.data);
+
+        if (sessionLockedRef.current && data.type !== "report") {
+          return;
+        }
 
         if (data.type === "stop_audio") {
           activeSourcesRef.current.forEach((src) => {
@@ -1345,18 +1365,21 @@ export default function LivePitchRoom() {
       audioContextRef.current.resume();
   };
 
-  const toggleCamera = async () => {
+  const toggleCamera = () => {
     wakeAudio();
-    stream ? stopStream() : await startStream();
+    const newMuted = !isCameraMuted;
+    setIsCameraMuted(newMuted);
+    if (stream) {
+      stream.getVideoTracks().forEach((track) => (track.enabled = !newMuted));
+    }
   };
 
   const toggleMic = () => {
     wakeAudio();
+    const newMuted = !isMicMuted;
+    setIsMicMuted(newMuted);
     if (stream) {
-      stream
-        .getAudioTracks()
-        .forEach((track) => (track.enabled = !track.enabled));
-      setIsMicMuted(!isMicMuted);
+      stream.getAudioTracks().forEach((track) => (track.enabled = !newMuted));
     }
   };
 
@@ -1422,6 +1445,7 @@ export default function LivePitchRoom() {
   const triggerVerdictPhase = useCallback(() => {
     if (verdictPhase) return;
     setVerdictPhase(true);
+    setIsConcluding(false);
     setVerdictMessages([]);
     setVerdictCountdown(45);
     wakeAudio();
@@ -1476,9 +1500,27 @@ export default function LivePitchRoom() {
   // ────────────────────────────────────────────────────────────────────────
 
   const handleEndSession = async () => {
+    if (sessionLockedRef.current) return;
+    sessionLockedRef.current = true;
+
+    // Stop all audio playback instantly
+    stopTts();
+    activeSourcesRef.current.forEach((src) => {
+      try {
+        src.stop();
+      } catch (e) {}
+    });
+    activeSourcesRef.current = [];
+    pendingTimeoutsRef.current.forEach((t) => clearTimeout(t));
+    pendingTimeoutsRef.current = [];
+    nextStartTimeRef.current = 0;
+    setSpeakingState(false);
+    setActiveSpeakerName("");
+
     wakeAudio();
     setIsPitching(false);
     setVerdictPhase(false);
+    setIsConcluding(false);
     setIsEvaluatingPitch(true);
     setLoadingStatus("Stopping recording...");
 
@@ -1597,7 +1639,7 @@ export default function LivePitchRoom() {
         className,
       )}
     >
-      {stream ? (
+      {stream && !isCameraMuted ? (
         <video
           ref={videoRef}
           autoPlay
@@ -1608,7 +1650,7 @@ export default function LivePitchRoom() {
       ) : (
         <VideoOff size={48} className="text-slate-300 dark:text-white/20" />
       )}
-      {isPitching && (
+      {isPitching && stream && !isCameraMuted && (
         <div className="absolute top-3 right-3 bg-rose-500 px-2.5 py-1 rounded-full text-[8px] font-bold animate-pulse shadow-lg z-10 uppercase tracking-widest text-white">
           Vision On
         </div>
@@ -1825,12 +1867,12 @@ export default function LivePitchRoom() {
                 onClick={toggleCamera}
                 className={cn(
                   "w-12 h-12 rounded-xl transition-all flex items-center justify-center cursor-pointer",
-                  stream
+                  stream && !isCameraMuted
                     ? "bg-slate-100 dark:bg-zinc-800 text-slate-800 dark:text-white hover:bg-slate-200 dark:hover:bg-zinc-700"
                     : "bg-rose-500/20 text-rose-500 hover:bg-rose-500/30",
                 )}
               >
-                {stream ? <Video size={20} /> : <VideoOff size={20} />}
+                {stream && !isCameraMuted ? <Video size={20} /> : <VideoOff size={20} />}
               </button>
               <button
                 onClick={toggleMic}
@@ -2126,7 +2168,7 @@ export default function LivePitchRoom() {
                       onClick={() => setMainView("camera")}
                       className="absolute bottom-2 right-2 w-20 h-14 sm:w-28 rounded-lg border border-white/20 shadow-2xl overflow-hidden cursor-pointer z-20 hover:scale-105 transition-all bg-black/80 flex items-center justify-center"
                     >
-                      {stream ? (
+                      {stream && !isCameraMuted ? (
                         <video
                           ref={videoRef}
                           autoPlay
@@ -2142,7 +2184,7 @@ export default function LivePitchRoom() {
                           </span>
                         </div>
                       )}
-                      {isPitching && stream && (
+                      {isPitching && stream && !isCameraMuted && (
                         <div className="absolute top-1 right-1 bg-rose-500 w-1.5 h-1.5 rounded-full animate-pulse" />
                       )}
                     </div>
@@ -2197,12 +2239,12 @@ export default function LivePitchRoom() {
                   onClick={toggleCamera}
                   className={cn(
                     "w-10 h-10 rounded-xl transition-all flex items-center justify-center cursor-pointer shrink-0",
-                    stream
+                    stream && !isCameraMuted
                       ? "bg-slate-100 dark:bg-zinc-800 text-slate-800 dark:text-white"
                       : "bg-rose-500/20 text-rose-500",
                   )}
                 >
-                  {stream ? <Video size={17} /> : <VideoOff size={17} />}
+                  {stream && !isCameraMuted ? <Video size={17} /> : <VideoOff size={17} />}
                 </button>
                 <button
                   onClick={toggleMic}
