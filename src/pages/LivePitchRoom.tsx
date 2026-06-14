@@ -56,6 +56,24 @@ function limitSpokenText(text: string) {
   );
 }
 
+function resample(inputBuffer: Float32Array, inSampleRate: number, outSampleRate: number): Float32Array {
+  if (inSampleRate === outSampleRate) return inputBuffer;
+  const ratio = inSampleRate / outSampleRate;
+  const newLength = Math.round(inputBuffer.length / ratio);
+  const result = new Float32Array(newLength);
+  for (let i = 0; i < newLength; i++) {
+    const srcIndex = i * ratio;
+    const index = Math.floor(srcIndex);
+    const interpolation = srcIndex - index;
+    if (index + 1 < inputBuffer.length) {
+      result[i] = inputBuffer[index] * (1 - interpolation) + inputBuffer[index + 1] * interpolation;
+    } else {
+      result[i] = inputBuffer[index];
+    }
+  }
+  return result;
+}
+
 const VoiceWaveform = ({ isActive }: { isActive?: boolean }) => (
   <div className="flex items-center gap-[3px] h-4 px-1">
     {[...Array(4)].map((_, i) => (
@@ -491,7 +509,7 @@ export default function LivePitchRoom() {
   }>({ clarity: null, confidence: null, marketFit: null, readiness: null });
 
   const [activeMobileTab, setActiveMobileTab] = useState<
-    "room" | "panelists" | "chat" | "vitals"
+    "room" | "panelists" | "vitals"
   >("room");
 
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
@@ -748,10 +766,30 @@ export default function LivePitchRoom() {
         startCapture();
       } catch (e) {}
     }
-    if (!stream) {
+    
+    let activeStream = stream;
+    if (!activeStream) {
       try {
-        await startStream();
+        activeStream = await startStream();
       } catch (e) {}
+    }
+
+    if (activeStream) {
+      try {
+        chunksRef.current = [];
+        const options = { mimeType: "video/webm;codecs=vp8,opus" };
+        const recorder = new MediaRecorder(activeStream, options);
+        recorder.ondataavailable = (event) => {
+          if (event.data && event.data.size > 0) {
+            chunksRef.current.push(event.data);
+          }
+        };
+        recorder.start(1000); // chunk every 1s
+        mediaRecorderRef.current = recorder;
+        console.log("🎥 Video recording started");
+      } catch (recErr) {
+        console.error("❌ Failed to start MediaRecorder:", recErr);
+      }
     }
   };
 
@@ -814,14 +852,17 @@ export default function LivePitchRoom() {
 
         processor.onaudioprocess = (e) => {
           if (!socket || socket.readyState !== WebSocket.OPEN || verdictPhase) return;
-          // Don't send audio while AI is speaking (prevents echo)
-          if (isSpeakingRef.current) return;
 
           const inputData = e.inputBuffer.getChannelData(0);
+          const inputSampleRate = e.inputBuffer.sampleRate;
+          
+          // Resample to 16000Hz (Bidi Gemini native rate)
+          const resampledData = resample(inputData, inputSampleRate, 16000);
+          
           // Convert Float32 [-1,1] to Int16 PCM
-          const pcm = new Int16Array(inputData.length);
-          for (let i = 0; i < inputData.length; i++) {
-            const s = Math.max(-1, Math.min(1, inputData[i]));
+          const pcm = new Int16Array(resampledData.length);
+          for (let i = 0; i < resampledData.length; i++) {
+            const s = Math.max(-1, Math.min(1, resampledData[i]));
             pcm[i] = s < 0 ? s * 0x8000 : s * 0x7FFF;
           }
 
@@ -937,7 +978,7 @@ export default function LivePitchRoom() {
         if (socket && socket.readyState === WebSocket.OPEN) {
           socket.send(
             JSON.stringify({
-              type: "chat_message",
+              type: "voice_transcript",
               text: finalPayload,
               timeLeft,
               inputMethod: "voice",
@@ -1644,20 +1685,24 @@ export default function LivePitchRoom() {
   const CameraViewer = ({ className = "" }: { className?: string }) => (
     <div
       className={cn(
-        "w-full h-full relative flex items-center justify-center",
+        "w-full h-full relative flex items-center justify-center bg-black",
         className,
       )}
     >
-      {stream && !isCameraMuted ? (
-        <video
-          ref={setVideoRef}
-          autoPlay
-          muted
-          playsInline
-          className="w-full h-full object-contain bg-black"
-        />
-      ) : (
-        <VideoOff size={48} className="text-slate-300 dark:text-white/20" />
+      <video
+        ref={setVideoRef}
+        autoPlay
+        muted
+        playsInline
+        className={cn(
+          "w-full h-full object-contain transition-opacity duration-300",
+          stream && !isCameraMuted ? "opacity-100" : "opacity-0 absolute pointer-events-none"
+        )}
+      />
+      {(!stream || isCameraMuted) && (
+        <div className="absolute inset-0 flex items-center justify-center bg-slate-900">
+          <VideoOff size={48} className="text-slate-300 dark:text-white/20" />
+        </div>
       )}
       {isPitching && stream && !isCameraMuted && (
         <div className="absolute top-3 right-3 bg-rose-500 px-2.5 py-1 rounded-full text-[8px] font-bold animate-pulse shadow-lg z-10 uppercase tracking-widest text-white">
@@ -2150,7 +2195,7 @@ export default function LivePitchRoom() {
             <div className="bg-white/70 dark:bg-zinc-900/40 backdrop-blur-xl border border-slate-200 dark:border-white/5 rounded-2xl p-2 flex flex-col shadow-sm shrink-0">
               {/* Screen container */}
               <div
-                className="w-full relative border border-slate-200 dark:border-zinc-800 rounded-xl bg-slate-900 overflow-hidden flex items-center justify-center min-h-[45vh]"
+                className="w-full h-[42vh] relative border border-slate-200 dark:border-zinc-800 rounded-xl bg-slate-900 overflow-hidden flex items-center justify-center"
               >
                 {/* Verdict status badge on mobile */}
                 {verdictPhase && (
@@ -2163,9 +2208,9 @@ export default function LivePitchRoom() {
                 )}
 
                 {mainView === "slide" ? (
-                  <div className="w-full h-[70vh] relative">
+                  <div className="w-full h-full relative">
                     <DeckViewer
-                      className="rounded-[24px]"
+                      className="rounded-xl"
                       isCapturing={isCapturing}
                       screenRef={setScreenRef}
                       selectedDeck={pitchConfig?.selectedDeck}
@@ -2176,15 +2221,17 @@ export default function LivePitchRoom() {
                       onClick={() => setMainView("camera")}
                       className="absolute bottom-2 right-2 w-20 h-14 sm:w-28 rounded-lg border border-white/20 shadow-2xl overflow-hidden cursor-pointer z-20 hover:scale-105 transition-all bg-black/80 flex items-center justify-center"
                     >
-                      {stream && !isCameraMuted ? (
-                        <video
-                          ref={setVideoRef}
-                          autoPlay
-                          muted
-                          playsInline
-                          className="w-full h-full object-cover"
-                        />
-                      ) : (
+                      <video
+                        ref={setVideoRef}
+                        autoPlay
+                        muted
+                        playsInline
+                        className={cn(
+                          "w-full h-full object-cover transition-opacity duration-300",
+                          stream && !isCameraMuted ? "opacity-100" : "opacity-0 absolute pointer-events-none"
+                        )}
+                      />
+                      {(!stream || isCameraMuted) && (
                         <div className="flex flex-col items-center justify-center text-white/40">
                           <VideoOff size={12} />
                           <span className="text-[6px] font-bold uppercase tracking-wider mt-0.5">
@@ -2301,10 +2348,10 @@ export default function LivePitchRoom() {
                 </button>
               </div>
 
-              <p className="text-center mt-1.5 text-[9px] text-slate-400 dark:text-zinc-500 font-bold uppercase tracking-widest">
+              <p className="text-center mt-1 text-[8px] text-slate-400 dark:text-zinc-500 font-bold uppercase tracking-widest">
                 {mainView === "slide"
-                  ? "Tap camera feed to switch"
-                  : "Tap deck thumbnail to view slides"}
+                  ? "Tap PIP preview to swap view"
+                  : "Tap PIP preview to view deck"}
               </p>
             </div>
 
@@ -2462,75 +2509,7 @@ export default function LivePitchRoom() {
           </div>
         )}
 
-        {/* Tab 3: Chat */}
-        {activeMobileTab === "chat" && (
-          <div className="flex-1 flex flex-col min-h-0 m-2 bg-white/70 dark:bg-zinc-900/60 backdrop-blur-xl border border-slate-200 dark:border-zinc-800/50 rounded-3xl p-4 shadow-xl transition-colors overflow-hidden">
-            <div className="flex items-center gap-2 text-slate-500 dark:text-white/50 text-[10px] font-bold uppercase tracking-widest mb-3 shrink-0">
-              <MessageSquare size={14} /> Chatbox & Transcript
-              {isSpeaking && (
-                <span className="text-sky-500 dark:text-sky-400 animate-pulse ml-auto font-medium">
-                  AI is speaking...
-                </span>
-              )}
-            </div>
-            <div
-              ref={mobileFullScrollRef}
-              className="flex-1 overflow-y-auto space-y-3 pr-1 custom-scrollbar min-h-0"
-            >
-              {messages.length === 0 ? (
-                <p className="text-slate-400 dark:text-white/30 text-xs text-center mt-8 font-medium tracking-wide">
-                  AI Panel is ready. Start your pitch.
-                </p>
-              ) : (
-                messages.map((m) => (
-                  <div
-                    key={m.id}
-                    className={cn(
-                      "flex flex-col max-w-[85%]",
-                      m.type === "user"
-                        ? "ml-auto items-end"
-                        : "mr-auto items-start",
-                    )}
-                  >
-                    <span className="text-[9px] font-bold uppercase text-slate-400 dark:text-white/30 mb-1 px-1 tracking-widest">
-                      {m.speaker ||
-                        (m.type === "user" ? userData.name : "Panelist")}
-                    </span>
-                    <div
-                      className={cn(
-                        "p-3 text-sm leading-relaxed",
-                        m.type === "user"
-                          ? "bg-sky-500 text-white rounded-2xl rounded-tr-sm shadow-md"
-                          : "bg-slate-100 dark:bg-zinc-800 text-slate-800 dark:text-slate-100 rounded-2xl rounded-tl-sm border border-slate-200 dark:border-zinc-700 shadow-sm",
-                      )}
-                    >
-                      {m.text}
-                    </div>
-                  </div>
-                ))
-              )}
-            </div>
-            <form
-              onSubmit={handleSendChat}
-              className="flex items-center gap-2 shrink-0 mt-3 bg-slate-100/50 dark:bg-zinc-950/50 border border-slate-200 dark:border-white/10 rounded-xl p-1.5 shadow-inner"
-            >
-              <input
-                type="text"
-                value={chatInput}
-                onChange={(e) => setChatInput(e.target.value)}
-                placeholder="Type a message to the panel..."
-                className="flex-1 bg-transparent border-none focus:ring-0 text-sm text-slate-800 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500 px-3 outline-none min-w-0"
-              />
-              <button
-                type="submit"
-                disabled={!isConnected}
-                className="shrink-0 px-4 py-2 bg-sky-500 text-white font-bold text-xs uppercase tracking-wider rounded-lg hover:bg-sky-600 transition-colors disabled:opacity-50 shadow-md cursor-pointer"
-              >
-                Send
-              </button>
-            </form>
-          </div>
-        )}
+
 
         {/* Tab 4: Vitals */}
         {activeMobileTab === "vitals" && (
@@ -2646,7 +2625,6 @@ export default function LivePitchRoom() {
         {[
           { tab: "room", icon: <Video size={19} />, label: "Room" },
           { tab: "panelists", icon: <Users size={19} />, label: "Panelists" },
-          { tab: "chat", icon: <MessageSquare size={19} />, label: "Chat" },
           { tab: "vitals", icon: <Activity size={19} />, label: "Monitor" },
         ].map(({ tab, icon, label }) => (
           <button
