@@ -298,7 +298,7 @@ const DeckViewer = React.memo(
   }: {
     className?: string;
     isCapturing: boolean;
-    screenRef: React.RefObject<HTMLVideoElement | null>;
+    screenRef: any;
     selectedDeck?: { file_url: string } | null;
     getDeckDisplayUrl: (url: string) => string;
   }) => {
@@ -1351,14 +1351,19 @@ export default function LivePitchRoom() {
     return () => clearInterval(visionInterval);
   }, [isPitching, socket, isConnected, isMicMuted, userData.name]);
 
-  useEffect(() => {
-    if (videoRef.current && stream) videoRef.current.srcObject = stream;
-  }, [stream, mainView]);
+  const setVideoRef = useCallback((el: HTMLVideoElement | null) => {
+    if (el) {
+      el.srcObject = stream;
+      (videoRef as any).current = el;
+    }
+  }, [stream]);
 
-  useEffect(() => {
-    if (screenRef.current && screenStream)
-      screenRef.current.srcObject = screenStream;
-  }, [screenStream, mainView]);
+  const setScreenRef = useCallback((el: HTMLVideoElement | null) => {
+    if (el) {
+      el.srcObject = screenStream;
+      (screenRef as any).current = el;
+    }
+  }, [screenStream]);
 
   const wakeAudio = () => {
     if (audioContextRef.current?.state === "suspended")
@@ -1641,7 +1646,7 @@ export default function LivePitchRoom() {
     >
       {stream && !isCameraMuted ? (
         <video
-          ref={videoRef}
+          ref={setVideoRef}
           autoPlay
           muted
           playsInline
@@ -1838,7 +1843,7 @@ export default function LivePitchRoom() {
                 <DeckViewer
                   className="rounded-[24px]"
                   isCapturing={isCapturing}
-                  screenRef={screenRef}
+                  screenRef={setScreenRef}
                   selectedDeck={pitchConfig?.selectedDeck}
                   getDeckDisplayUrl={getDeckDisplayUrl}
                 />
@@ -2007,7 +2012,7 @@ export default function LivePitchRoom() {
                 <DeckViewer
                   className="rounded-[24px]"
                   isCapturing={isCapturing}
-                  screenRef={screenRef}
+                  screenRef={setScreenRef}
                   selectedDeck={pitchConfig?.selectedDeck}
                   getDeckDisplayUrl={getDeckDisplayUrl}
                 />
@@ -2159,7 +2164,7 @@ export default function LivePitchRoom() {
                     <DeckViewer
                       className="rounded-[24px]"
                       isCapturing={isCapturing}
-                      screenRef={screenRef}
+                      screenRef={setScreenRef}
                       selectedDeck={pitchConfig?.selectedDeck}
                       getDeckDisplayUrl={getDeckDisplayUrl}
                     />
@@ -2170,7 +2175,7 @@ export default function LivePitchRoom() {
                     >
                       {stream && !isCameraMuted ? (
                         <video
-                          ref={videoRef}
+                          ref={setVideoRef}
                           autoPlay
                           muted
                           playsInline
