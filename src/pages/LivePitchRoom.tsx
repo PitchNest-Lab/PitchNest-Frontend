@@ -427,6 +427,7 @@ export default function LivePitchRoom() {
 
   const [mainView, setMainView] = useState<"slide" | "camera">("slide");
   const [chatInput, setChatInput] = useState("");
+  const chatInputRef = useRef("");
   const [activeSpeakerName, setActiveSpeakerName] = useState("");
   const [isPitching, setIsPitching] = useState(false);
   const [isSpeaking, setIsSpeaking] = useState(false);
@@ -471,6 +472,7 @@ export default function LivePitchRoom() {
   >([]);
   const verdictCountdownRef = useRef<NodeJS.Timeout | null>(null);
   const verdictMaxTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const verdictCompleteReceivedRef = useRef(false);
   // ────────────────────────────────────────────────────────────────────────
 
   const [userData, setUserData] = useState<{
@@ -496,6 +498,25 @@ export default function LivePitchRoom() {
   const chunksRef = useRef<BlobPart[]>([]);
   const videoRef = useRef<HTMLVideoElement>(null);
   const screenRef = useRef<HTMLVideoElement>(null);
+
+  useEffect(() => {
+    chatInputRef.current = chatInput;
+  }, [chatInput]);
+
+  // ── Heartbeat Interval ───────────────────────────────────────────────────
+  useEffect(() => {
+    if (!socket || socket.readyState !== WebSocket.OPEN) return;
+    const interval = setInterval(() => {
+      // If the user has typed anything, or the microphone thinks they are speaking, send a heartbeat
+      if (chatInputRef.current.trim().length > 0 || (isCapturing && !isMicMuted)) {
+        socket.send(JSON.stringify({ type: "heartbeat" }));
+      }
+    }, 5000);
+    return () => clearInterval(interval);
+  }, [socket, isCapturing, isMicMuted]);
+  // ────────────────────────────────────────────────────────────────────────
+
+  const messagesEndRef = useRef<HTMLDivElement>(null);
   const desktopScrollRef = useRef<HTMLDivElement>(null);
   const mobileEmbeddedScrollRef = useRef<HTMLDivElement>(null);
   const mobileFullScrollRef = useRef<HTMLDivElement>(null);
@@ -776,31 +797,22 @@ export default function LivePitchRoom() {
     }
 
     let cancelled = false;
-    let localFallbackStream: MediaStream | null = null;
+    let micStreamRef: MediaStream | null = null;
 
     const startAudioCapture = async () => {
       try {
-        let activeStream = stream;
-        if (!activeStream) {
-          console.warn("⚠️ No active stream found for audio capture. Trying fallback getUserMedia...");
-          localFallbackStream = await navigator.mediaDevices.getUserMedia({
-            audio: { echoCancellation: true, noiseSuppression: true, sampleRate: 16000 },
-            video: false,
-          });
-          activeStream = localFallbackStream;
-        }
-
-        if (cancelled) {
-          if (localFallbackStream) {
-            localFallbackStream.getTracks().forEach(t => t.stop());
-          }
-          return;
-        }
+        // Get a dedicated audio-only stream for sending to Gemini
+        const micStream = await navigator.mediaDevices.getUserMedia({
+          audio: { echoCancellation: true, noiseSuppression: true, sampleRate: 16000 },
+          video: false,
+        });
+        if (cancelled) { micStream.getTracks().forEach(t => t.stop()); return; }
+        micStreamRef = micStream;
 
         const ctx = new (window.AudioContext || (window as any).webkitAudioContext)({ sampleRate: 16000 });
         audioStreamContextRef.current = ctx;
 
-        const source = ctx.createMediaStreamSource(activeStream);
+        const source = ctx.createMediaStreamSource(micStream);
         audioStreamSourceRef.current = source;
 
         // ScriptProcessorNode: capture PCM chunks (4096 samples ~ 256ms at 16kHz)
@@ -848,8 +860,8 @@ export default function LivePitchRoom() {
 
     return () => {
       cancelled = true;
-      if (localFallbackStream) {
-        localFallbackStream.getTracks().forEach(t => t.stop());
+      if (micStreamRef) {
+        micStreamRef.getTracks().forEach(t => t.stop());
       }
       if (audioStreamProcessorRef.current) {
         try { audioStreamProcessorRef.current.disconnect(); } catch {}
@@ -942,7 +954,7 @@ export default function LivePitchRoom() {
             }),
           );
         }
-      }, 1000);
+      }, 200);
     };
 
     recognition.onend = () => {
@@ -991,7 +1003,7 @@ export default function LivePitchRoom() {
       try {
         const data = JSON.parse(event.data);
 
-        if (sessionLockedRef.current && data.type !== "report") {
+        if (sessionLockedRef.current && data.type !== "report" && data.type !== "SCORE_UPDATE") {
           return;
         }
 
@@ -1055,16 +1067,13 @@ export default function LivePitchRoom() {
 
         // ── All verdicts done — wait for audio to finish, then end session ─
         if (data.type === "verdict_complete") {
-          // Wait a few seconds for the last verdict audio to finish playing,
-          // then auto-transition to evaluation (no restart, no overlay)
-          const waitForAudio = () => {
-            const delay = activeSourcesRef.current.length > 0 ? 4000 : 1500;
+          verdictCompleteReceivedRef.current = true;
+          if (activeSourcesRef.current.length === 0) {
             setTimeout(() => {
               setVerdictPhase(false);
               handleEndSession();
-            }, delay);
-          };
-          waitForAudio();
+            }, 1500);
+          }
           return;
         }
 
@@ -1179,6 +1188,11 @@ export default function LivePitchRoom() {
               ) {
                 setSpeakingState(false);
                 setActiveSpeakerName("");
+
+                if (verdictCompleteReceivedRef.current) {
+                  setVerdictPhase(false);
+                  handleEndSession();
+                }
               }
             };
 
