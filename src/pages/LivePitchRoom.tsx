@@ -797,22 +797,15 @@ export default function LivePitchRoom() {
     }
 
     let cancelled = false;
-    let micStreamRef: MediaStream | null = null;
 
     const startAudioCapture = async () => {
       try {
-        // Get a dedicated audio-only stream for sending to Gemini
-        const micStream = await navigator.mediaDevices.getUserMedia({
-          audio: { echoCancellation: true, noiseSuppression: true, sampleRate: 16000 },
-          video: false,
-        });
-        if (cancelled) { micStream.getTracks().forEach(t => t.stop()); return; }
-        micStreamRef = micStream;
+        if (cancelled || !stream) return;
 
         const ctx = new (window.AudioContext || (window as any).webkitAudioContext)({ sampleRate: 16000 });
         audioStreamContextRef.current = ctx;
 
-        const source = ctx.createMediaStreamSource(micStream);
+        const source = ctx.createMediaStreamSource(stream);
         audioStreamSourceRef.current = source;
 
         // ScriptProcessorNode: capture PCM chunks (4096 samples ~ 256ms at 16kHz)
@@ -860,9 +853,6 @@ export default function LivePitchRoom() {
 
     return () => {
       cancelled = true;
-      if (micStreamRef) {
-        micStreamRef.getTracks().forEach(t => t.stop());
-      }
       if (audioStreamProcessorRef.current) {
         try { audioStreamProcessorRef.current.disconnect(); } catch {}
         audioStreamProcessorRef.current = null;
@@ -1664,7 +1654,7 @@ export default function LivePitchRoom() {
           autoPlay
           muted
           playsInline
-          className="w-full h-full object-cover"
+          className="w-full h-full object-contain bg-black"
         />
       ) : (
         <VideoOff size={48} className="text-slate-300 dark:text-white/20" />
@@ -2160,8 +2150,7 @@ export default function LivePitchRoom() {
             <div className="bg-white/70 dark:bg-zinc-900/40 backdrop-blur-xl border border-slate-200 dark:border-white/5 rounded-2xl p-2 flex flex-col shadow-sm shrink-0">
               {/* Screen container */}
               <div
-                className="w-full relative border border-slate-200 dark:border-zinc-800 rounded-xl bg-slate-900 overflow-hidden flex items-center justify-center"
-                style={{ aspectRatio: "16/9", maxHeight: "32vh" }}
+                className="w-full relative border border-slate-200 dark:border-zinc-800 rounded-xl bg-slate-900 overflow-hidden flex items-center justify-center min-h-[45vh]"
               >
                 {/* Verdict status badge on mobile */}
                 {verdictPhase && (
