@@ -2197,7 +2197,7 @@ export default function LivePitchRoom() {
             <div className="bg-white/70 dark:bg-zinc-900/40 backdrop-blur-xl border border-slate-200 dark:border-white/5 rounded-2xl p-2 flex flex-col shadow-sm shrink-0">
               {/* Screen container */}
               <div
-                className="w-full h-[55vh] relative border border-slate-200 dark:border-zinc-800 rounded-xl bg-slate-900 overflow-hidden flex items-center justify-center"
+                className="w-full h-[42vh] relative border border-slate-200 dark:border-zinc-800 rounded-xl bg-slate-900 overflow-hidden flex items-center justify-center"
               >
                 {/* Verdict status badge on mobile */}
                 {verdictPhase && (
