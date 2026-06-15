@@ -1617,7 +1617,8 @@ export default function LivePitchRoom() {
       }
 
       if (chunksRef.current && chunksRef.current.length > 0) {
-        const mimeType = chunksRef.current[0].type || "video/webm";
+        const firstChunk = chunksRef.current[0] as any;
+        const mimeType = firstChunk.type || "video/webm";
         const extension = mimeType.includes("mp4") ? "mp4" : "webm";
         const blob = new Blob(chunksRef.current, { type: mimeType });
         const formData = new FormData();
