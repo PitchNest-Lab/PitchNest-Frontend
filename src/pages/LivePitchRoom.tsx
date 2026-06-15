@@ -478,6 +478,7 @@ export default function LivePitchRoom() {
   const [isEvaluatingPitch, setIsEvaluatingPitch] = useState(false);
   const [isConcluding, setIsConcluding] = useState(false);
   const [isTurnComplete, setIsTurnComplete] = useState(false);
+  const turnStartedRef = useRef(true);
   const [loadingStatus, setLoadingStatus] = useState(
     "Panel is grading your pitch...",
   );
@@ -1054,6 +1055,7 @@ export default function LivePitchRoom() {
         }
 
         if (data.type === "stop_audio") {
+          if (verdictPhase) return;
           activeSourcesRef.current.forEach((src) => {
             try {
               src.stop();
@@ -1069,7 +1071,10 @@ export default function LivePitchRoom() {
         }
 
         if (data.type === "turn_complete") {
-          const markTurnComplete = () => setIsTurnComplete(true);
+          const markTurnComplete = () => {
+            setIsTurnComplete(true);
+            turnStartedRef.current = true;
+          };
           if (
             !audioContextRef.current ||
             activeSourcesRef.current.length === 0
@@ -1123,18 +1128,50 @@ export default function LivePitchRoom() {
           return;
         }
 
-        if (data.type === "transcript" && data.text) {
-          const speaker = data.speaker || "Marcus";
-          setActiveSpeakerName(speaker);
+        if (data.type === "chat_message") {
           setMessages((prev) => [
             ...prev,
             {
-              id: `ai-transcript-${Date.now()}`,
+              id: `chat-${Date.now()}`,
               text: data.text,
-              type: "ai",
-              speaker,
+              type: data.role === "user" ? "user" : "ai",
+              speaker: data.speaker || (data.role === "user" ? userData.name : "System"),
+              inputMethod: data.inputMethod || "voice",
             },
           ]);
+          return;
+        }
+
+        if (data.type === "transcript" && data.text) {
+          const speaker = data.speaker || "Marcus";
+          setActiveSpeakerName(speaker);
+          setMessages((prev) => {
+            if (prev.length > 0 && !turnStartedRef.current) {
+              const last = prev[prev.length - 1];
+              if (last.type === "ai" && last.speaker === speaker) {
+                const updated = [...prev];
+                const needsSpace =
+                  last.text.length > 0 &&
+                  !last.text.endsWith(" ") &&
+                  !data.text.startsWith(" ");
+                updated[updated.length - 1] = {
+                  ...last,
+                  text: last.text + (needsSpace ? " " : "") + data.text,
+                };
+                return updated;
+              }
+            }
+            turnStartedRef.current = false;
+            return [
+              ...prev,
+              {
+                id: `ai-transcript-${Date.now()}`,
+                text: data.text,
+                type: "ai",
+                speaker,
+              },
+            ];
+          });
           return;
         }
 
@@ -1354,58 +1391,6 @@ export default function LivePitchRoom() {
     socket.addEventListener("message", handleMessage);
     return () => socket.removeEventListener("message", handleMessage);
   }, [socket, navigate, pitchConfig, activeSpeakerName]);
-
-  useEffect(() => {
-    console.log("🔁 Recognition useEffect ran", {
-      isPitching,
-      isConnected,
-      socket: !!socket,
-    });
-    if (!isPitching || !socket || !isConnected) {
-      console.warn("❌ Gate blocked", {
-        isPitching,
-        isConnected,
-        socket: !!socket,
-      });
-      return;
-    }
-    const visionInterval = setInterval(() => {
-      if (socket.readyState !== WebSocket.OPEN) return;
-      const frames: any[] = [];
-      const canvas = document.createElement("canvas");
-
-      if (videoRef.current) {
-        canvas.width = 320;
-        canvas.height = 180;
-        const ctx = canvas.getContext("2d");
-        if (ctx) {
-          ctx.drawImage(videoRef.current, 0, 0, 320, 180);
-          frames.push({
-            mimeType: "image/jpeg",
-            data: canvas.toDataURL("image/jpeg", 0.4).split(",")[1],
-          });
-        }
-      }
-
-      if (screenRef.current && isCapturing) {
-        canvas.width = 640;
-        canvas.height = 360;
-        const ctx = canvas.getContext("2d");
-        if (ctx) {
-          ctx.drawImage(screenRef.current, 0, 0, 640, 360);
-          frames.push({
-            mimeType: "image/jpeg",
-            data: canvas.toDataURL("image/jpeg", 0.5).split(",")[1],
-          });
-        }
-      }
-
-      if (frames.length > 0)
-        socket.send(JSON.stringify({ realtimeInput: { mediaChunks: frames } }));
-    }, 4000);
-
-    return () => clearInterval(visionInterval);
-  }, [isPitching, socket, isConnected, isMicMuted, userData.name]);
 
   const setVideoRef = useCallback((el: HTMLVideoElement | null) => {
     if (el) {
