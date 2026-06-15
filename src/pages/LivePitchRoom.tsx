@@ -784,7 +784,7 @@ export default function LivePitchRoom() {
             chunksRef.current.push(event.data);
           }
         };
-        recorder.start(1000); // chunk every 1s
+        recorder.start(5000); // chunk every 5s to reduce encoder stutter on mobile
         mediaRecorderRef.current = recorder;
         console.log("🎥 Video recording started");
       } catch (recErr) {
@@ -874,16 +874,15 @@ export default function LivePitchRoom() {
           }
           const base64 = btoa(binary);
 
-          // Send as Gemini realtimeInput format
-          socket.send(JSON.stringify({
-            realtimeInput: {
-              mediaChunks: [{ mimeType: 'audio/pcm;rate=16000', data: base64 }]
-            }
-          }));
+          // Send to Server STT
+          socket.send(JSON.stringify({ type: 'audio_chunk', data: base64 }));
         };
 
         source.connect(processor);
-        processor.connect(ctx.destination); // Required for ScriptProcessorNode to work
+        const silentSink = ctx.createGain();
+        silentSink.gain.value = 0;
+        processor.connect(silentSink);
+        silentSink.connect(ctx.destination);
         console.log('🎙️ Audio capture pipeline started (16kHz PCM → Gemini)');
       } catch (err) {
         console.error('❌ Failed to start audio capture pipeline:', err);
@@ -911,6 +910,7 @@ export default function LivePitchRoom() {
 
   // ── SpeechRecognition for live text transcript display ─────────────────
   useEffect(() => {
+    return; // Disabled — replaced by server-side STT (see sttService.ts)
     if (!isPitching || !socket || !isConnected || isMicMuted || verdictPhase) {
       if (recognitionRef.current) {
         recognitionRef.current.abort();
@@ -1398,7 +1398,9 @@ export default function LivePitchRoom() {
 
   const setVideoRef = useCallback((el: HTMLVideoElement | null) => {
     if (el) {
-      el.srcObject = stream;
+      if (el.srcObject !== stream) {
+        el.srcObject = stream;
+      }
       (videoRef as any).current = el;
     }
   }, [stream]);
@@ -2195,7 +2197,7 @@ export default function LivePitchRoom() {
             <div className="bg-white/70 dark:bg-zinc-900/40 backdrop-blur-xl border border-slate-200 dark:border-white/5 rounded-2xl p-2 flex flex-col shadow-sm shrink-0">
               {/* Screen container */}
               <div
-                className="w-full h-[42vh] relative border border-slate-200 dark:border-zinc-800 rounded-xl bg-slate-900 overflow-hidden flex items-center justify-center"
+                className="w-full h-[55vh] relative border border-slate-200 dark:border-zinc-800 rounded-xl bg-slate-900 overflow-hidden flex items-center justify-center"
               >
                 {/* Verdict status badge on mobile */}
                 {verdictPhase && (
