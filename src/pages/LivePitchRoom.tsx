@@ -777,8 +777,8 @@ export default function LivePitchRoom() {
     if (activeStream) {
       try {
         chunksRef.current = [];
-        const options = { mimeType: "video/webm;codecs=vp8,opus" };
-        const recorder = new MediaRecorder(activeStream, options);
+        // Let the browser pick its default hardware-accelerated codec (fixes mobile stuttering/cracking)
+        const recorder = new MediaRecorder(activeStream);
         recorder.ondataavailable = (event) => {
           if (event.data && event.data.size > 0) {
             chunksRef.current.push(event.data);
@@ -1330,12 +1330,8 @@ export default function LivePitchRoom() {
             );
           };
 
-          if (uploadPromiseRef.current) {
-            setLoadingStatus("Finalizing video upload...");
-            uploadPromiseRef.current.finally(finalizeNavigation);
-          } else {
-            finalizeNavigation();
-          }
+          // Navigate immediately so user sees evaluation results without waiting for video upload
+          finalizeNavigation();
         }
       } catch (err) {}
     };
@@ -1621,9 +1617,11 @@ export default function LivePitchRoom() {
       }
 
       if (chunksRef.current && chunksRef.current.length > 0) {
-        const blob = new Blob(chunksRef.current, { type: "video/webm" });
+        const mimeType = chunksRef.current[0].type || "video/webm";
+        const extension = mimeType.includes("mp4") ? "mp4" : "webm";
+        const blob = new Blob(chunksRef.current, { type: mimeType });
         const formData = new FormData();
-        formData.append("video", blob, `pitch_${Date.now()}.webm`);
+        formData.append("video", blob, `pitch_${Date.now()}.${extension}`);
 
         uploadPromiseRef.current = new Promise<void>(async (resolve) => {
           try {
