@@ -450,6 +450,8 @@ export default function LivePitchRoom() {
   const [isPitching, setIsPitching] = useState(false);
   const [isSpeaking, setIsSpeaking] = useState(false);
   const isSpeakingRef = useRef(false);
+  const [isUserSpeaking, setIsUserSpeaking] = useState(false);
+  const pulseTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const lastAiSpeakingEndedTimeRef = useRef(0);
   const setSpeakingState = useCallback((val: boolean) => {
     setIsSpeaking(val);
@@ -784,7 +786,7 @@ export default function LivePitchRoom() {
             chunksRef.current.push(event.data);
           }
         };
-        recorder.start(5000); // chunk every 5s to reduce encoder stutter on mobile
+        recorder.start(); // start recording without timeslice to prevent continuous encoder stutter on mobile
         mediaRecorderRef.current = recorder;
         console.log("🎥 Video recording started");
       } catch (recErr) {
@@ -854,6 +856,19 @@ export default function LivePitchRoom() {
           if (!socket || socket.readyState !== WebSocket.OPEN || verdictPhase) return;
 
           const inputData = e.inputBuffer.getChannelData(0);
+          
+          if (!isMicMuted) {
+            let sum = 0;
+            for (let i = 0; i < inputData.length; i++) {
+              sum += inputData[i] * inputData[i];
+            }
+            const rms = Math.sqrt(sum / inputData.length);
+            if (rms > 0.05) {
+              setIsUserSpeaking(true);
+              if (pulseTimeoutRef.current) clearTimeout(pulseTimeoutRef.current);
+              pulseTimeoutRef.current = setTimeout(() => setIsUserSpeaking(false), 500);
+            }
+          }
           const inputSampleRate = e.inputBuffer.sampleRate;
           
           // Resample to 16000Hz (Bidi Gemini native rate)
@@ -1936,6 +1951,7 @@ export default function LivePitchRoom() {
                   !isMicMuted
                     ? "bg-sky-500 text-white hover:bg-sky-600 shadow-lg shadow-sky-500/20"
                     : "bg-rose-500/20 text-rose-500 hover:bg-rose-500/30",
+                  isUserSpeaking && !isMicMuted ? "ring-4 ring-sky-400/60 shadow-[0_0_20px_rgba(56,189,248,0.5)]" : ""
                 )}
               >
                 {!isMicMuted ? <Mic size={20} /> : <MicOff size={20} />}
