@@ -401,6 +401,54 @@ const getDeckDisplayUrl = (url: string) => {
   return deckUrl;
 };
 
+// ─── Stable camera viewer — lives OUTSIDE LivePitchRoom so its identity never
+//     changes between renders, which would unmount/remount the <video> element
+//     and cause the visible skip/crack during a pitch session. ────────────────
+const CameraViewer = React.memo(
+  ({
+    videoRef,
+    stream,
+    isCameraMuted,
+    isPitching,
+    className = "",
+  }: {
+    videoRef: (el: HTMLVideoElement | null) => void;
+    stream: MediaStream | null;
+    isCameraMuted: boolean;
+    isPitching: boolean;
+    className?: string;
+  }) => (
+    <div
+      className={cn(
+        "w-full h-full relative flex items-center justify-center bg-black",
+        className,
+      )}
+    >
+      <video
+        ref={videoRef}
+        autoPlay
+        muted
+        playsInline
+        className={cn(
+          "w-full h-full object-contain transition-opacity duration-300",
+          stream && !isCameraMuted ? "opacity-100" : "opacity-0 absolute pointer-events-none",
+        )}
+      />
+      {(!stream || isCameraMuted) && (
+        <div className="absolute inset-0 flex items-center justify-center bg-slate-900">
+          <VideoOff size={48} className="text-slate-300 dark:text-white/20" />
+        </div>
+      )}
+      {isPitching && stream && !isCameraMuted && (
+        <div className="absolute top-3 right-3 bg-rose-500 px-2.5 py-1 rounded-full text-[8px] font-bold animate-pulse shadow-lg z-10 uppercase tracking-widest text-white">
+          Vision On
+        </div>
+      )}
+    </div>
+  ),
+);
+CameraViewer.displayName = "CameraViewer";
+
 export default function LivePitchRoom() {
   const location = useLocation();
   const navigate = useNavigate();
@@ -1683,35 +1731,6 @@ export default function LivePitchRoom() {
 
   // ── Deck viewer component — scrollable, touch-friendly ───────────────────
 
-  const CameraViewer = ({ className = "" }: { className?: string }) => (
-    <div
-      className={cn(
-        "w-full h-full relative flex items-center justify-center bg-black",
-        className,
-      )}
-    >
-      <video
-        ref={setVideoRef}
-        autoPlay
-        muted
-        playsInline
-        className={cn(
-          "w-full h-full object-contain transition-opacity duration-300",
-          stream && !isCameraMuted ? "opacity-100" : "opacity-0 absolute pointer-events-none"
-        )}
-      />
-      {(!stream || isCameraMuted) && (
-        <div className="absolute inset-0 flex items-center justify-center bg-slate-900">
-          <VideoOff size={48} className="text-slate-300 dark:text-white/20" />
-        </div>
-      )}
-      {isPitching && stream && !isCameraMuted && (
-        <div className="absolute top-3 right-3 bg-rose-500 px-2.5 py-1 rounded-full text-[8px] font-bold animate-pulse shadow-lg z-10 uppercase tracking-widest text-white">
-          Vision On
-        </div>
-      )}
-    </div>
-  );
 
   return (
     <div className="h-screen max-h-screen bg-slate-50 dark:bg-zinc-950 text-slate-800 dark:text-white font-sans flex flex-col relative overflow-hidden transition-colors">
@@ -1900,7 +1919,7 @@ export default function LivePitchRoom() {
               </div>
             ) : (
               <div className="w-full h-full relative flex items-center justify-center rounded-[24px] overflow-hidden">
-                <CameraViewer />
+                <CameraViewer videoRef={setVideoRef} stream={stream} isCameraMuted={isCameraMuted} isPitching={isPitching} />
               </div>
             )}
 
@@ -2070,7 +2089,7 @@ export default function LivePitchRoom() {
               </div>
             ) : (
               <div className="w-full h-full pointer-events-none">
-                <CameraViewer />
+                <CameraViewer videoRef={setVideoRef} stream={stream} isCameraMuted={isCameraMuted} isPitching={isPitching} />
               </div>
             )}
             <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center backdrop-blur-sm">
@@ -2248,7 +2267,7 @@ export default function LivePitchRoom() {
                   </div>
                 ) : (
                   <div className="w-full h-full relative">
-                    <CameraViewer />
+                    <CameraViewer videoRef={setVideoRef} stream={stream} isCameraMuted={isCameraMuted} isPitching={isPitching} />
                     {/* Slides PIP */}
                     <div
                       onClick={() => setMainView("slide")}
