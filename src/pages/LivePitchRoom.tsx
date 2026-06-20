@@ -430,7 +430,7 @@ const CameraViewer = React.memo(
         muted
         playsInline
         className={cn(
-          "w-full h-full object-contain transition-opacity duration-300",
+          "w-full h-full object-cover transition-opacity duration-300",
           stream && !isCameraMuted ? "opacity-100" : "opacity-0 absolute pointer-events-none",
         )}
       />
@@ -740,7 +740,11 @@ export default function LivePitchRoom() {
     if (!isPitching || isEvaluatingPitch || isConcluding || verdictPhase)
       return;
     if (timeLeft <= 0) {
-      triggerVerdictPhase();
+      if (pitchConfig?.mode === "panel") {
+        triggerVerdictPhase();
+      } else {
+        handleEndSession();
+      }
       return;
     }
     const timer = setInterval(() => setTimeLeft((prev) => prev - 1), 1000);
@@ -1581,14 +1585,24 @@ export default function LivePitchRoom() {
     setIsConcluding(true);
     setIsTurnComplete(false);
     wakeAudio();
-    // Trigger the verdict phase directly (which handles everything)
-    triggerVerdictPhase();
+    // Panel mode only shows the verdict phase; coach/solo go straight to evaluation
+    if (pitchConfig?.mode === "panel") {
+      triggerVerdictPhase();
+    } else {
+      handleEndSession();
+    }
   };
 
   useEffect(() => {
     if (isConcluding && isTurnComplete && !isSpeaking && !verdictPhase) {
       const timer = setTimeout(() => {
-        if (!isSpeaking && !verdictPhase) triggerVerdictPhase();
+        if (!isSpeaking && !verdictPhase) {
+          if (pitchConfig?.mode === "panel") {
+            triggerVerdictPhase();
+          } else {
+            handleEndSession();
+          }
+        }
       }, 1500);
       return () => clearTimeout(timer);
     }
@@ -1623,12 +1637,20 @@ export default function LivePitchRoom() {
     if (verdictCountdownRef.current) clearInterval(verdictCountdownRef.current);
     if (verdictMaxTimerRef.current) clearTimeout(verdictMaxTimerRef.current);
 
-    const statusMessages = [
-      "Panel is grading your pitch...",
-      "Analyzing delivery and clarity...",
-      "Calculating investor readiness...",
-      "Finalizing your report...",
-    ];
+    const isCoachOrSolo = pitchConfig?.mode === "coach" || pitchConfig?.mode === "solo";
+    const statusMessages = isCoachOrSolo
+      ? [
+          "Riley is reviewing your session...",
+          "Analyzing communication and clarity...",
+          "Identifying areas for improvement...",
+          "Finalizing your coaching report...",
+        ]
+      : [
+          "Panel is grading your pitch...",
+          "Analyzing delivery and clarity...",
+          "Calculating investor readiness...",
+          "Finalizing your report...",
+        ];
     let msgIndex = 0;
     statusIntervalRef.current = setInterval(() => {
       msgIndex = (msgIndex + 1) % statusMessages.length;
@@ -2011,32 +2033,41 @@ export default function LivePitchRoom() {
             >
               {messages.length === 0 ? (
                 <p className="text-slate-400 dark:text-white/30 text-xs text-center mt-4 font-medium tracking-wide">
-                  AI Panel is ready. Start your pitch.
+                  {pitchConfig?.mode === "coach"
+                    ? "Riley is ready. Start your pitch."
+                    : pitchConfig?.mode === "solo"
+                      ? "Practice mode is ready. Start your pitch."
+                      : "AI Panel is ready. Start your pitch."}
                 </p>
               ) : (
                 messages.map((m) => (
                   <div
                     key={m.id}
                     className={cn(
-                      "flex flex-col max-w-[80%]",
-                      m.type === "user"
-                        ? "ml-auto items-end"
-                        : "mr-auto items-start",
+                      "flex w-full",
+                      m.type === "user" ? "justify-end" : "justify-start",
                     )}
                   >
-                    <span className="text-[9px] font-bold uppercase text-slate-450 dark:text-white/40 mb-1 px-1 tracking-widest">
-                      {m.speaker ||
-                        (m.type === "user" ? userData.name : "Panelist")}
-                    </span>
                     <div
                       className={cn(
-                        "p-3.5 text-sm leading-relaxed",
-                        m.type === "user"
-                          ? "bg-sky-500 text-white rounded-2xl rounded-tr-sm shadow-md"
-                          : "bg-slate-100 dark:bg-zinc-800 text-slate-800 dark:text-slate-100 rounded-2xl rounded-tl-sm border border-slate-200 dark:border-zinc-700 shadow-sm",
+                        "flex flex-col max-w-[80%]",
+                        m.type === "user" ? "items-end" : "items-start",
                       )}
                     >
-                      {m.text}
+                      <span className="text-[9px] font-bold uppercase text-slate-450 dark:text-white/40 mb-1 px-1 tracking-widest">
+                        {m.speaker ||
+                          (m.type === "user" ? userData.name : "Panelist")}
+                      </span>
+                      <div
+                        className={cn(
+                          "p-3.5 text-sm leading-relaxed",
+                          m.type === "user"
+                            ? "bg-sky-500 text-white rounded-2xl rounded-tr-sm shadow-md"
+                            : "bg-slate-100 dark:bg-zinc-800 text-slate-800 dark:text-slate-100 rounded-2xl rounded-tl-sm border border-slate-200 dark:border-zinc-700 shadow-sm",
+                        )}
+                      >
+                        {m.text}
+                      </div>
                     </div>
                   </div>
                 ))
@@ -2392,32 +2423,41 @@ export default function LivePitchRoom() {
               >
                 {messages.length === 0 ? (
                   <p className="text-slate-400 dark:text-white/30 text-[10px] text-center mt-4 font-bold uppercase tracking-wider opacity-60">
-                    AI Panel is ready. Start your pitch.
+                    {pitchConfig?.mode === "coach"
+                      ? "Riley is ready. Start your pitch."
+                      : pitchConfig?.mode === "solo"
+                        ? "Practice mode is ready. Start your pitch."
+                        : "AI Panel is ready. Start your pitch."}
                   </p>
                 ) : (
                   messages.map((m) => (
                     <div
                       key={m.id}
                       className={cn(
-                        "flex flex-col max-w-[85%]",
-                        m.type === "user"
-                          ? "ml-auto items-end"
-                          : "mr-auto items-start",
+                        "flex w-full",
+                        m.type === "user" ? "justify-end" : "justify-start",
                       )}
                     >
-                      <span className="text-[8px] font-bold uppercase text-slate-400 dark:text-white/30 mb-0.5 px-1 tracking-wider">
-                        {m.speaker ||
-                          (m.type === "user" ? userData.name : "Panelist")}
-                      </span>
                       <div
                         className={cn(
-                          "p-2 text-xs leading-relaxed",
-                          m.type === "user"
-                            ? "bg-sky-500 text-white rounded-xl rounded-tr-sm shadow-sm"
-                            : "bg-slate-100 dark:bg-zinc-800 text-slate-800 dark:text-slate-100 rounded-xl rounded-tl-sm border border-slate-200 dark:border-zinc-700 shadow-sm",
+                          "flex flex-col max-w-[85%]",
+                          m.type === "user" ? "items-end" : "items-start",
                         )}
                       >
-                        {m.text}
+                        <span className="text-[8px] font-bold uppercase text-slate-400 dark:text-white/30 mb-0.5 px-1 tracking-wider">
+                          {m.speaker ||
+                            (m.type === "user" ? userData.name : "Panelist")}
+                        </span>
+                        <div
+                          className={cn(
+                            "p-2 text-xs leading-relaxed",
+                            m.type === "user"
+                              ? "bg-sky-500 text-white rounded-xl rounded-tr-sm shadow-sm"
+                              : "bg-slate-100 dark:bg-zinc-800 text-slate-800 dark:text-slate-100 rounded-xl rounded-tl-sm border border-slate-200 dark:border-zinc-700 shadow-sm",
+                          )}
+                        >
+                          {m.text}
+                        </div>
                       </div>
                     </div>
                   ))
