@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import {
   Play,
@@ -76,6 +76,30 @@ export default function PitchReplayScreen() {
   const { authFetch } = useAuth();
   const [session, setSession] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [isDownloading, setIsDownloading] = useState(false);
+
+  const handleDownloadPDF = useCallback(async () => {
+    if (!session?.id || isDownloading) return;
+    setIsDownloading(true);
+    try {
+      const res = await authFetch(`/api/sessions/${session.id}/pdf`);
+      if (!res.ok) throw new Error("Failed to generate PDF");
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `PitchNest_Report_${(session.business_name || "Pitch").replace(/\s+/g, "_")}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error("PDF download error:", err);
+      alert("Failed to download PDF report. Please try again.");
+    } finally {
+      setIsDownloading(false);
+    }
+  }, [session, authFetch, isDownloading]);
 
   useEffect(() => {
     const fetchSession = async () => {
@@ -213,8 +237,12 @@ export default function PitchReplayScreen() {
         </div>
 
         <div className="flex gap-3 sm:shrink-0">
-          <button className="flex-1 sm:flex-initial px-4 py-2.5 bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 text-slate-700 dark:text-zinc-300 font-bold rounded-xl hover:bg-slate-50 dark:hover:bg-zinc-800 transition-all flex items-center justify-center gap-2 text-sm">
-            <Download size={16} /> Download
+          <button
+            onClick={handleDownloadPDF}
+            disabled={isDownloading}
+            className="flex-1 sm:flex-initial px-4 py-2.5 bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 text-slate-700 dark:text-zinc-300 font-bold rounded-xl hover:bg-slate-50 dark:hover:bg-zinc-800 transition-all flex items-center justify-center gap-2 text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {isDownloading ? <Loader2 size={16} className="animate-spin" /> : <Download size={16} />} {isDownloading ? "Generating..." : "Download"}
           </button>
           <Link
             to={`/report?session=${session.id}`}

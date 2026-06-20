@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Link, useSearchParams, useLocation } from 'react-router-dom';
 import { 
   Share2, FileDown, Calendar, Users, Target, Activity, 
@@ -15,6 +15,31 @@ export default function PostPitchReport() {
   const location = useLocation();
   const [session, setSession] = useState<any>(() => location.state?.session || null);
   const [isLoading, setIsLoading] = useState(() => !location.state?.session);
+  const [isDownloading, setIsDownloading] = useState(false);
+
+  const handleDownloadPDF = useCallback(async () => {
+    if (!session?.id || isDownloading) return;
+    setIsDownloading(true);
+    try {
+      const res = await authFetch(`/api/sessions/${session.id}/pdf`);
+      if (!res.ok) throw new Error("Failed to generate PDF");
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `PitchNest_Report_${(session.business_name || "Pitch").replace(/\s+/g, "_")}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error("PDF download error:", err);
+      alert("Failed to download PDF report. Please try again.");
+    } finally {
+      setIsDownloading(false);
+    }
+  }, [session, authFetch, isDownloading]);
+
 
   useEffect(() => {
     // If we already have the session from navigation state, skip fetching to prevent flickering/overriding
@@ -131,8 +156,12 @@ export default function PostPitchReport() {
           <button className="px-5 py-2.5 bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 font-bold rounded-xl hover:bg-slate-50 transition-all flex items-center gap-2 text-sm shadow-sm">
             <Share2 size={16} /> Share
           </button>
-          <button className="px-5 py-2.5 bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 font-bold rounded-xl hover:bg-slate-50 transition-all flex items-center gap-2 text-sm shadow-sm">
-            <FileDown size={16} /> PDF
+          <button
+            onClick={handleDownloadPDF}
+            disabled={isDownloading}
+            className="px-5 py-2.5 bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 font-bold rounded-xl hover:bg-slate-50 transition-all flex items-center gap-2 text-sm shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {isDownloading ? <Loader2 size={16} className="animate-spin" /> : <FileDown size={16} />} {isDownloading ? "Generating..." : "PDF"}
           </button>
           <Link to="/setup" className="px-6 py-2.5 bg-sky-500 text-white font-bold rounded-xl hover:bg-sky-600 transition-all flex items-center gap-2 text-sm shadow-md">
             <Calendar size={16} /> Start New Session
