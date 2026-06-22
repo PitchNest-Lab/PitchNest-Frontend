@@ -28,6 +28,12 @@ import { useSocketContext } from "../contexts/SocketContext";
 import { useAuth } from "../contexts/AuthContext";
 import { ThemeToggle } from "../components/ThemeToggle";
 
+declare global {
+  interface Window {
+    firstAudioSent?: number;
+  }
+}
+
 const TTS_LANG = "en-US";
 const TTS_MAX_CHARS = 420;
 const TTS_MAX_SENTENCES = 2;
@@ -56,7 +62,11 @@ function limitSpokenText(text: string) {
   );
 }
 
-function resample(inputBuffer: Float32Array, inSampleRate: number, outSampleRate: number): Float32Array {
+function resample(
+  inputBuffer: Float32Array,
+  inSampleRate: number,
+  outSampleRate: number,
+): Float32Array {
   if (inSampleRate === outSampleRate) return inputBuffer;
   const ratio = inSampleRate / outSampleRate;
   const newLength = Math.round(inputBuffer.length / ratio);
@@ -66,7 +76,9 @@ function resample(inputBuffer: Float32Array, inSampleRate: number, outSampleRate
     const index = Math.floor(srcIndex);
     const interpolation = srcIndex - index;
     if (index + 1 < inputBuffer.length) {
-      result[i] = inputBuffer[index] * (1 - interpolation) + inputBuffer[index + 1] * interpolation;
+      result[i] =
+        inputBuffer[index] * (1 - interpolation) +
+        inputBuffer[index + 1] * interpolation;
     } else {
       result[i] = inputBuffer[index];
     }
@@ -431,7 +443,9 @@ const CameraViewer = React.memo(
         playsInline
         className={cn(
           "w-full h-full object-cover transition-opacity duration-300",
-          stream && !isCameraMuted ? "opacity-100" : "opacity-0 absolute pointer-events-none",
+          stream && !isCameraMuted
+            ? "opacity-100"
+            : "opacity-0 absolute pointer-events-none",
         )}
       />
       {(!stream || isCameraMuted) && (
@@ -577,7 +591,10 @@ export default function LivePitchRoom() {
     if (!socket || socket.readyState !== WebSocket.OPEN) return;
     const interval = setInterval(() => {
       // If the user has typed anything, or the microphone thinks they are speaking, send a heartbeat
-      if (chatInputRef.current.trim().length > 0 || (isCapturing && !isMicMuted)) {
+      if (
+        chatInputRef.current.trim().length > 0 ||
+        (isCapturing && !isMicMuted)
+      ) {
         socket.send(JSON.stringify({ type: "heartbeat" }));
       }
     }, 5000);
@@ -607,7 +624,7 @@ export default function LivePitchRoom() {
 
   // ── Audio streaming pipeline refs ──────────────────────────────────────
   const audioStreamContextRef = useRef<AudioContext | null>(null);
-  const audioStreamProcessorRef = useRef<ScriptProcessorNode | null>(null);
+  const audioStreamProcessorRef = useRef<AudioWorkletNode | null>(null);
   const audioStreamSourceRef = useRef<MediaStreamAudioSourceNode | null>(null);
   const noSpeechCountRef = useRef(0);
   // ──────────────────────────────────────────────────────────────────────
@@ -706,15 +723,21 @@ export default function LivePitchRoom() {
           clearTimeout(verdictMaxTimerRef.current);
         // Cleanup audio capture pipeline
         if (audioStreamProcessorRef.current) {
-          try { audioStreamProcessorRef.current.disconnect(); } catch {}
+          try {
+            audioStreamProcessorRef.current.disconnect();
+          } catch {}
           audioStreamProcessorRef.current = null;
         }
         if (audioStreamSourceRef.current) {
-          try { audioStreamSourceRef.current.disconnect(); } catch {}
+          try {
+            audioStreamSourceRef.current.disconnect();
+          } catch {}
           audioStreamSourceRef.current = null;
         }
         if (audioStreamContextRef.current) {
-          try { audioStreamContextRef.current.close(); } catch {}
+          try {
+            audioStreamContextRef.current.close();
+          } catch {}
           audioStreamContextRef.current = null;
         }
       } catch (e) {}
@@ -821,7 +844,7 @@ export default function LivePitchRoom() {
         startCapture();
       } catch (e) {}
     }
-    
+
     let activeStream = stream;
     if (!activeStream) {
       try {
@@ -875,15 +898,21 @@ export default function LivePitchRoom() {
     if (!isPitching || !socket || !isConnected || isMicMuted || verdictPhase) {
       // Cleanup audio pipeline
       if (audioStreamProcessorRef.current) {
-        try { audioStreamProcessorRef.current.disconnect(); } catch {}
+        try {
+          audioStreamProcessorRef.current.disconnect();
+        } catch {}
         audioStreamProcessorRef.current = null;
       }
       if (audioStreamSourceRef.current) {
-        try { audioStreamSourceRef.current.disconnect(); } catch {}
+        try {
+          audioStreamSourceRef.current.disconnect();
+        } catch {}
         audioStreamSourceRef.current = null;
       }
       if (audioStreamContextRef.current) {
-        try { audioStreamContextRef.current.close(); } catch {}
+        try {
+          audioStreamContextRef.current.close();
+        } catch {}
         audioStreamContextRef.current = null;
       }
       return;
@@ -892,69 +921,48 @@ export default function LivePitchRoom() {
     let cancelled = false;
 
     const startAudioCapture = async () => {
-      try {
-        if (cancelled || !stream) return;
+      if (cancelled || !stream) return;
+      const ctx = new AudioContext({ sampleRate: 16000 });
+      audioStreamContextRef.current = ctx;
 
-        const ctx = new (window.AudioContext || (window as any).webkitAudioContext)({ sampleRate: 16000 });
-        audioStreamContextRef.current = ctx;
+      await ctx.audioWorklet.addModule("/pcm-processor.js"); // serve this file statically
+      const source = ctx.createMediaStreamSource(stream);
+      audioStreamSourceRef.current = source;
 
-        const source = ctx.createMediaStreamSource(stream);
-        audioStreamSourceRef.current = source;
+      const worklet = new AudioWorkletNode(ctx, "pcm-processor");
+      audioStreamProcessorRef.current = worklet as any;
 
-        // ScriptProcessorNode: capture PCM chunks (4096 samples ~ 256ms at 16kHz)
-        const processor = ctx.createScriptProcessor(4096, 1, 1);
-        audioStreamProcessorRef.current = processor;
+      worklet.port.onmessage = ({ data }) => {
+        if (!window.firstAudioSent) {
+          window.firstAudioSent = performance.now();
+          console.log("🎤 First audio sent:", window.firstAudioSent);
+        }
+        if (!socket || socket.readyState !== WebSocket.OPEN || verdictPhase)
+          return;
+        const { pcm, rms } = data;
 
-        processor.onaudioprocess = (e) => {
-          if (!socket || socket.readyState !== WebSocket.OPEN || verdictPhase) return;
+        // VAD — user started speaking: interrupt the AI
+        if (rms > 0.05 && !isMicMuted) {
+          setIsUserSpeaking(true);
+          if (pulseTimeoutRef.current) clearTimeout(pulseTimeoutRef.current);
+          pulseTimeoutRef.current = setTimeout(
+            () => setIsUserSpeaking(false),
+            500,
+          );
 
-          const inputData = e.inputBuffer.getChannelData(0);
-          
-          if (!isMicMuted) {
-            let sum = 0;
-            for (let i = 0; i < inputData.length; i++) {
-              sum += inputData[i] * inputData[i];
-            }
-            const rms = Math.sqrt(sum / inputData.length);
-            if (rms > 0.05) {
-              setIsUserSpeaking(true);
-              if (pulseTimeoutRef.current) clearTimeout(pulseTimeoutRef.current);
-              pulseTimeoutRef.current = setTimeout(() => setIsUserSpeaking(false), 500);
-            }
+          // ← KEY: if AI is currently speaking, interrupt immediately
+          if (isSpeakingRef.current) {
+            stopAiAudio(); // defined below
+            socket.send(JSON.stringify({ type: "interrupt" }));
           }
-          const inputSampleRate = e.inputBuffer.sampleRate;
-          
-          // Resample to 16000Hz (Bidi Gemini native rate)
-          const resampledData = resample(inputData, inputSampleRate, 16000);
-          
-          // Convert Float32 [-1,1] to Int16 PCM
-          const pcm = new Int16Array(resampledData.length);
-          for (let i = 0; i < resampledData.length; i++) {
-            const s = Math.max(-1, Math.min(1, resampledData[i]));
-            pcm[i] = s < 0 ? s * 0x8000 : s * 0x7FFF;
-          }
+        }
 
-          // Convert to base64
-          const bytes = new Uint8Array(pcm.buffer);
-          let binary = '';
-          for (let i = 0; i < bytes.length; i++) {
-            binary += String.fromCharCode(bytes[i]);
-          }
-          const base64 = btoa(binary);
+        // Send raw binary — no JSON, no base64
+        socket.send(pcm); // ArrayBuffer sent as binary frame
+      };
 
-          // Send to Server STT
-          socket.send(JSON.stringify({ type: 'audio_chunk', data: base64 }));
-        };
-
-        source.connect(processor);
-        const silentSink = ctx.createGain();
-        silentSink.gain.value = 0;
-        processor.connect(silentSink);
-        silentSink.connect(ctx.destination);
-        console.log('🎙️ Audio capture pipeline started (16kHz PCM → Gemini)');
-      } catch (err) {
-        console.error('❌ Failed to start audio capture pipeline:', err);
-      }
+      source.connect(worklet);
+      worklet.connect(ctx.destination); // worklet must be connected to run
     };
 
     startAudioCapture();
@@ -962,15 +970,21 @@ export default function LivePitchRoom() {
     return () => {
       cancelled = true;
       if (audioStreamProcessorRef.current) {
-        try { audioStreamProcessorRef.current.disconnect(); } catch {}
+        try {
+          audioStreamProcessorRef.current.disconnect();
+        } catch {}
         audioStreamProcessorRef.current = null;
       }
       if (audioStreamSourceRef.current) {
-        try { audioStreamSourceRef.current.disconnect(); } catch {}
+        try {
+          audioStreamSourceRef.current.disconnect();
+        } catch {}
         audioStreamSourceRef.current = null;
       }
       if (audioStreamContextRef.current) {
-        try { audioStreamContextRef.current.close(); } catch {}
+        try {
+          audioStreamContextRef.current.close();
+        } catch {}
         audioStreamContextRef.current = null;
       }
     };
@@ -1064,7 +1078,9 @@ export default function LivePitchRoom() {
         setTimeout(() => {
           noSpeechCountRef.current = 0;
           if (recognitionRef.current) {
-            try { recognitionRef.current.start(); } catch {}
+            try {
+              recognitionRef.current.start();
+            } catch {}
           }
         }, 5000);
         return;
@@ -1102,26 +1118,19 @@ export default function LivePitchRoom() {
       try {
         const data = JSON.parse(event.data);
 
-        if (sessionLockedRef.current && data.type !== "report" && data.type !== "SCORE_UPDATE") {
+        if (
+          sessionLockedRef.current &&
+          data.type !== "report" &&
+          data.type !== "SCORE_UPDATE"
+        ) {
           return;
         }
 
-        if (data.type === "stop_audio") {
+        if (data.type === "stop_audio" || data.type === "interrupt") {
           if (verdictPhase) return;
-          activeSourcesRef.current.forEach((src) => {
-            try {
-              src.stop();
-            } catch (e) {}
-          });
-          activeSourcesRef.current = [];
-          pendingTimeoutsRef.current.forEach((t) => clearTimeout(t));
-          pendingTimeoutsRef.current = [];
-          nextStartTimeRef.current = 0;
-          setSpeakingState(false);
-          setActiveSpeakerName("");
+          stopAiAudio();
           return;
         }
-
         if (data.type === "turn_complete") {
           const markTurnComplete = () => {
             setIsTurnComplete(true);
@@ -1187,7 +1196,9 @@ export default function LivePitchRoom() {
               id: `chat-${Date.now()}`,
               text: data.text,
               type: data.role === "user" ? "user" : "ai",
-              speaker: data.speaker || (data.role === "user" ? userData.name : "System"),
+              speaker:
+                data.speaker ||
+                (data.role === "user" ? userData.name : "System"),
               inputMethod: data.inputMethod || "voice",
             },
           ]);
@@ -1251,6 +1262,17 @@ export default function LivePitchRoom() {
         }
 
         if (data.type === "audio") {
+          if (!window.firstAudioReceived) {
+            window.firstAudioReceived = performance.now();
+
+            console.log("🔊 First audio received:", window.firstAudioReceived);
+
+            console.log(
+              "⏱ Total latency:",
+              window.firstAudioReceived - window.firstAudioSent,
+              "ms",
+            );
+          }
           const hasAudio = !!data.data;
           const hasText = !!data.text;
           const speaker = data.speaker || activeSpeakerName || "Marcus";
@@ -1303,7 +1325,7 @@ export default function LivePitchRoom() {
             const currentTime = audioContextRef.current.currentTime;
             let startTime = nextStartTimeRef.current;
             if (startTime < currentTime) {
-              startTime = currentTime + 0.15;
+              startTime = currentTime + 0.05;
             }
 
             activeSourcesRef.current.push(source);
@@ -1444,21 +1466,27 @@ export default function LivePitchRoom() {
     return () => socket.removeEventListener("message", handleMessage);
   }, [socket, navigate, pitchConfig, activeSpeakerName]);
 
-  const setVideoRef = useCallback((el: HTMLVideoElement | null) => {
-    if (el) {
-      if (el.srcObject !== stream) {
-        el.srcObject = stream;
+  const setVideoRef = useCallback(
+    (el: HTMLVideoElement | null) => {
+      if (el) {
+        if (el.srcObject !== stream) {
+          el.srcObject = stream;
+        }
+        (videoRef as any).current = el;
       }
-      (videoRef as any).current = el;
-    }
-  }, [stream]);
+    },
+    [stream],
+  );
 
-  const setScreenRef = useCallback((el: HTMLVideoElement | null) => {
-    if (el) {
-      el.srcObject = screenStream;
-      (screenRef as any).current = el;
-    }
-  }, [screenStream]);
+  const setScreenRef = useCallback(
+    (el: HTMLVideoElement | null) => {
+      if (el) {
+        el.srcObject = screenStream;
+        (screenRef as any).current = el;
+      }
+    },
+    [screenStream],
+  );
 
   const wakeAudio = () => {
     if (audioContextRef.current?.state === "suspended")
@@ -1592,6 +1620,19 @@ export default function LivePitchRoom() {
       handleEndSession();
     }
   };
+  const stopAiAudio = useCallback(() => {
+    activeSourcesRef.current.forEach((src) => {
+      try {
+        src.stop(0);
+      } catch {}
+    });
+    activeSourcesRef.current = [];
+    pendingTimeoutsRef.current.forEach(clearTimeout);
+    pendingTimeoutsRef.current = [];
+    nextStartTimeRef.current = 0;
+    setSpeakingState(false);
+    setActiveSpeakerName("");
+  }, [setSpeakingState]);
 
   useEffect(() => {
     if (isConcluding && isTurnComplete && !isSpeaking && !verdictPhase) {
@@ -1637,7 +1678,8 @@ export default function LivePitchRoom() {
     if (verdictCountdownRef.current) clearInterval(verdictCountdownRef.current);
     if (verdictMaxTimerRef.current) clearTimeout(verdictMaxTimerRef.current);
 
-    const isCoachOrSolo = pitchConfig?.mode === "coach" || pitchConfig?.mode === "solo";
+    const isCoachOrSolo =
+      pitchConfig?.mode === "coach" || pitchConfig?.mode === "solo";
     const statusMessages = isCoachOrSolo
       ? [
           "Riley is reviewing your session...",
@@ -1752,7 +1794,6 @@ export default function LivePitchRoom() {
   }
 
   // ── Deck viewer component — scrollable, touch-friendly ───────────────────
-
 
   return (
     <div className="h-screen max-h-screen bg-slate-50 dark:bg-zinc-950 text-slate-800 dark:text-white font-sans flex flex-col relative overflow-hidden transition-colors">
@@ -1924,7 +1965,9 @@ export default function LivePitchRoom() {
               <div className="absolute top-4 right-4 z-30 flex items-center gap-2 px-4 py-2 bg-sky-500/20 border border-sky-500/40 rounded-full backdrop-blur-md">
                 <span className="w-2 h-2 rounded-full bg-sky-400 animate-pulse" />
                 <span className="text-sky-300 text-xs font-bold uppercase tracking-widest">
-                  {activeSpeakerName ? `${activeSpeakerName} — Verdict` : 'Panel Deliberating...'}
+                  {activeSpeakerName
+                    ? `${activeSpeakerName} — Verdict`
+                    : "Panel Deliberating..."}
                 </span>
               </div>
             )}
@@ -1941,7 +1984,12 @@ export default function LivePitchRoom() {
               </div>
             ) : (
               <div className="w-full h-full relative flex items-center justify-center rounded-[24px] overflow-hidden">
-                <CameraViewer videoRef={setVideoRef} stream={stream} isCameraMuted={isCameraMuted} isPitching={isPitching} />
+                <CameraViewer
+                  videoRef={setVideoRef}
+                  stream={stream}
+                  isCameraMuted={isCameraMuted}
+                  isPitching={isPitching}
+                />
               </div>
             )}
 
@@ -1968,7 +2016,11 @@ export default function LivePitchRoom() {
                     : "bg-rose-500/20 text-rose-500 hover:bg-rose-500/30",
                 )}
               >
-                {stream && !isCameraMuted ? <Video size={20} /> : <VideoOff size={20} />}
+                {stream && !isCameraMuted ? (
+                  <Video size={20} />
+                ) : (
+                  <VideoOff size={20} />
+                )}
               </button>
               <button
                 onClick={toggleMic}
@@ -1977,7 +2029,9 @@ export default function LivePitchRoom() {
                   !isMicMuted
                     ? "bg-sky-500 text-white hover:bg-sky-600 shadow-lg shadow-sky-500/20"
                     : "bg-rose-500/20 text-rose-500 hover:bg-rose-500/30",
-                  isUserSpeaking && !isMicMuted ? "ring-4 ring-sky-400/60 shadow-[0_0_20px_rgba(56,189,248,0.5)]" : ""
+                  isUserSpeaking && !isMicMuted
+                    ? "ring-4 ring-sky-400/60 shadow-[0_0_20px_rgba(56,189,248,0.5)]"
+                    : "",
                 )}
               >
                 {!isMicMuted ? <Mic size={20} /> : <MicOff size={20} />}
@@ -2077,14 +2131,18 @@ export default function LivePitchRoom() {
               onSubmit={handleSendChat}
               className={cn(
                 "flex items-center gap-3 shrink-0 mt-auto bg-slate-100/50 dark:bg-zinc-950/50 border border-slate-200 dark:border-white/10 rounded-xl p-1.5 shadow-inner",
-                verdictPhase && "opacity-50 pointer-events-none"
+                verdictPhase && "opacity-50 pointer-events-none",
               )}
             >
               <input
                 type="text"
                 value={chatInput}
                 onChange={(e) => setChatInput(e.target.value)}
-                placeholder={verdictPhase ? "Panel is giving verdicts..." : "Type a message to the panel..."}
+                placeholder={
+                  verdictPhase
+                    ? "Panel is giving verdicts..."
+                    : "Type a message to the panel..."
+                }
                 disabled={verdictPhase}
                 className="flex-1 bg-transparent border-none focus:ring-0 text-sm text-slate-800 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500 px-3 outline-none disabled:cursor-not-allowed"
               />
@@ -2120,7 +2178,12 @@ export default function LivePitchRoom() {
               </div>
             ) : (
               <div className="w-full h-full pointer-events-none">
-                <CameraViewer videoRef={setVideoRef} stream={stream} isCameraMuted={isCameraMuted} isPitching={isPitching} />
+                <CameraViewer
+                  videoRef={setVideoRef}
+                  stream={stream}
+                  isCameraMuted={isCameraMuted}
+                  isPitching={isPitching}
+                />
               </div>
             )}
             <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center backdrop-blur-sm">
@@ -2246,15 +2309,15 @@ export default function LivePitchRoom() {
             {/* Video + Controls card */}
             <div className="bg-white/70 dark:bg-zinc-900/40 backdrop-blur-xl border border-slate-200 dark:border-white/5 rounded-2xl p-2 flex flex-col shadow-sm shrink-0">
               {/* Screen container */}
-              <div
-                className="w-full h-[42vh] relative border border-slate-200 dark:border-zinc-800 rounded-xl bg-slate-900 overflow-hidden flex items-center justify-center"
-              >
+              <div className="w-full h-[42vh] relative border border-slate-200 dark:border-zinc-800 rounded-xl bg-slate-900 overflow-hidden flex items-center justify-center">
                 {/* Verdict status badge on mobile */}
                 {verdictPhase && (
                   <div className="absolute top-2 right-2 z-30 flex items-center gap-1.5 px-3 py-1 bg-sky-500/20 border border-sky-500/40 rounded-full backdrop-blur-md">
                     <span className="w-1.5 h-1.5 rounded-full bg-sky-400 animate-pulse" />
                     <span className="text-sky-300 text-[9px] font-bold uppercase tracking-widest">
-                      {activeSpeakerName ? `${activeSpeakerName} — Verdict` : 'Deliberating...'}
+                      {activeSpeakerName
+                        ? `${activeSpeakerName} — Verdict`
+                        : "Deliberating..."}
                     </span>
                   </div>
                 )}
@@ -2280,7 +2343,9 @@ export default function LivePitchRoom() {
                         playsInline
                         className={cn(
                           "w-full h-full object-cover transition-opacity duration-300",
-                          stream && !isCameraMuted ? "opacity-100" : "opacity-0 absolute pointer-events-none"
+                          stream && !isCameraMuted
+                            ? "opacity-100"
+                            : "opacity-0 absolute pointer-events-none",
                         )}
                       />
                       {(!stream || isCameraMuted) && (
@@ -2298,7 +2363,12 @@ export default function LivePitchRoom() {
                   </div>
                 ) : (
                   <div className="w-full h-full relative">
-                    <CameraViewer videoRef={setVideoRef} stream={stream} isCameraMuted={isCameraMuted} isPitching={isPitching} />
+                    <CameraViewer
+                      videoRef={setVideoRef}
+                      stream={stream}
+                      isCameraMuted={isCameraMuted}
+                      isPitching={isPitching}
+                    />
                     {/* Slides PIP */}
                     <div
                       onClick={() => setMainView("slide")}
@@ -2351,7 +2421,11 @@ export default function LivePitchRoom() {
                       : "bg-rose-500/20 text-rose-500",
                   )}
                 >
-                  {stream && !isCameraMuted ? <Video size={17} /> : <VideoOff size={17} />}
+                  {stream && !isCameraMuted ? (
+                    <Video size={17} />
+                  ) : (
+                    <VideoOff size={17} />
+                  )}
                 </button>
                 <button
                   onClick={toggleMic}
@@ -2570,8 +2644,6 @@ export default function LivePitchRoom() {
           </div>
         )}
 
-
-
         {/* Tab 4: Vitals */}
         {activeMobileTab === "vitals" && (
           <div className="flex-1 flex flex-col gap-3 overflow-y-auto px-2 pt-2 pb-2 custom-scrollbar min-h-0">
@@ -2705,8 +2777,6 @@ export default function LivePitchRoom() {
           </button>
         ))}
       </div>
-
-
 
       <AnimatePresence>
         {isEvaluatingPitch && (
