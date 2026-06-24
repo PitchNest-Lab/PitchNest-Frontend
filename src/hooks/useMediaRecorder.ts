@@ -5,6 +5,7 @@ export const useMediaRecorder = () => {
   const [isRecording, setIsRecording] = useState(false);
   const [recordedChunks, setRecordedChunks] = useState<Blob[]>([]);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const streamRef = useRef<MediaStream | null>(null); // ADD
 
   const startStream = useCallback(async () => {
     try {
@@ -14,13 +15,13 @@ export const useMediaRecorder = () => {
           height: { ideal: 360 },
           facingMode: "user"
         },
-        // 🚨 FIX: Advanced Audio Constraints added here!
         audio: {
-          echoCancellation: true, // Stops the mic from hearing the AI speaking
-          noiseSuppression: true, // Blocks fans, typing, and background hums
-          autoGainControl: true   // Keeps your voice volume steady
+          echoCancellation: true,
+          noiseSuppression: true,
+          autoGainControl: true
         },
       });
+      streamRef.current = newStream; // ADD
       setStream(newStream);
       return newStream;
     } catch (err) {
@@ -34,6 +35,7 @@ export const useMediaRecorder = () => {
             autoGainControl: true
           },
         });
+        streamRef.current = audioOnlyStream; // ADD
         setStream(audioOnlyStream);
         return audioOnlyStream;
       } catch (err2) {
@@ -41,34 +43,34 @@ export const useMediaRecorder = () => {
         return null;
       }
     }
-  }, []);
+  }, []); // CHANGE: empty deps, no longer needs stream
 
+  // FIX: use ref instead of state — stopStream is now stable (never recreated)
   const stopStream = useCallback(() => {
-    if (stream) {
-      stream.getTracks().forEach(track => track.stop());
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach(track => track.stop());
+      streamRef.current = null;
       setStream(null);
     }
-  }, [stream]);
+  }, []); // CHANGE: empty deps — this function never changes identity now
 
   const startRecording = useCallback(() => {
-    if (!stream) return;
-
-    const mediaRecorder = new MediaRecorder(stream, {
-      mimeType: 'video/webm;codecs=vp8,opus',
+    if (!streamRef.current) return; // CHANGE: use ref
+    const mediaRecorder = new MediaRecorder(streamRef.current, { // CHANGE: use ref
+      mimeType: MediaRecorder.isTypeSupported('video/webm;codecs=vp8,opus')
+        ? 'video/webm;codecs=vp8,opus'
+        : '',
     });
-
     mediaRecorderRef.current = mediaRecorder;
     setRecordedChunks([]);
-
     mediaRecorder.ondataavailable = (event) => {
       if (event.data.size > 0) {
         setRecordedChunks((prev) => [...prev, event.data]);
       }
     };
-
     mediaRecorder.start();
     setIsRecording(true);
-  }, [stream]);
+  }, []); // CHANGE: empty deps — uses ref, not state
 
   const stopRecording = useCallback(() => {
     if (mediaRecorderRef.current && isRecording) {
@@ -84,6 +86,7 @@ export const useMediaRecorder = () => {
 
   return {
     stream,
+    streamRef,   // ADD: expose so LivePitchRoom can use it stably
     isRecording,
     startStream,
     stopStream,

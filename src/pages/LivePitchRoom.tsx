@@ -31,6 +31,9 @@ import { ThemeToggle } from "../components/ThemeToggle";
 declare global {
   interface Window {
     firstAudioSent?: number;
+    firstAudioReceived?: number;
+    _pcmCount?: number;
+    _sentChunks?: number;
   }
 }
 
@@ -479,7 +482,7 @@ export default function LivePitchRoom() {
     return saved ? JSON.parse(saved) : null;
   });
 
-  const { stream, startStream, stopStream } = useMediaRecorder();
+  const { stream, streamRef, startStream, stopStream } = useMediaRecorder();
   const { socket, isConnected } = useSocketContext();
   const { isCapturing, startCapture, stopCapture, screenStream } =
     useScreenCapture(() => {});
@@ -627,6 +630,7 @@ export default function LivePitchRoom() {
   const audioStreamProcessorRef = useRef<AudioWorkletNode | null>(null);
   const audioStreamSourceRef = useRef<MediaStreamAudioSourceNode | null>(null);
   const noSpeechCountRef = useRef(0);
+   const userSpeakingStartRef = useRef<number | null>(null);
   // ──────────────────────────────────────────────────────────────────────
 
   useEffect(() => {
@@ -680,12 +684,8 @@ export default function LivePitchRoom() {
     }
   }, []);
 
-  const streamRef = useRef<MediaStream | null>(null);
+  // const streamRef = useRef<MediaStream | null>(null);
   const screenStreamRef = useRef<MediaStream | null>(null);
-
-  useEffect(() => {
-    streamRef.current = stream;
-  }, [stream]);
 
   useEffect(() => {
     screenStreamRef.current = screenStream;
@@ -921,41 +921,68 @@ export default function LivePitchRoom() {
     let cancelled = false;
 
     const startAudioCapture = async () => {
-      if (cancelled || !stream) return;
-      const ctx = new AudioContext({ sampleRate: 16000 });
+      const activeStream = streamRef.current; // CHANGE
+      console.log("Stream tracks:", activeStream?.getTracks());
+      if (cancelled || !activeStream) return;
+      const ctx = new AudioContext({
+        sampleRate: 16000,
+        latencyHint: "interactive",
+      });
       audioStreamContextRef.current = ctx;
-
-      await ctx.audioWorklet.addModule("/pcm-processor.js"); // serve this file statically
-      const source = ctx.createMediaStreamSource(stream);
+      await ctx.audioWorklet.addModule("/pcm-processor.js");
+      const source = ctx.createMediaStreamSource(activeStream);
       audioStreamSourceRef.current = source;
 
       const worklet = new AudioWorkletNode(ctx, "pcm-processor");
       audioStreamProcessorRef.current = worklet as any;
 
       worklet.port.onmessage = ({ data }) => {
+        const { pcm, rms } = data;
         if (!window.firstAudioSent) {
           window.firstAudioSent = performance.now();
           console.log("🎤 First audio sent:", window.firstAudioSent);
         }
+        if (!window._pcmCount) window._pcmCount = 0;
+        window._pcmCount++;
+
+        if (window._pcmCount % 20 === 0) {
+          const view = new Int16Array(pcm);
+          const sample = Array.from(view.slice(0, 8)).join(", ");
+          console.log(
+            `🎙 PCM chunk #${window._pcmCount} | RMS: ${rms.toFixed(3)} | bytes: ${pcm.byteLength} | sample: [${sample}]`,
+          );
+        }
         if (!socket || socket.readyState !== WebSocket.OPEN || verdictPhase)
           return;
-        const { pcm, rms } = data;
+
+        // console.log("🎙 RMS:", rms);
 
         // VAD — user started speaking: interrupt the AI
-        if (rms > 0.05 && !isMicMuted) {
-          setIsUserSpeaking(true);
-          if (pulseTimeoutRef.current) clearTimeout(pulseTimeoutRef.current);
-          pulseTimeoutRef.current = setTimeout(
-            () => setIsUserSpeaking(false),
-            500,
-          );
+       
 
-          // ← KEY: if AI is currently speaking, interrupt immediately
-          if (isSpeakingRef.current) {
-            stopAiAudio(); // defined below
+        if (rms > 0.05 && !isMicMuted) {
+          if (!userSpeakingStartRef.current) {
+            userSpeakingStartRef.current = Date.now();
+          }
+
+          const speakingDuration = Date.now() - userSpeakingStartRef.current;
+
+          if (speakingDuration > 700 && isSpeakingRef.current) {
+            stopAiAudio();
             socket.send(JSON.stringify({ type: "interrupt" }));
           }
+        } else {
+          userSpeakingStartRef.current = null;
         }
+        if (!window._sentChunks) window._sentChunks = 0;
+        window._sentChunks++;
+
+        if (window._sentChunks % 20 === 0) {
+          console.log(
+            `📡 Sent PCM chunk #${window._sentChunks} to backend | bytes: ${pcm.byteLength} | socket buffered: ${socket.bufferedAmount}`,
+          );
+        }
+        console.log("PCM TYPE:", pcm.constructor.name);
 
         // Send raw binary — no JSON, no base64
         socket.send(pcm); // ArrayBuffer sent as binary frame
@@ -992,7 +1019,7 @@ export default function LivePitchRoom() {
 
   // ── SpeechRecognition for live text transcript display ─────────────────
   useEffect(() => {
-    return; // Disabled — replaced by server-side STT (see sttService.ts)
+    // return; // Disabled — replaced by server-side STT (see sttService.ts)
     if (!isPitching || !socket || !isConnected || isMicMuted || verdictPhase) {
       if (recognitionRef.current) {
         recognitionRef.current.abort();
@@ -1021,6 +1048,12 @@ export default function LivePitchRoom() {
     };
 
     recognition.onresult = (event: any) => {
+      console.log(
+        "🗣 Recognition result fired, isSpeaking:",
+        isSpeakingRef.current,
+        "timeSinceAI:",
+        Date.now() - lastAiSpeakingEndedTimeRef.current,
+      );
       noSpeechCountRef.current = 0; // Reset on successful speech
       const now = Date.now();
       const timeSinceAiSpoke = now - lastAiSpeakingEndedTimeRef.current;
@@ -1057,6 +1090,7 @@ export default function LivePitchRoom() {
         ]);
         // Note: Raw audio is already being sent via the PCM pipeline above.
         // We still send the text transcript for the chat log and backend eval.
+        console.log("📤 Sending voice_transcript:", finalPayload);
         if (socket && socket.readyState === WebSocket.OPEN) {
           socket.send(
             JSON.stringify({
@@ -1113,10 +1147,25 @@ export default function LivePitchRoom() {
 
   useEffect(() => {
     if (!socket) return;
+    console.log(
+      "WS state:",
+      socket.readyState,
+      "Is open:",
+      socket.readyState === WebSocket.OPEN,
+    );
 
     const handleMessage = async (event: MessageEvent) => {
       try {
         const data = JSON.parse(event.data);
+        if (typeof event.data === "string") {
+          const parsed = JSON.parse(event.data);
+          console.log(
+            "📨 Incoming:",
+            parsed.type,
+            parsed.speaker ?? "",
+            parsed.text?.slice(0, 50) ?? "",
+          );
+        }
 
         if (
           sessionLockedRef.current &&
@@ -1262,6 +1311,7 @@ export default function LivePitchRoom() {
         }
 
         if (data.type === "audio") {
+          console.log("recieved audio", data);
           if (!window.firstAudioReceived) {
             window.firstAudioReceived = performance.now();
 
@@ -1465,6 +1515,14 @@ export default function LivePitchRoom() {
     socket.addEventListener("message", handleMessage);
     return () => socket.removeEventListener("message", handleMessage);
   }, [socket, navigate, pitchConfig, activeSpeakerName]);
+  const setVideoRefThumb = useCallback(
+    (el: HTMLVideoElement | null) => {
+      if (el && el.srcObject !== stream) {
+        el.srcObject = stream;
+      }
+    },
+    [stream],
+  );
 
   const setVideoRef = useCallback(
     (el: HTMLVideoElement | null) => {
