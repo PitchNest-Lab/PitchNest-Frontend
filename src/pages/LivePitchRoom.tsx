@@ -40,6 +40,20 @@ declare global {
 const TTS_LANG = "en-US";
 const TTS_MAX_CHARS = 420;
 const TTS_MAX_SENTENCES = 2;
+// Playback sample rate for AI audio. MUST match the backend TTS output format
+// (ttsService.ts → SpeechSynthesisOutputFormat.Raw24Khz16BitMonoPcm).
+const TTS_OUTPUT_SAMPLE_RATE = 24000;
+
+// ── Voice-activity / barge-in tuning ────────────────────────────────────────
+// Barge-in fires when mic RMS stays above an ADAPTIVE threshold for a sustained
+// window. The threshold is derived from the room's measured noise floor rather
+// than a fixed magic constant, so it adapts to loud rooms and soft talkers.
+// pcm-processor.js posts one frame per 1024 samples @16kHz ≈ 64ms.
+const VAD_CALIBRATION_FRAMES = 24; // ~1.5s of ambient audio to learn the noise floor
+const VAD_THRESHOLD_MULTIPLIER = 2.5; // speech must exceed 2.5× the noise floor
+const VAD_MIN_THRESHOLD = 0.04; // absolute floor so a silent room can't make VAD hair-trigger
+const VAD_SUSTAIN_FRAMES = 3; // ~190ms of sustained loudness before counting as speech
+const VAD_BARGE_IN_MS = 600; // sustained speech duration that confirms an intentional interruption
 const TTS_STREAM_FLUSH_MS = 650;
 const TTS_STREAM_SPEAK_MIN_CHARS = 120;
 
@@ -515,6 +529,10 @@ export default function LivePitchRoom() {
   const [isPitching, setIsPitching] = useState(false);
   const [isSpeaking, setIsSpeaking] = useState(false);
   const isSpeakingRef = useRef(false);
+  // True from the moment a barge-in is detected until the next clean turn
+  // boundary (turn_complete / turn_aborted). While set, any late-arriving AI
+  // audio chunks are dropped so the interrupted sentence can't resume.
+  const bargedInRef = useRef(false);
   const [isUserSpeaking, setIsUserSpeaking] = useState(false);
   const pulseTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const lastAiSpeakingEndedTimeRef = useRef(0);
@@ -631,6 +649,11 @@ export default function LivePitchRoom() {
   const audioStreamSourceRef = useRef<MediaStreamAudioSourceNode | null>(null);
   const noSpeechCountRef = useRef(0);
    const userSpeakingStartRef = useRef<number | null>(null);
+  // Adaptive VAD state (see VAD_* constants and the worklet handler below)
+  const noiseFloorSamplesRef = useRef<number[]>([]);
+  const vadThresholdRef = useRef<number>(VAD_MIN_THRESHOLD);
+  const vadCalibratedRef = useRef(false);
+  const vadLoudFrameCountRef = useRef(0);
   // ──────────────────────────────────────────────────────────────────────
 
   useEffect(() => {
@@ -795,7 +818,7 @@ export default function LivePitchRoom() {
   }, []);
 
   const speakShort = useCallback((rawText: string) => {
-    // Disabled to prevent double-voice bug and clash with native Gemini audio
+    // Disabled to prevent double-voice bug and clash with server-streamed Azure TTS audio
     return;
   }, []);
 
@@ -893,7 +916,7 @@ export default function LivePitchRoom() {
   const transcriptTimerRef = useRef<number | null>(null);
   const recognitionRef = useRef<any>(null);
 
-  // ── Raw PCM audio streaming to backend (so Gemini can hear the user) ───
+  // ── Raw PCM audio streaming to backend (Azure STT transcribes the user) ───
   useEffect(() => {
     if (!isPitching || !socket || !isConnected || isMicMuted || verdictPhase) {
       // Cleanup audio pipeline
@@ -955,34 +978,55 @@ export default function LivePitchRoom() {
         if (!socket || socket.readyState !== WebSocket.OPEN || verdictPhase)
           return;
 
-        // console.log("🎙 RMS:", rms);
+        // ── Adaptive VAD ─────────────────────────────────────────────────
+        // Calibrate the noise floor from the first ~1.5s of ambient frames
+        // (only while the AI isn't speaking, so its echo can't inflate the
+        // floor), then set the barge-in threshold relative to it.
+        if (!vadCalibratedRef.current && !isSpeakingRef.current) {
+          noiseFloorSamplesRef.current.push(rms);
+          if (noiseFloorSamplesRef.current.length >= VAD_CALIBRATION_FRAMES) {
+            const samples = noiseFloorSamplesRef.current;
+            const floor = samples.reduce((a, b) => a + b, 0) / samples.length;
+            vadThresholdRef.current = Math.max(
+              VAD_MIN_THRESHOLD,
+              floor * VAD_THRESHOLD_MULTIPLIER,
+            );
+            vadCalibratedRef.current = true;
+            console.log(
+              `🎚 VAD calibrated — noise floor ${floor.toFixed(3)}, threshold ${vadThresholdRef.current.toFixed(3)}`,
+            );
+          }
+        }
 
-        // VAD — user started speaking: interrupt the AI
-       
+        // Require sustained loudness across consecutive frames (debounce) so a
+        // single spike (cough, door slam) can't trigger a false barge-in.
+        if (rms > vadThresholdRef.current && !isMicMuted) {
+          vadLoudFrameCountRef.current++;
+        } else {
+          vadLoudFrameCountRef.current = 0;
+        }
 
-        if (rms > 0.05 && !isMicMuted) {
+        if (vadLoudFrameCountRef.current >= VAD_SUSTAIN_FRAMES) {
           if (!userSpeakingStartRef.current) {
             userSpeakingStartRef.current = Date.now();
           }
-
           const speakingDuration = Date.now() - userSpeakingStartRef.current;
-
-          if (speakingDuration > 700 && isSpeakingRef.current) {
+          if (speakingDuration > VAD_BARGE_IN_MS && isSpeakingRef.current) {
+            bargedInRef.current = true; // drop any late AI audio until next turn
             stopAiAudio();
             socket.send(JSON.stringify({ type: "interrupt" }));
           }
         } else {
           userSpeakingStartRef.current = null;
         }
-        if (!window._sentChunks) window._sentChunks = 0;
-        window._sentChunks++;
-
-        if (window._sentChunks % 20 === 0) {
-          console.log(
-            `📡 Sent PCM chunk #${window._sentChunks} to backend | bytes: ${pcm.byteLength} | socket buffered: ${socket.bufferedAmount}`,
-          );
-        }
-        console.log("PCM TYPE:", pcm.constructor.name);
+        // ── Echo guard ──────────────────────────────────────────────────
+        // Do NOT stream mic audio to the server STT while the AI is speaking
+        // (or just finished). Otherwise the AI's own TTS leaks through the
+        // speakers, gets transcribed, and is fed back as "user" input —
+        // creating a self-talking loop. Barge-in still works via the RMS/VAD
+        // interrupt above, which stops the AI audio and reopens the mic.
+        const sinceAiSpoke = Date.now() - lastAiSpeakingEndedTimeRef.current;
+        if (isSpeakingRef.current || sinceAiSpoke < 700) return;
 
         // Send raw binary — no JSON, no base64
         socket.send(pcm); // ArrayBuffer sent as binary frame
@@ -1180,10 +1224,20 @@ export default function LivePitchRoom() {
 
         if (data.type === "stop_audio" || data.type === "interrupt") {
           if (verdictPhase) return;
+          // Server-initiated stop: drop any further audio for this turn too.
+          bargedInRef.current = true;
           stopAiAudio();
           return;
         }
+        if (data.type === "turn_aborted") {
+          // Clean boundary after a barge-in — safe to play the next turn.
+          bargedInRef.current = false;
+          setIsTurnComplete(true);
+          turnStartedRef.current = true;
+          return;
+        }
         if (data.type === "turn_complete") {
+          bargedInRef.current = false; // new turn boundary — resume accepting audio
           const markTurnComplete = () => {
             setIsTurnComplete(true);
             turnStartedRef.current = true;
@@ -1314,6 +1368,8 @@ export default function LivePitchRoom() {
         }
 
         if (data.type === "audio") {
+          // Drop late-arriving chunks from a turn the user already interrupted.
+          if (bargedInRef.current) return;
           console.log("recieved audio", data);
           if (!window.firstAudioReceived) {
             window.firstAudioReceived = performance.now();
@@ -1367,7 +1423,7 @@ export default function LivePitchRoom() {
             const audioBuffer = audioContextRef.current.createBuffer(
               1,
               floatData.length,
-              24000,
+              TTS_OUTPUT_SAMPLE_RATE,
             );
             audioBuffer.getChannelData(0).set(floatData);
 
@@ -1674,6 +1730,17 @@ export default function LivePitchRoom() {
     setIsConcluding(true);
     setIsTurnComplete(false);
     wakeAudio();
+    // Kick off the evaluation NOW so it runs in parallel with the verdict
+    // phase — by the time the panel finishes its verdicts, the report is
+    // usually already done and the post-pitch screen appears instantly.
+    if (socket && socket.readyState === WebSocket.OPEN) {
+      socket.send(
+        JSON.stringify({
+          type: "prepare_evaluation",
+          transcript: messagesRef.current,
+        }),
+      );
+    }
     // Panel mode only shows the verdict phase; coach/solo go straight to evaluation
     if (pitchConfig?.mode === "panel") {
       triggerVerdictPhase();
@@ -1714,6 +1781,17 @@ export default function LivePitchRoom() {
   const handleEndSession = async () => {
     if (sessionLockedRef.current) return;
     sessionLockedRef.current = true;
+
+    // Ensure evaluation is started (no-op on the backend if already running) —
+    // covers end paths that skip triggerConclusion (e.g. time-up, idle).
+    if (socket && socket.readyState === WebSocket.OPEN) {
+      socket.send(
+        JSON.stringify({
+          type: "prepare_evaluation",
+          transcript: messagesRef.current,
+        }),
+      );
+    }
 
     // Stop all audio playback instantly
     stopTts();
