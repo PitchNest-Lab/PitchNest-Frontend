@@ -988,8 +988,11 @@ export default function LivePitchRoom() {
         socket.send(pcm); // ArrayBuffer sent as binary frame
       };
 
+      const silentSink = ctx.createGain();
+      silentSink.gain.value = 0;
       source.connect(worklet);
-      worklet.connect(ctx.destination); // worklet must be connected to run
+      worklet.connect(silentSink);
+      silentSink.connect(ctx.destination);
     };
 
     startAudioCapture();
@@ -1019,7 +1022,7 @@ export default function LivePitchRoom() {
 
   // ── SpeechRecognition for live text transcript display ─────────────────
   useEffect(() => {
-    // return; // Disabled — replaced by server-side STT (see sttService.ts)
+    return; // Disabled — replaced by server-side STT (see sttService.ts)
     if (!isPitching || !socket || !isConnected || isMicMuted || verdictPhase) {
       if (recognitionRef.current) {
         recognitionRef.current.abort();
