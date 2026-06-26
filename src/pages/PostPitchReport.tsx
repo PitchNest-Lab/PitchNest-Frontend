@@ -162,7 +162,7 @@ export default function PostPitchReport() {
             disabled={isDownloading}
             className="px-5 py-2.5 bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 font-bold rounded-xl hover:bg-slate-50 transition-all flex items-center gap-2 text-sm shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            {isDownloading ? <Loader2 size={16} className="animate-spin" /> : <FileDown size={16} />} {isDownloading ? "Generating..." : "PDF"}
+            {isDownloading ? <Loader2 size={16} className="animate-spin" /> : <FileDown size={16} />} {isDownloading ? "Generating..." : "Download Detailed Report"}
           </button>
           <Link to="/setup" className="px-6 py-2.5 bg-sky-500 text-white font-bold rounded-xl hover:bg-sky-600 transition-all flex items-center gap-2 text-sm shadow-md">
             <Calendar size={16} /> Start New Session
@@ -290,24 +290,10 @@ export default function PostPitchReport() {
         <div className="space-y-6">
           <div className="bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 rounded-3xl p-6 shadow-sm">
             <h3 className="text-sm font-extrabold flex items-center gap-2 mb-4"><Play className="text-slate-900 dark:text-white" size={16} /> Pitch Replay</h3>
-            <div className="aspect-video bg-slate-900 rounded-xl overflow-hidden relative mb-4">
-              {session?.video_url ? (
-                <video src={session.video_url} className="w-full h-full object-cover" controls />
-              ) : (
-                <>
-                  <div className="absolute inset-0 bg-gradient-to-t from-slate-900 via-transparent to-transparent z-10 opacity-60" />
-                  <div className="absolute bottom-4 left-4 right-4 z-20 flex items-center gap-3 text-white">
-                    <Link to={`/replay?session=${session.id}`} className="w-10 h-10 bg-sky-500 rounded-full flex items-center justify-center hover:bg-sky-400 transition-colors shadow-lg shadow-sky-500/30">
-                      <Play size={16} fill="currentColor" className="ml-1" />
-                    </Link>
-                    <div className="flex-1 h-1.5 bg-white/20 rounded-full overflow-hidden">
-                      <div className="w-1/3 h-full bg-sky-500 rounded-full" />
-                    </div>
-                    <span className="text-[10px] font-mono font-bold">Replay Timeline</span>
-                  </div>
-                  <img src="https://images.unsplash.com/photo-1522071820081-009f0129c71c?auto=format&fit=crop&w=800&q=80" alt="Video Cover" className="w-full h-full object-cover opacity-80 mix-blend-luminosity" />
-                </>
-              )}
+            {/* Video replay is disabled for now — clean placeholder, no fake player. */}
+            <div className="aspect-video bg-slate-900 rounded-xl overflow-hidden relative mb-4 flex flex-col items-center justify-center gap-2 text-center px-4">
+              <Play size={22} className="text-white/30" />
+              <span className="text-white/80 text-xs font-bold">Video replay coming soon</span>
             </div>
             <Link to={`/replay?session=${session.id}`} className="w-full py-3 bg-slate-50 dark:bg-zinc-800 text-slate-700 dark:text-zinc-300 font-bold rounded-xl text-xs hover:bg-slate-100 dark:hover:bg-zinc-700 transition-all flex items-center justify-center gap-2 shadow-sm border border-slate-100 dark:border-zinc-800">
                Open Replay Timeline
@@ -348,6 +334,21 @@ export default function PostPitchReport() {
             <div className="absolute -bottom-10 -right-10 w-32 h-32 bg-white/10 rounded-full blur-2xl" />
           </div>
         </div>
+      </div>
+
+      {/* Prominent bottom-of-report download — full PDF of the report. */}
+      <div className="mt-8 pt-6 border-t border-slate-200 dark:border-zinc-800 flex flex-col items-center gap-3 text-center">
+        <p className="text-sm text-slate-500 dark:text-zinc-400 max-w-md">
+          Want the full breakdown? Download the complete report as a PDF to keep, print, or share.
+        </p>
+        <button
+          onClick={handleDownloadPDF}
+          disabled={isDownloading}
+          className="px-8 py-4 bg-sky-500 text-white font-extrabold rounded-2xl text-base hover:bg-sky-600 transition-all flex items-center gap-3 shadow-lg shadow-sky-500/30 disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          {isDownloading ? <Loader2 size={20} className="animate-spin" /> : <FileDown size={20} />}
+          {isDownloading ? "Generating Report…" : "Download Detailed Report"}
+        </button>
       </div>
     </div>
   );

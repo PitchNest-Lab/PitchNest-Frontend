@@ -6,6 +6,7 @@ import {
   Mic,
   MicOff,
   VolumeX,
+  Volume2,
   Monitor,
   MonitorOff,
   Send,
@@ -440,46 +441,68 @@ const getDeckDisplayUrl = (url: string) => {
 // ─── Stable camera viewer — lives OUTSIDE LivePitchRoom so its identity never
 //     changes between renders, which would unmount/remount the <video> element
 //     and cause the visible skip/crack during a pitch session. ────────────────
+// Camera recording is disabled for now (we're avoiding heavy video storage), so
+// this tile shows the founder's profile picture (or default avatar) instead of a
+// camera feed, with a "listening" glow driven by the mic VAD signal so the user
+// can see the system is hearing them. A hidden <video> keeps the ref wiring
+// intact. (`stream`/`isCameraMuted` stay in the prop type for call-site
+// compatibility but are intentionally unused.)
 const CameraViewer = React.memo(
   ({
     videoRef,
-    stream,
-    isCameraMuted,
     isPitching,
+    avatarUrl,
+    userName,
+    isUserSpeaking = false,
     className = "",
   }: {
     videoRef: (el: HTMLVideoElement | null) => void;
     stream: MediaStream | null;
     isCameraMuted: boolean;
     isPitching: boolean;
+    avatarUrl?: string;
+    userName?: string;
+    isUserSpeaking?: boolean;
     className?: string;
   }) => (
     <div
       className={cn(
-        "w-full h-full relative flex items-center justify-center bg-black",
+        "w-full h-full relative flex items-center justify-center bg-slate-900 overflow-hidden",
         className,
       )}
     >
-      <video
-        ref={videoRef}
-        autoPlay
-        muted
-        playsInline
-        className={cn(
-          "w-full h-full object-cover transition-opacity duration-300",
-          stream && !isCameraMuted
-            ? "opacity-100"
-            : "opacity-0 absolute pointer-events-none",
-        )}
-      />
-      {(!stream || isCameraMuted) && (
-        <div className="absolute inset-0 flex items-center justify-center bg-slate-900">
-          <VideoOff size={48} className="text-slate-300 dark:text-white/20" />
+      <video ref={videoRef} autoPlay muted playsInline className="opacity-0 absolute pointer-events-none w-0 h-0" />
+      <div className="relative flex flex-col items-center justify-center gap-4">
+        <div className="relative flex items-center justify-center">
+          {isUserSpeaking && (
+            <>
+              <span className="absolute w-32 h-32 md:w-40 md:h-40 rounded-full bg-emerald-400/20 animate-ping" />
+              <span className="absolute w-28 h-28 md:w-36 md:h-36 rounded-full ring-4 ring-emerald-400/40 animate-pulse" />
+            </>
+          )}
+          <img
+            src={avatarUrl || `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(userName || "Founder")}`}
+            alt="You"
+            className={cn(
+              "relative w-24 h-24 md:w-28 md:h-28 rounded-full object-cover border-4 bg-slate-800 transition-all duration-200",
+              isUserSpeaking
+                ? "border-emerald-400 shadow-[0_0_45px_rgba(52,211,153,0.55)]"
+                : "border-white/15",
+            )}
+          />
         </div>
-      )}
-      {isPitching && stream && !isCameraMuted && (
+        <span
+          className={cn(
+            "text-xs font-semibold uppercase tracking-widest transition-colors",
+            isUserSpeaking ? "text-emerald-400" : "text-white/40",
+          )}
+        >
+          {isUserSpeaking ? "Listening…" : userName || "You"}
+        </span>
+      </div>
+      {isPitching && (
         <div className="absolute top-3 right-3 bg-rose-500 px-2.5 py-1 rounded-full text-[8px] font-bold animate-pulse shadow-lg z-10 uppercase tracking-widest text-white">
-          Vision On
+          Live
         </div>
       )}
     </div>
@@ -661,6 +684,10 @@ export default function LivePitchRoom() {
   const vadThresholdRef = useRef<number>(VAD_MIN_THRESHOLD);
   const vadCalibratedRef = useRef(false);
   const vadLoudFrameCountRef = useRef(0);
+  // Drives the "listening" glow on the user's avatar. Tracked via refs so we
+  // only call setState on transitions, not on every audio frame.
+  const lastLoudFrameRef = useRef(0);
+  const userSpeakingUiRef = useRef(false);
   // ──────────────────────────────────────────────────────────────────────
 
   useEffect(() => {
@@ -1026,6 +1053,19 @@ export default function LivePitchRoom() {
         } else {
           userSpeakingStartRef.current = null;
         }
+
+        // ── "Listening" glow ──────────────────────────────────────────────
+        // Drive the avatar glow from the same VAD signal. A ~350ms hangover
+        // keeps the glow steady through the brief gaps between words, and we
+        // only setState on the on/off transition to avoid per-frame renders.
+        const loud = rms > vadThresholdRef.current && !isMicMuted;
+        if (loud) lastLoudFrameRef.current = Date.now();
+        const speakingNow = Date.now() - lastLoudFrameRef.current < 350;
+        if (speakingNow !== userSpeakingUiRef.current) {
+          userSpeakingUiRef.current = speakingNow;
+          setIsUserSpeaking(speakingNow);
+        }
+
         // ── Echo guard ──────────────────────────────────────────────────
         // Do NOT stream mic audio to the server STT while the AI is speaking
         // (or just finished). Otherwise the AI's own TTS leaks through the
@@ -1961,10 +2001,17 @@ export default function LivePitchRoom() {
                 <h2 className="text-2xl md:text-3xl font-bold text-white mb-3 md:mb-4">
                   Ready to Pitch?
                 </h2>
-                <p className="text-slate-400 mb-6 md:mb-8 max-w-md text-sm md:text-base">
-                  Your camera and microphone will activate securely when you
-                  start the session.
+                <p className="text-slate-400 mb-4 max-w-md text-sm md:text-base">
+                  Your microphone will activate securely when you start the
+                  session.
                 </p>
+                <div className="flex items-start gap-2.5 mb-6 md:mb-8 max-w-md text-left px-4 py-3 rounded-2xl bg-amber-500/10 border border-amber-500/20">
+                  <Volume2 size={18} className="text-amber-400 shrink-0 mt-0.5" />
+                  <p className="text-amber-200/90 text-xs md:text-sm">
+                    Find a quiet place before you begin — background voices and
+                    noise can interfere with how the AI hears your pitch.
+                  </p>
+                </div>
                 <button
                   onClick={handleStartClick}
                   className="px-8 md:px-10 py-3 md:py-4 bg-sky-500 text-white font-bold rounded-2xl hover:bg-sky-600 transition-all text-lg md:text-xl shadow-[0_0_40px_rgba(14,165,233,0.3)] flex items-center gap-3 cursor-pointer"
@@ -2135,6 +2182,9 @@ export default function LivePitchRoom() {
                   stream={stream}
                   isCameraMuted={isCameraMuted}
                   isPitching={isPitching}
+                  avatarUrl={userData.avatarUrl}
+                  userName={userData.name}
+                  isUserSpeaking={isUserSpeaking}
                 />
               </div>
             )}
@@ -2329,6 +2379,9 @@ export default function LivePitchRoom() {
                   stream={stream}
                   isCameraMuted={isCameraMuted}
                   isPitching={isPitching}
+                  avatarUrl={userData.avatarUrl}
+                  userName={userData.name}
+                  isUserSpeaking={isUserSpeaking}
                 />
               </div>
             )}
@@ -2398,50 +2451,18 @@ export default function LivePitchRoom() {
             </div>
           </div>
 
-          {/* Data Chart */}
-          {(() => {
-            const userMsgCount = messages.filter(
-              (m) => m.type === "user",
-            ).length;
-            const aiMsgCount = messages.filter((m) => m.type === "ai").length;
-            const totalMsgCount = userMsgCount + aiMsgCount;
-            const dialogueBalance =
-              totalMsgCount > 0
-                ? Math.round((userMsgCount / totalMsgCount) * 100)
-                : 50;
-            return (
-              <div className="bg-white/70 dark:bg-zinc-900/40 backdrop-blur-xl rounded-[24px] p-4 border border-slate-200 dark:border-white/5 flex flex-col justify-between shadow-xl min-h-[125px] transition-colors">
-                <h4 className="text-[11px] font-bold text-slate-700 dark:text-white/80 uppercase tracking-widest mb-3">
-                  Data Chart
-                </h4>
-                <div className="flex items-end justify-between h-14 gap-3 pb-2 border-b border-slate-200 dark:border-white/10">
-                  {[
-                    dialogueBalance,
-                    100 - dialogueBalance,
-                    Math.max(20, dialogueBalance - 10),
-                    Math.min(90, dialogueBalance + 20),
-                    60,
-                    45,
-                  ].map((val, i) => (
-                    <div
-                      key={i}
-                      className="flex-1 flex flex-col justify-end group animate-all"
-                    >
-                      <div
-                        className="w-full rounded-t-sm transition-all duration-500 bg-gradient-to-t from-sky-600 to-sky-400 opacity-80 group-hover:opacity-100"
-                        style={{ height: `${val}%` }}
-                      />
-                    </div>
-                  ))}
-                </div>
-                <div className="flex justify-between text-[9px] font-bold text-slate-400 dark:text-white/40 uppercase tracking-widest mt-3">
-                  <span>Founder</span>
-                  <span>Dynamics</span>
-                  <span>Panel</span>
-                </div>
-              </div>
-            );
-          })()}
+          {/* Data Chart — live analytics coming soon (placeholder, not fake data) */}
+          <div className="bg-white/70 dark:bg-zinc-900/40 backdrop-blur-xl rounded-[24px] p-4 border border-slate-200 dark:border-white/5 flex flex-col shadow-xl min-h-[125px] transition-colors">
+            <h4 className="text-[11px] font-bold text-slate-700 dark:text-white/80 uppercase tracking-widest mb-3">
+              Data Chart
+            </h4>
+            <div className="flex-1 flex flex-col items-center justify-center gap-2 text-center py-3">
+              <Activity size={22} className="text-slate-300 dark:text-white/20" />
+              <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400 dark:text-white/40">
+                Coming soon
+              </span>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -2514,6 +2535,9 @@ export default function LivePitchRoom() {
                       stream={stream}
                       isCameraMuted={isCameraMuted}
                       isPitching={isPitching}
+                      avatarUrl={userData.avatarUrl}
+                      userName={userData.name}
+                      isUserSpeaking={isUserSpeaking}
                     />
                     {/* Slides PIP */}
                     <div
@@ -2850,49 +2874,18 @@ export default function LivePitchRoom() {
               </div>
             </div>
 
-            {(() => {
-              const userMsgCount = messages.filter(
-                (m) => m.type === "user",
-              ).length;
-              const aiMsgCount = messages.filter((m) => m.type === "ai").length;
-              const totalMsgCount = userMsgCount + aiMsgCount;
-              const dialogueBalance =
-                totalMsgCount > 0
-                  ? Math.round((userMsgCount / totalMsgCount) * 100)
-                  : 50;
-              return (
-                <div className="bg-white/70 dark:bg-zinc-900/45 backdrop-blur-xl rounded-[24px] p-4 border border-slate-200 dark:border-zinc-850 flex flex-col justify-between shadow-xl shrink-0 transition-colors">
-                  <h4 className="text-[11px] font-bold text-slate-700 dark:text-white/80 uppercase tracking-widest mb-3">
-                    Data Chart
-                  </h4>
-                  <div className="flex items-end justify-between h-20 gap-3 pb-2 border-b border-slate-200 dark:border-white/10">
-                    {[
-                      dialogueBalance,
-                      100 - dialogueBalance,
-                      Math.max(20, dialogueBalance - 10),
-                      Math.min(90, dialogueBalance + 20),
-                      60,
-                      45,
-                    ].map((val, i) => (
-                      <div
-                        key={i}
-                        className="flex-1 flex flex-col justify-end group"
-                      >
-                        <div
-                          className="w-full rounded-t-sm transition-all duration-500 bg-gradient-to-t from-sky-600 to-sky-400 opacity-80 group-hover:opacity-100"
-                          style={{ height: `${val}%` }}
-                        />
-                      </div>
-                    ))}
-                  </div>
-                  <div className="flex justify-between text-[9px] font-bold text-slate-400 dark:text-white/40 uppercase tracking-widest mt-3">
-                    <span>Founder</span>
-                    <span>Dynamics</span>
-                    <span>Panel</span>
-                  </div>
-                </div>
-              );
-            })()}
+            {/* Data Chart — live analytics coming soon (placeholder, not fake data) */}
+            <div className="bg-white/70 dark:bg-zinc-900/45 backdrop-blur-xl rounded-[24px] p-4 border border-slate-200 dark:border-zinc-850 flex flex-col shadow-xl shrink-0 transition-colors">
+              <h4 className="text-[11px] font-bold text-slate-700 dark:text-white/80 uppercase tracking-widest mb-3">
+                Data Chart
+              </h4>
+              <div className="flex flex-col items-center justify-center gap-2 text-center py-6">
+                <Activity size={22} className="text-slate-300 dark:text-white/20" />
+                <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400 dark:text-white/40">
+                  Coming soon
+                </span>
+              </div>
+            </div>
           </div>
         )}
       </div>

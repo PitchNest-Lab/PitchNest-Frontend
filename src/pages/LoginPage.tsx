@@ -18,9 +18,9 @@ type LoginFormValues = z.infer<typeof loginSchema>;
 
 const SLIDES = [
   {
-    image: "https://images.unsplash.com/photo-1522071820081-009f0129c71c?auto=format&fit=crop&w=800&q=80",
+    image: "https://images.unsplash.com/photo-1551836022-d5d88e9218df?auto=format&fit=crop&w=800&q=80",
     title: "The AI Pitch Deck Evolution",
-    desc: "Join 10,000+ founders using PitchNest to refine their narratives with real-time AI feedback."
+    desc: "Join 500+ founders using PitchNest to refine their narratives with real-time AI feedback."
   },
   {
     image: "https://images.unsplash.com/photo-1542744173-8e7e53415bb0?auto=format&fit=crop&w=800&q=80",
@@ -39,7 +39,7 @@ export default function LoginPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [serverError, setServerError] = useState("");
   const [currentSlide, setCurrentSlide] = useState(0);
-  
+
   const { login } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
@@ -53,7 +53,7 @@ export default function LoginPage() {
 
   // Pre-warm the backend so the Render cold-start happens while the user types
   useEffect(() => {
-    fetch('/api/health').catch(() => {});
+    fetch('/api/health').catch(() => { });
   }, []);
 
   const { register, handleSubmit, formState: { errors } } = useForm<LoginFormValues>({
@@ -77,7 +77,7 @@ export default function LoginPage() {
 
   return (
     <div className="min-h-screen bg-[#FAFBFC] dark:bg-[#09090B] flex items-center justify-center p-6 font-sans transition-colors duration-300">
-      <motion.div 
+      <motion.div
         initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
         className="w-full max-w-[1000px] card rounded-3xl shadow-2xl shadow-slate-200/50 dark:shadow-black/20 overflow-hidden flex flex-col lg:flex-row transition-colors"
       >
@@ -147,7 +147,7 @@ export default function LoginPage() {
           <div className="relative z-10 text-center max-w-sm">
             <div className="rounded-[40px] overflow-hidden shadow-2xl shadow-sky-200 dark:shadow-black/20 border-8 border-white dark:border-zinc-900 mb-8 relative aspect-[3/4]">
               {SLIDES.map((slide, i) => (
-                <img 
+                <img
                   key={i} src={slide.image} alt="Slide" referrerPolicy="no-referrer"
                   className={cn("absolute inset-0 w-full h-full object-cover transition-opacity duration-1000", i === currentSlide ? "opacity-100 z-10" : "opacity-0 z-0")}
                 />

@@ -24,9 +24,9 @@ type SignupFormValues = z.infer<typeof signupSchema>;
 
 const SLIDES = [
   {
-    image: "https://images.unsplash.com/photo-1522071820081-009f0129c71c?auto=format&fit=crop&w=800&q=80",
+    image: "https://images.unsplash.com/photo-1551836022-d5d88e9218df?auto=format&fit=crop&w=800&q=80",
     title: "The AI Pitch Deck Evolution",
-    desc: "Join 10,000+ founders using PitchNest to refine their narratives with real-time AI feedback."
+    desc: "Join 500+ founders using PitchNest to refine their narratives with real-time AI feedback."
   },
   {
     image: "https://images.unsplash.com/photo-1542744173-8e7e53415bb0?auto=format&fit=crop&w=800&q=80",
@@ -46,7 +46,7 @@ export default function SignupPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [serverError, setServerError] = useState("");
   const [currentSlide, setCurrentSlide] = useState(0);
-  
+
   const { signup } = useAuth();
   const navigate = useNavigate();
 
@@ -57,7 +57,7 @@ export default function SignupPage() {
 
   // Pre-warm the backend so the Render cold-start happens while the user types
   useEffect(() => {
-    fetch('/api/health').catch(() => {});
+    fetch('/api/health').catch(() => { });
   }, []);
 
   const { register, handleSubmit, formState: { errors } } = useForm<SignupFormValues>({
@@ -70,8 +70,8 @@ export default function SignupPage() {
     setServerError("");
     try {
       // 🛑 FIX: NUKE LOCAL STORAGE BEFORE SIGNING UP TO PREVENT DATA BLEED
-      localStorage.clear(); 
-      
+      localStorage.clear();
+
       await signup(data.name, data.email, data.password);
       // 🔥 FIX 2: Safely route to dashboard to prevent a 404 dead end
       navigate('/onboarding');
@@ -84,7 +84,7 @@ export default function SignupPage() {
 
   return (
     <div className="min-h-screen bg-[#FAFBFC] dark:bg-[#09090B] flex items-center justify-center p-6 font-sans transition-colors duration-300">
-      <motion.div 
+      <motion.div
         initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
         className="w-full max-w-[1000px] card rounded-3xl shadow-2xl shadow-slate-200/50 dark:shadow-black/20 overflow-hidden flex flex-col lg:flex-row transition-colors"
       >
@@ -173,8 +173,8 @@ export default function SignupPage() {
         <div className="hidden lg:flex flex-1 bg-sky-50 dark:bg-zinc-800 flex-col items-center justify-center p-12 relative overflow-hidden">
           <div className="relative z-10 w-full max-w-sm">
             <div className="rounded-[32px] overflow-hidden shadow-2xl border-8 border-white dark:border-zinc-900 mb-8 relative aspect-[4/5] bg-slate-100">
-              <div 
-                className="flex w-full h-full transition-transform duration-700 ease-in-out" 
+              <div
+                className="flex w-full h-full transition-transform duration-700 ease-in-out"
                 style={{ transform: `translateX(-${currentSlide * 100}%)` }}
               >
                 {SLIDES.map((slide, i) => (
@@ -184,7 +184,7 @@ export default function SignupPage() {
                 ))}
               </div>
             </div>
-            
+
             <div className="h-24 text-center">
               <h3 className="text-xl font-bold text-slate-900 dark:text-zinc-100 mb-2 transition-all duration-300">{SLIDES[currentSlide].title}</h3>
               <p className="text-slate-500 dark:text-zinc-400 text-sm leading-relaxed transition-all duration-300">{SLIDES[currentSlide].desc}</p>

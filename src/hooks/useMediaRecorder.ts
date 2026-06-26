@@ -8,42 +8,26 @@ export const useMediaRecorder = () => {
   const streamRef = useRef<MediaStream | null>(null); // ADD
 
   const startStream = useCallback(async () => {
+    // Audio-only: camera recording is disabled for now, so we never request
+    // video. This means the founder is never prompted for camera access and the
+    // camera light stays off — only the microphone is acquired.
     try {
       const newStream = await navigator.mediaDevices.getUserMedia({
-        video: {
-          width: { ideal: 640 },
-          height: { ideal: 360 },
-          facingMode: "user"
-        },
+        video: false,
         audio: {
           echoCancellation: true,
           noiseSuppression: true,
           autoGainControl: true
         },
       });
-      streamRef.current = newStream; // ADD
+      streamRef.current = newStream;
       setStream(newStream);
       return newStream;
     } catch (err) {
-      console.warn("Error accessing video/audio devices, trying audio-only fallback...", err);
-      try {
-        const audioOnlyStream = await navigator.mediaDevices.getUserMedia({
-          video: false,
-          audio: {
-            echoCancellation: true,
-            noiseSuppression: true,
-            autoGainControl: true
-          },
-        });
-        streamRef.current = audioOnlyStream; // ADD
-        setStream(audioOnlyStream);
-        return audioOnlyStream;
-      } catch (err2) {
-        console.error("Error accessing audio fallback device:", err2);
-        return null;
-      }
+      console.error("Error accessing microphone:", err);
+      return null;
     }
-  }, []); // CHANGE: empty deps, no longer needs stream
+  }, []);
 
   // FIX: use ref instead of state — stopStream is now stable (never recreated)
   const stopStream = useCallback(() => {

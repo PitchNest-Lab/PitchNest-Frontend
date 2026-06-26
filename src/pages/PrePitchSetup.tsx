@@ -110,8 +110,8 @@ export default function PrePitchSetup() {
       fundingStage: localStorage.getItem('pitchnest_funding_stage') || 'Pre-Seed',
       aggressiveness: 60, 
       riskAppetite: 75,
-      cameraEnabled: true, 
-      micEnabled: true, 
+      cameraEnabled: false, // Camera is disabled for now (avoiding heavy video storage)
+      micEnabled: true,
       screenShareEnabled: false,
       duration: 15,
     }
@@ -286,19 +286,25 @@ export default function PrePitchSetup() {
           </div>
 
           <div className="flex flex-col sm:flex-row gap-4 shrink-0 mt-2">
-            {[ 
-              { icon: Camera, label: 'Camera', state: cameraEnabled, set: (c:boolean) => setValue('cameraEnabled', c) },
-              { icon: Mic, label: 'Microphone', state: micEnabled, set: (c:boolean) => setValue('micEnabled', c) },
-              ...(canScreenShare ? [{ icon: Monitor, label: 'Screen', state: screenShareEnabled, set: toggleScreenShare }] : [])
+            {[
+              // Camera is intentionally disabled for now — we're avoiding heavy
+              // video storage. Only Microphone and Screen are functional.
+              { icon: Camera, label: 'Camera', state: false, disabled: true, set: (_c:boolean) => {} },
+              { icon: Mic, label: 'Microphone', state: micEnabled, disabled: false, set: (c:boolean) => setValue('micEnabled', c) },
+              ...(canScreenShare ? [{ icon: Monitor, label: 'Screen', state: screenShareEnabled, disabled: false, set: toggleScreenShare }] : [])
             ].map((hw, i) => (
-              <div key={i} className="flex-1 bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 rounded-2xl p-3.5 sm:p-4 flex items-center justify-between">
+              <div key={i} className={cn("flex-1 bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 rounded-2xl p-3.5 sm:p-4 flex items-center justify-between", hw.disabled && "opacity-70")}>
                 <div className="flex items-center gap-3">
                   <hw.icon size={18} className={hw.state ? "text-emerald-500" : "text-slate-400"} />
                   <span className="text-xs font-bold">{hw.label}</span>
                 </div>
-                <Switch.Root checked={hw.state} onCheckedChange={(checked) => hw.set(checked)} className="w-8 h-4.5 bg-slate-200 dark:bg-zinc-800 rounded-full relative data-[state=checked]:bg-emerald-500 transition-colors cursor-pointer">
-                  <Switch.Thumb className="block w-3.5 h-3.5 mt-0.5 ml-0.5 bg-white rounded-full transition-transform data-[state=checked]:translate-x-3.5" />
-                </Switch.Root>
+                {hw.disabled ? (
+                  <span className="text-[9px] font-bold uppercase tracking-wider text-slate-400 dark:text-zinc-500 bg-slate-100 dark:bg-zinc-800 px-2 py-1 rounded-full">Coming soon</span>
+                ) : (
+                  <Switch.Root checked={hw.state} onCheckedChange={(checked) => hw.set(checked)} className="w-8 h-4.5 bg-slate-200 dark:bg-zinc-800 rounded-full relative data-[state=checked]:bg-emerald-500 transition-colors cursor-pointer">
+                    <Switch.Thumb className="block w-3.5 h-3.5 mt-0.5 ml-0.5 bg-white rounded-full transition-transform data-[state=checked]:translate-x-3.5" />
+                  </Switch.Root>
+                )}
               </div>
             ))}
           </div>

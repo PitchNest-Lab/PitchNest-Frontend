@@ -12,6 +12,7 @@ import { SmoothScroll } from '../components/landing/SmoothScroll';
 import { SectionReveal } from '../components/landing/SectionReveal';
 import { HeroWords, heroBlock, heroEase } from '../components/landing/HeroWords';
 import { InvestorMarquee } from '../components/landing/InvestorMarquee';
+import heroImage from '../assets/heroImage.jpeg';
 import { StatsBand } from '../components/landing/StatsBand';
 import { YCBatchBar } from '../components/landing/YCBatchBar';
 import { LogoLink, LogoMark } from '../components/Logo';
@@ -48,7 +49,7 @@ const faqs = [
   { q: "What is PitchNest?", a: "PitchNest simulates a real investor pitch session. You present to a panel of AI investors who listen, ask questions, debate your thesis, and deliver a structured performance report." },
   { q: "How realistic is the panel?", a: "Each investor has a distinct persona — a skeptical lead partner, a numbers-focused analyst, and a technical evaluator. They react to your answers, push back on claims, and debate among themselves." },
   { q: "Can I upload my pitch deck?", a: "Yes. Upload a PDF and the panel references your slides, financials, and market data during the session." },
-  { q: "Is PitchNest free?", a: "We are in early access. Join the waitlist to secure your spot — early adopters receive priority access." },
+  { q: "Is PitchNest free?", a: "We are in early access — sign up and start pitching today. Early adopters get priority access to new features as we roll them out." },
   { q: "What feedback do I receive?", a: "A full evaluation covering pitch clarity, market knowledge, financial literacy, response quality, and fundraising readiness — with specific, actionable recommendations." },
   { q: "Can I practice multiple times?", a: "Every session is saved with a full transcript replay and evaluation report so you can track progress over time." },
 ];
@@ -59,7 +60,6 @@ const navLinks = [
   { href: "#how-it-works", label: "How it works" },
   { href: "#why-pitchnest", label: "Why PitchNest" },
   { href: "#faq", label: "FAQ" },
-  { href: "#waitlist", label: "Join waitlist" },
 ];
 
 export default function LandingPage() {
@@ -68,37 +68,6 @@ export default function LandingPage() {
   const [testimonialIdx, setTestimonialIdx] = useState(0);
   const [showAllFeatures, setShowAllFeatures] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  const [waitlistEmail, setWaitlistEmail] = useState('');
-  const [waitlistStatus, setWaitlistStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
-  const [waitlistMessage, setWaitlistMessage] = useState('');
-
-  const handleWaitlistSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!waitlistEmail || !waitlistEmail.includes('@')) {
-      setWaitlistStatus('error');
-      setWaitlistMessage('Please enter a valid email address.');
-      return;
-    }
-    setWaitlistStatus('loading');
-    try {
-      const res = await fetch('/api/waitlist', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: waitlistEmail }),
-      });
-      const data = await res.json();
-      if (res.ok) {
-        setWaitlistStatus('success');
-        setWaitlistEmail('');
-      } else {
-        setWaitlistStatus('error');
-        setWaitlistMessage(data.error || 'Something went wrong.');
-      }
-    } catch {
-      setWaitlistStatus('error');
-      setWaitlistMessage('Server connection error.');
-    }
-  };
 
   useEffect(() => { if (localStorage.getItem('user')) setIsLoggedIn(true); }, []);
 
@@ -227,32 +196,6 @@ export default function LandingPage() {
                 </a>
               </motion.div>
 
-              <motion.div id="waitlist" variants={heroBlock} className="max-w-md mx-auto scroll-mt-28">
-                {waitlistStatus === 'success' ? (
-                  <div className="flex items-center justify-center gap-3 px-5 py-4 rounded-2xl border border-emerald-200 dark:border-emerald-900/40 bg-emerald-50/80 dark:bg-emerald-950/20 text-emerald-700 dark:text-emerald-400">
-                    <ShieldCheck size={18} className="shrink-0" />
-                    <span className="text-sm font-semibold">You are on the list. We will email you when your invite is ready.</span>
-                  </div>
-                ) : (
-                  <>
-                    <p className="text-xs font-semibold text-slate-400 dark:text-zinc-500 uppercase tracking-widest mb-3">Join the waitlist</p>
-                    <form onSubmit={handleWaitlistSubmit} className="flex gap-2 p-1.5 rounded-2xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 focus-within:ring-2 focus-within:ring-sky-500/15 transition-all">
-                      <input
-                        type="email"
-                        value={waitlistEmail}
-                        onChange={e => setWaitlistEmail(e.target.value)}
-                        placeholder="you@company.com"
-                        className="flex-1 min-w-0 bg-transparent border-none text-sm px-4 outline-none placeholder:text-slate-400 dark:placeholder:text-zinc-600"
-                        disabled={waitlistStatus === 'loading'}
-                      />
-                      <button type="submit" disabled={waitlistStatus === 'loading'} className="btn-primary shrink-0 px-5 py-2.5 text-sm">
-                        {waitlistStatus === 'loading' ? 'Joining...' : 'Get access'}
-                      </button>
-                    </form>
-                    {waitlistStatus === 'error' && <p className="text-xs text-rose-500 font-medium mt-2">{waitlistMessage}</p>}
-                  </>
-                )}
-              </motion.div>
             </motion.div>
           </div>
 
@@ -263,39 +206,17 @@ export default function LandingPage() {
             className="mt-16 sm:mt-20 max-w-4xl mx-auto"
           >
             <div className="card p-1 rounded-2xl sm:rounded-3xl shadow-2xl shadow-indigo-500/10">
-              <div className="rounded-xl sm:rounded-[22px] overflow-hidden bg-gradient-to-br from-slate-900 via-indigo-950 to-slate-900 p-6 sm:p-10">
-                <div className="flex items-center justify-between mb-6">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-full gradient-brand flex items-center justify-center">
-                      <Users size={18} className="text-white" />
-                    </div>
-                    <div>
-                      <p className="text-white font-semibold text-sm">Investor Panel</p>
-                      <p className="text-white/50 text-xs">3 personas active</p>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-1.5">
-                    <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-                    <span className="text-xs font-medium text-emerald-400">Live</span>
-                  </div>
-                </div>
-                <div className="space-y-3">
-                  {[
-                    { speaker: "Lead Partner", text: "Walk me through your unit economics at scale." },
-                    { speaker: "Analyst", text: "Your CAC assumptions seem aggressive for this market." },
-                    { speaker: "Technical", text: "What is your moat once incumbents add this feature?" },
-                  ].map((msg, i) => (
-                    <motion.div
-                      key={i}
-                      initial={{ opacity: 0, x: -12 }}
-                      animate={{ opacity: 1, x: 0 }}
-                      transition={{ delay: 0.6 + i * 0.15, ease: heroEase }}
-                      className="bg-white/5 border border-white/10 rounded-xl px-4 py-3"
-                    >
-                      <p className="text-[10px] font-semibold uppercase tracking-wider text-sky-400 mb-1">{msg.speaker}</p>
-                      <p className="text-sm text-white/80">{msg.text}</p>
-                    </motion.div>
-                  ))}
+              <div className="relative rounded-xl sm:rounded-[22px] overflow-hidden bg-slate-900">
+                <img
+                  src={heroImage}
+                  alt="PitchNest AI investor panel"
+                  className="w-full h-auto object-cover"
+                  loading="lazy"
+                />
+                {/* Live badge overlay */}
+                <div className="absolute top-4 right-4 flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-black/40 backdrop-blur-sm">
+                  <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                  <span className="text-xs font-medium text-emerald-300">Live</span>
                 </div>
               </div>
             </div>
@@ -564,7 +485,6 @@ export default function LandingPage() {
               <ul className="space-y-2 sm:space-y-3 text-xs sm:text-sm text-slate-500 dark:text-zinc-400">
                 <li><a href="#features" className="hover:text-sky-600 dark:hover:text-sky-400">Features</a></li>
                 <li><a href="#why-pitchnest" className="hover:text-sky-600 dark:hover:text-sky-400">Why PitchNest</a></li>
-                <li><a href="#waitlist" className="hover:text-sky-600 dark:hover:text-sky-400">Join waitlist</a></li>
                 <li><a href="#faq" className="hover:text-sky-600 dark:hover:text-sky-400">FAQ</a></li>
                 <li><Link to="/login" className="hover:text-sky-600 dark:hover:text-sky-400">Login</Link></li>
                 <li><Link to="/signup" className="hover:text-sky-600 dark:hover:text-sky-400">Sign Up</Link></li>
@@ -591,12 +511,11 @@ export default function LandingPage() {
             </div>
 
             <div className="col-span-2 md:col-span-1">
-              <h4 className="font-bold mb-3 sm:mb-6 text-sm">Newsletter</h4>
-              <p className="text-xs sm:text-sm text-slate-500 dark:text-zinc-400 mb-3">Get early access updates.</p>
-              <form onSubmit={handleWaitlistSubmit} className="flex gap-2">
-                <input type="email" value={waitlistEmail} onChange={e => setWaitlistEmail(e.target.value)} placeholder="Email" className="flex-1 min-w-0 bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 rounded-lg px-3 py-2 text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-sky-500/20" disabled={waitlistStatus === 'loading'} />
-                <button type="submit" disabled={waitlistStatus === 'loading'} className="p-2 bg-sky-500 text-white rounded-lg hover:bg-sky-600 transition-colors shrink-0"><ArrowRight size={16} /></button>
-              </form>
+              <h4 className="font-bold mb-3 sm:mb-6 text-sm">Get Started</h4>
+              <p className="text-xs sm:text-sm text-slate-500 dark:text-zinc-400 mb-3">Practice your pitch with an AI investor panel today.</p>
+              <Link to="/signup" className="btn-primary inline-flex text-xs sm:text-sm px-4 py-2">
+                Start pitching <ArrowRight size={14} />
+              </Link>
             </div>
           </div>
           <div className="max-w-7xl mx-auto px-4 sm:px-6 mt-8 sm:mt-16 pt-6 sm:pt-8 border-t border-slate-200 dark:border-zinc-800 flex flex-col sm:flex-row justify-between items-center gap-2 text-[10px] sm:text-xs text-slate-400 dark:text-zinc-500">

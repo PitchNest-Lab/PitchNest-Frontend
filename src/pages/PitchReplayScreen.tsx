@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import {
   Play,
+  Film,
   ChevronLeft,
   MessageSquare,
   Sparkles,
@@ -255,34 +256,17 @@ export default function PitchReplayScreen() {
 
       <div className="grid lg:grid-cols-3 gap-8">
         <div className="lg:col-span-2 space-y-6">
-          <div className="aspect-video bg-slate-900 rounded-[28px] sm:rounded-[40px] relative overflow-hidden shadow-2xl group flex items-center justify-center border border-slate-800">
-            {session.video_url ? (
-              <video
-                src={session.video_url}
-                className="w-full h-full object-cover"
-                controls
-              />
-            ) : (
-              <>
-                <div className="absolute inset-0 bg-gradient-to-t from-slate-900 via-transparent to-transparent z-10 opacity-60" />
-                <div className="absolute bottom-4 left-4 right-4 sm:bottom-6 sm:left-6 sm:right-6 z-20 flex items-center gap-3 text-white">
-                  <button className="w-10 h-10 sm:w-12 sm:h-12 shrink-0 bg-sky-500 rounded-full flex items-center justify-center hover:bg-sky-400 transition-colors shadow-lg shadow-sky-500/30">
-                    <Play size={18} fill="currentColor" className="ml-0.5" />
-                  </button>
-                  <div className="flex-1 h-1.5 bg-white/20 rounded-full overflow-hidden">
-                    <div className="w-1/3 h-full bg-sky-500 rounded-full" />
-                  </div>
-                  <span className="text-xs font-mono font-bold hidden sm:block">
-                    Timeline Replay
-                  </span>
-                </div>
-                <img
-                  src="https://images.unsplash.com/photo-1522071820081-009f0129c71c?auto=format&fit=crop&w=1200&q=80"
-                  alt="Video Cover"
-                  className="w-full h-full object-cover opacity-80 mix-blend-luminosity"
-                />
-              </>
-            )}
+          {/* Video replay is disabled for now — show a clean cover instead of a
+              fake player or fabricated footage. */}
+          <div className="aspect-video bg-slate-900 rounded-[28px] sm:rounded-[40px] relative overflow-hidden shadow-2xl flex flex-col items-center justify-center gap-3 text-center px-6 border border-slate-800">
+            <div className="w-14 h-14 rounded-full bg-white/5 border border-white/10 flex items-center justify-center">
+              <Film size={24} className="text-white/40" />
+            </div>
+            <p className="text-white/85 font-bold text-sm sm:text-base">Video replay coming soon</p>
+            <p className="text-white/40 text-xs max-w-xs">
+              We're focused on audio and transcript analysis for now — full video
+              replay is on the way.
+            </p>
           </div>
 
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
