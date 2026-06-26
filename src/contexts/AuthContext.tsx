@@ -62,13 +62,39 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const login = async (email: string, password: string) => {
-    const res = await fetch('/api/auth/login', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email, password })
-    });
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.error || 'Login failed');
+    const doLogin = (signal?: AbortSignal) =>
+      fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password }),
+        signal,
+      });
+
+    let res: Response;
+    try {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 15000);
+      res = await doLogin(controller.signal);
+      clearTimeout(timeout);
+    } catch (firstErr: any) {
+      // First attempt timed out / failed — the backend is likely cold-starting.
+      // Retry once (the server should be warm by now).
+      if (firstErr.name === 'AbortError' || firstErr.message?.includes('network')) {
+        try {
+          const controller2 = new AbortController();
+          const timeout2 = setTimeout(() => controller2.abort(), 30000);
+          res = await doLogin(controller2.signal);
+          clearTimeout(timeout2);
+        } catch {
+          throw new Error('The server is still waking up. Please wait a few seconds and try again.');
+        }
+      } else {
+        throw new Error('Network error — please check your connection and try again.');
+      }
+    }
+
+    const data = await res!.json();
+    if (!res!.ok) throw new Error(data.error || 'Login failed');
     
     setUser(data.user);
     setToken(data.token);
@@ -77,13 +103,37 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const signup = async (name: string, email: string, password: string) => {
-    const res = await fetch('/api/auth/signup', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name, email, password })
-    });
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.error || 'Signup failed');
+    const doSignup = (signal?: AbortSignal) =>
+      fetch('/api/auth/signup', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name, email, password }),
+        signal,
+      });
+
+    let res: Response;
+    try {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 15000);
+      res = await doSignup(controller.signal);
+      clearTimeout(timeout);
+    } catch (firstErr: any) {
+      if (firstErr.name === 'AbortError' || firstErr.message?.includes('network')) {
+        try {
+          const controller2 = new AbortController();
+          const timeout2 = setTimeout(() => controller2.abort(), 30000);
+          res = await doSignup(controller2.signal);
+          clearTimeout(timeout2);
+        } catch {
+          throw new Error('The server is still waking up. Please wait a few seconds and try again.');
+        }
+      } else {
+        throw new Error('Network error — please check your connection and try again.');
+      }
+    }
+
+    const data = await res!.json();
+    if (!res!.ok) throw new Error(data.error || 'Signup failed');
     
     setUser(data.user);
     setToken(data.token);

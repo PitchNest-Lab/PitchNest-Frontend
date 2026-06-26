@@ -102,6 +102,9 @@ export default function LandingPage() {
 
   useEffect(() => { if (localStorage.getItem('user')) setIsLoggedIn(true); }, []);
 
+  // Pre-warm the Render backend so login/signup don't hit a cold start
+  useEffect(() => { fetch('/api/health').catch(() => {}); }, []);
+
   useEffect(() => {
     const timer = setInterval(
       () => setTestimonialIdx((prev) => (prev + 1) % testimonials.length),

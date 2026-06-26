@@ -277,7 +277,7 @@ export default function PitchReplayScreen() {
                   </span>
                 </div>
                 <img
-                  src="https://images.unsplash.com/photo-1556761175-5973dc0f32d7?auto=format&fit=crop&w=1200&q=80"
+                  src="https://images.unsplash.com/photo-1522071820081-009f0129c71c?auto=format&fit=crop&w=1200&q=80"
                   alt="Video Cover"
                   className="w-full h-full object-cover opacity-80 mix-blend-luminosity"
                 />

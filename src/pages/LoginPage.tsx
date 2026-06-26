@@ -18,7 +18,7 @@ type LoginFormValues = z.infer<typeof loginSchema>;
 
 const SLIDES = [
   {
-    image: "https://images.unsplash.com/photo-1556761175-5973dc0f32d7?auto=format&fit=crop&w=800&q=80",
+    image: "https://images.unsplash.com/photo-1522071820081-009f0129c71c?auto=format&fit=crop&w=800&q=80",
     title: "The AI Pitch Deck Evolution",
     desc: "Join 10,000+ founders using PitchNest to refine their narratives with real-time AI feedback."
   },
@@ -49,6 +49,11 @@ export default function LoginPage() {
   useEffect(() => {
     const timer = setInterval(() => setCurrentSlide(prev => (prev + 1) % SLIDES.length), 5000);
     return () => clearInterval(timer);
+  }, []);
+
+  // Pre-warm the backend so the Render cold-start happens while the user types
+  useEffect(() => {
+    fetch('/api/health').catch(() => {});
   }, []);
 
   const { register, handleSubmit, formState: { errors } } = useForm<LoginFormValues>({
