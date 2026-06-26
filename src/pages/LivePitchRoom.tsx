@@ -37,6 +37,13 @@ declare global {
   }
 }
 
+// Per-frame audio logging is OFF by default — it produces thousands of lines in
+// a long session, dragging tab performance and memory. Devs can enable it with
+// `localStorage.setItem("pn_audio_debug", "1")` then reloading.
+const AUDIO_DEBUG =
+  typeof window !== "undefined" &&
+  window.localStorage?.getItem("pn_audio_debug") === "1";
+
 const TTS_LANG = "en-US";
 const TTS_MAX_CHARS = 420;
 const TTS_MAX_SENTENCES = 2;
@@ -968,7 +975,7 @@ export default function LivePitchRoom() {
         if (!window._pcmCount) window._pcmCount = 0;
         window._pcmCount++;
 
-        if (window._pcmCount % 20 === 0) {
+        if (AUDIO_DEBUG && window._pcmCount % 20 === 0) {
           const view = new Int16Array(pcm);
           const sample = Array.from(view.slice(0, 8)).join(", ");
           console.log(
@@ -1370,7 +1377,7 @@ export default function LivePitchRoom() {
         if (data.type === "audio") {
           // Drop late-arriving chunks from a turn the user already interrupted.
           if (bargedInRef.current) return;
-          console.log("recieved audio", data);
+          if (AUDIO_DEBUG) console.log("received audio", data);
           if (!window.firstAudioReceived) {
             window.firstAudioReceived = performance.now();
 
