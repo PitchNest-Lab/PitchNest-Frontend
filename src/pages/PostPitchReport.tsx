@@ -7,6 +7,7 @@ import {
 import { Radar, RadarChart, PolarGrid, PolarAngleAxis, ResponsiveContainer } from 'recharts';
 import { cn } from '../lib/utils';
 import { useAuth } from '../contexts/AuthContext';
+import { ChartFrame } from '../components/ChartFrame';
 
 export default function PostPitchReport() {
   const [searchParams] = useSearchParams();
@@ -195,13 +196,15 @@ export default function PostPitchReport() {
                   <p className="text-[10px] font-bold uppercase tracking-widest">Insufficient Data</p>
                 </div>
               ) : (
-                <ResponsiveContainer width="100%" height="100%">
-                  <RadarChart cx="50%" cy="50%" outerRadius="70%" data={RADAR_DATA}>
-                    <PolarGrid stroke="#E2E8F0" className="dark:stroke-zinc-800" />
-                    <PolarAngleAxis dataKey="subject" tick={{ fontSize: 9, fontWeight: 700, fill: '#64748B' }} />
-                    <Radar dataKey="A" stroke="#0EA5E9" fill="#0EA5E9" fillOpacity={0.15} strokeWidth={2} />
-                  </RadarChart>
-                </ResponsiveContainer>
+                <ChartFrame>
+                  <ResponsiveContainer width="100%" height="100%">
+                    <RadarChart cx="50%" cy="50%" outerRadius="70%" data={RADAR_DATA}>
+                      <PolarGrid stroke="#E2E8F0" className="dark:stroke-zinc-800" />
+                      <PolarAngleAxis dataKey="subject" tick={{ fontSize: 9, fontWeight: 700, fill: '#64748B' }} />
+                      <Radar dataKey="A" stroke="#0EA5E9" fill="#0EA5E9" fillOpacity={0.15} strokeWidth={2} />
+                    </RadarChart>
+                  </ResponsiveContainer>
+                </ChartFrame>
               )}
             </div>
           </div>

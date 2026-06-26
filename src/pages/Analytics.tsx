@@ -23,6 +23,7 @@ import {
 import { cn } from '../lib/utils';
 import { useAuth } from '../contexts/AuthContext';
 import { Skeleton } from '../components/Skeleton';
+import { ChartFrame } from '../components/ChartFrame';
 
 const StatCard = ({ title, value, subtitle, trend, progress, tooltip, isLoading }: { title: string, value: string, subtitle?: string, trend?: string, progress?: number, tooltip?: string, isLoading?: boolean }) => (
   <motion.div 
@@ -269,7 +270,8 @@ export default function Analytics() {
                   <p className="text-sm font-medium">Complete pitches to see your score trends</p>
                 </div>
               ) : (
-                <ResponsiveContainer width="100%" height="100%">
+                <ChartFrame>
+                  <ResponsiveContainer width="100%" height="100%">
                   <AreaChart data={displayChartData}>
                     <defs>
                       <linearGradient id="colorReadiness" x1="0" y1="0" x2="0" y2="1">
@@ -283,7 +285,8 @@ export default function Analytics() {
                     <Area type="monotone" dataKey="readiness" stroke="#0EA5E9" strokeWidth={3} fillOpacity={1} fill="url(#colorReadiness)" />
                     <Area type="monotone" dataKey="confidence" stroke="#818CF8" strokeWidth={2} strokeDasharray="5 5" fill="transparent" />
                   </AreaChart>
-                </ResponsiveContainer>
+                  </ResponsiveContainer>
+                </ChartFrame>
               )}
             </div>
           </motion.div>
