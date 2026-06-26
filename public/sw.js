@@ -1,4 +1,4 @@
-const CACHE_NAME = 'pitchnest-cache-v1';
+const CACHE_NAME = 'pitchnest-cache-v2';
 const ASSETS_TO_CACHE = [
   '/',
   '/index.html',
@@ -41,8 +41,9 @@ self.addEventListener('activate', (event) => {
 self.addEventListener('fetch', (event) => {
   const url = new URL(event.request.url);
 
-  // Bypass API requests, Supabase database calls, and WebSocket connections
+  // Bypass API requests, non-GET requests, Supabase database calls, and WebSocket connections
   if (
+    event.request.method !== 'GET' ||
     url.pathname.startsWith('/api') ||
     url.hostname.includes('supabase') ||
     event.request.headers.get('Upgrade') === 'websocket'
@@ -56,7 +57,7 @@ self.addEventListener('fetch', (event) => {
       if (cachedResponse) {
         // Fetch fresh version in the background
         fetch(event.request).then((networkResponse) => {
-          if (networkResponse && networkResponse.status === 200) {
+          if (networkResponse && networkResponse.status === 200 && networkResponse.type === 'basic') {
             caches.open(CACHE_NAME).then((cache) => cache.put(event.request, networkResponse));
           }
         }).catch(() => {}); // Silence background errors if offline
@@ -71,6 +72,9 @@ self.addEventListener('fetch', (event) => {
           caches.open(CACHE_NAME).then((cache) => cache.put(event.request, responseToCache));
         }
         return response;
+      }).catch((err) => {
+        console.error('SW fetch failed for:', url.href, err);
+        throw err;
       });
     })
   );
