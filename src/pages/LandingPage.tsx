@@ -14,7 +14,6 @@ import { HeroWords, heroBlock, heroEase } from '../components/landing/HeroWords'
 import { InvestorMarquee } from '../components/landing/InvestorMarquee';
 import heroImage from '../assets/heroImage.jpeg';
 import { StatsBand } from '../components/landing/StatsBand';
-import { YCBatchBar } from '../components/landing/YCBatchBar';
 import { LogoLink, LogoMark } from '../components/Logo';
 
 const testimonials = [
@@ -150,7 +149,6 @@ export default function LandingPage() {
         </header>
 
         <div className="h-[6.75rem]" aria-hidden />
-        <YCBatchBar />
 
         {isMobileMenuOpen && (
           <div className="md:hidden fixed top-[6.75rem] left-0 right-0 nav-glass z-40 p-5 flex flex-col gap-1 shadow-lg">
