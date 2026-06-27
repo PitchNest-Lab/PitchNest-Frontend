@@ -1241,23 +1241,24 @@ export default function LivePitchRoom() {
 
   useEffect(() => {
     if (!socket) return;
-    console.log(
-      "WS state:",
-      socket.readyState,
-      "Is open:",
-      socket.readyState === WebSocket.OPEN,
-    );
+    if (AUDIO_DEBUG) {
+      console.log(
+        "WS state:",
+        socket.readyState,
+        "Is open:",
+        socket.readyState === WebSocket.OPEN,
+      );
+    }
 
     const handleMessage = async (event: MessageEvent) => {
       try {
         const data = JSON.parse(event.data);
-        if (typeof event.data === "string") {
-          const parsed = JSON.parse(event.data);
+        if (AUDIO_DEBUG && typeof event.data === "string") {
           console.log(
             "📨 Incoming:",
-            parsed.type,
-            parsed.speaker ?? "",
-            parsed.text?.slice(0, 50) ?? "",
+            data.type,
+            data.speaker ?? "",
+            data.text?.slice(0, 50) ?? "",
           );
         }
 
@@ -1271,6 +1272,14 @@ export default function LivePitchRoom() {
 
         if (data.type === "stop_audio" || data.type === "interrupt") {
           if (verdictPhase) return;
+          // Only honor a stop if the AI is actually mid-turn (speaking now or
+          // with audio still queued). A stray stop while the panel is idle —
+          // e.g. a noise/echo-triggered STT partial between turns — must NOT
+          // latch bargedIn, or it would silently drop the NEXT turn's audio
+          // (panel text appears but no voice is heard).
+          if (!isSpeakingRef.current && activeSourcesRef.current.length === 0) {
+            return;
+          }
           // Server-initiated stop: drop any further audio for this turn too.
           bargedInRef.current = true;
           stopAiAudio();
@@ -1420,14 +1429,14 @@ export default function LivePitchRoom() {
           if (AUDIO_DEBUG) console.log("received audio", data);
           if (!window.firstAudioReceived) {
             window.firstAudioReceived = performance.now();
-
-            console.log("🔊 First audio received:", window.firstAudioReceived);
-
-            console.log(
-              "⏱ Total latency:",
-              window.firstAudioReceived - window.firstAudioSent,
-              "ms",
-            );
+            if (AUDIO_DEBUG) {
+              console.log("🔊 First audio received:", window.firstAudioReceived);
+              console.log(
+                "⏱ Total latency:",
+                window.firstAudioReceived - window.firstAudioSent,
+                "ms",
+              );
+            }
           }
           const hasAudio = !!data.data;
           const hasText = !!data.text;
