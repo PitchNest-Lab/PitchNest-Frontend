@@ -1,45 +1,174 @@
-import React, { useState, useEffect } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
-import { Mail, Lock, User, ArrowRight, ChevronDown, Loader2, Eye, EyeOff } from 'lucide-react';
-import { LogoLink } from '../components/Logo';
-import { motion } from 'framer-motion';
-import { useForm } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
-import * as z from 'zod';
-import { cn } from '../lib/utils';
-import { useAuth } from '../contexts/AuthContext';
+import React, { useState, useEffect } from "react";
+import { Link, useNavigate } from "react-router-dom";
+import {
+  Mail,
+  Lock,
+  User,
+  ArrowRight,
+  ChevronDown,
+  Loader2,
+  Eye,
+  EyeOff,
+  MailCheck,
+  RefreshCw,
+  CheckCircle,
+} from "lucide-react";
+import { LogoLink } from "../components/Logo";
+import { motion, AnimatePresence } from "framer-motion";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import * as z from "zod";
+import { cn } from "../lib/utils";
+import { useAuth } from "../contexts/AuthContext";
 
-const signupSchema = z.object({
-  name: z.string().min(2, 'Name must be at least 2 characters'),
-  email: z.string().email('Invalid email address'),
-  password: z.string().min(6, 'Password must be at least 6 characters'),
-  confirmPassword: z.string().min(6, 'Confirm password must be at least 6 characters'),
-  role: z.enum(['Founder', 'Investor', 'Advisor']),
-}).refine((data) => data.password === data.confirmPassword, {
-  message: "Passwords don't match",
-  path: ["confirmPassword"],
-});
+const signupSchema = z
+  .object({
+    name: z.string().min(2, "Name must be at least 2 characters"),
+    email: z.string().email("Invalid email address"),
+    password: z.string().min(6, "Password must be at least 6 characters"),
+    confirmPassword: z
+      .string()
+      .min(6, "Confirm password must be at least 6 characters"),
+    role: z.enum(["Founder", "Investor", "Advisor"]),
+  })
+  .refine((data) => data.password === data.confirmPassword, {
+    message: "Passwords don't match",
+    path: ["confirmPassword"],
+  });
 
 type SignupFormValues = z.infer<typeof signupSchema>;
 
 const SLIDES = [
   {
-    image: "https://images.unsplash.com/photo-1551836022-d5d88e9218df?auto=format&fit=crop&w=800&q=80",
+    image:
+      "https://images.unsplash.com/photo-1556761175-5973dc0f32d7?auto=format&fit=crop&w=800&q=80",
     title: "The AI Pitch Deck Evolution",
-    desc: "Join 500+ founders using PitchNest to refine their narratives with real-time AI feedback."
+    desc: "Join 10,000+ founders using PitchNest to refine their narratives with real-time AI feedback.",
   },
   {
-    image: "https://images.unsplash.com/photo-1542744173-8e7e53415bb0?auto=format&fit=crop&w=800&q=80",
+    image:
+      "https://images.unsplash.com/photo-1542744173-8e7e53415bb0?auto=format&fit=crop&w=800&q=80",
     title: "Nail Your Delivery",
-    desc: "Practice with multimodal AI investors that simulate high-pressure venture capital environments."
+    desc: "Practice with multimodal AI investors that simulate high-pressure venture capital environments.",
   },
   {
-    image: "https://images.unsplash.com/photo-1517245386807-bb43f82c33c4?auto=format&fit=crop&w=800&q=80",
+    image:
+      "https://images.unsplash.com/photo-1517245386807-bb43f82c33c4?auto=format&fit=crop&w=800&q=80",
     title: "Actionable Insights",
-    desc: "Get deep analytics on your pacing, clarity, and scalability after every single session."
-  }
+    desc: "Get deep analytics on your pacing, clarity, and scalability after every single session.",
+  },
 ];
 
+// ─── Reusable Email Not Verified Popup ──────────────────────────────────────
+function EmailNotVerifiedPopup({
+  email,
+  onClose,
+  onResend,
+}: {
+  email: string;
+  onClose: () => void;
+  onResend: () => Promise<void>;
+}) {
+  const [resending, setResending] = useState(false);
+  const [resent, setResent] = useState(false);
+  const [timer, setTimer] = useState(0);
+
+  const handleResend = async () => {
+    setResending(true);
+    await onResend();
+    setTimer(60);
+    setResent(true);
+    setTimeout(() => {
+      setTimer((prev) => prev - 1);
+      setResending(false);
+      setResent(true);
+    }, 60 * 1000);
+    setResending(false);
+    setResent(true);
+  };
+
+  return (
+    <motion.div
+      key="backdrop"
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm"
+  
+    >
+      <motion.div
+        initial={{ opacity: 0, scale: 0.95, y: 12 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        exit={{ opacity: 0, scale: 0.95, y: 12 }}
+        transition={{ type: "spring", stiffness: 300, damping: 25 }}
+        className="w-full max-w-[420px] card rounded-3xl shadow-2xl shadow-slate-200/50 dark:shadow-black/40 p-8 text-center"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Icon */}
+        <div className="w-16 h-16 rounded-2xl bg-amber-50 dark:bg-amber-500/10 flex items-center justify-center mx-auto mb-5">
+          <MailCheck className="text-amber-500" size={30} strokeWidth={1.5} />
+        </div>
+
+        <h3 className="text-xl font-semibold text-slate-900 dark:text-zinc-100 mb-2 tracking-tight">
+          Account already exists
+        </h3>
+        <p className="text-sm text-slate-500 dark:text-zinc-400 leading-relaxed mb-1">
+          This email is registered but not verified yet
+        </p>
+        <p className="text-sky-500 font-bold text-sm mb-6">{email}</p>
+
+        <p className="text-xs text-slate-400 dark:text-zinc-500 leading-relaxed mb-7">
+          Check your inbox for the original link, or click below to get a fresh
+          one and verify your account.
+        </p>
+
+        {/* Resend + redirect CTA */}
+        <button
+          type="button"
+          onClick={handleResend}
+          disabled={resending || resent}
+          className="w-full flex items-center justify-center gap-2 py-3.5 btn-primary text-sm rounded-xl mb-3 disabled:opacity-60"
+        >
+          {resending ? (
+            <>
+              <Loader2 size={15} className="animate-spin" />
+              Sending...
+            </>
+          ) : timer > 0 ? (
+            <>
+              <CheckCircle size={15} />
+              Resend in {timer}s
+            </>
+          ) : (
+            <>
+              <RefreshCw size={15} />
+              Resend verification email
+            </>
+          )}
+        </button>
+
+        {/* Go to login instead */}
+        <Link
+          to="/login"
+          className="w-full flex items-center justify-center py-3 text-sm text-slate-500 dark:text-zinc-400 hover:text-sky-500 dark:hover:text-sky-400 font-semibold transition-colors"
+          onClick={onClose}
+        >
+          Already verified? Log in instead
+        </Link>
+
+        <button
+          type="button"
+          onClick={onClose}
+          className="w-full py-2 text-xs text-slate-400 dark:text-zinc-600 hover:text-slate-500 transition-colors mt-1"
+        >
+          Dismiss
+        </button>
+      </motion.div>
+    </motion.div>
+  );
+}
+
+// ─── Signup Page ─────────────────────────────────────────────────────────────
 export default function SignupPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
@@ -47,160 +176,353 @@ export default function SignupPage() {
   const [serverError, setServerError] = useState("");
   const [currentSlide, setCurrentSlide] = useState(0);
 
+  // Unverified popup state
+  const [showUnverifiedPopup, setShowUnverifiedPopup] = useState(false);
+  const [unverifiedEmail, setUnverifiedEmail] = useState("");
+
   const { signup } = useAuth();
   const navigate = useNavigate();
 
   useEffect(() => {
-    const timer = setInterval(() => setCurrentSlide(prev => (prev + 1) % SLIDES.length), 4000);
+    const timer = setInterval(
+      () => setCurrentSlide((prev) => (prev + 1) % SLIDES.length),
+      4000,
+    );
     return () => clearInterval(timer);
   }, []);
 
-  // Pre-warm the backend so the Render cold-start happens while the user types
-  useEffect(() => {
-    fetch('/api/health').catch(() => { });
-  }, []);
-
-  const { register, handleSubmit, formState: { errors } } = useForm<SignupFormValues>({
+  const {
+    register,
+    handleSubmit,
+    formState: { errors },
+  } = useForm<SignupFormValues>({
     resolver: zodResolver(signupSchema),
-    defaultValues: { role: 'Founder' }
+    defaultValues: { role: "Founder" },
   });
 
   const onSubmit = async (data: SignupFormValues) => {
     setIsSubmitting(true);
     setServerError("");
     try {
-      // 🛑 FIX: NUKE LOCAL STORAGE BEFORE SIGNING UP TO PREVENT DATA BLEED
       localStorage.clear();
 
-      await signup(data.name, data.email, data.password);
-      // 🔥 FIX 2: Safely route to dashboard to prevent a 404 dead end
-      navigate('/onboarding');
+      const res = (await signup(data.name, data.email, data.password)) as
+        | { token?: string }
+        | null
+        | undefined;
+
+      if (res?.token) {
+        navigate("/verify", { state: { email: data.email } });
+      } else {
+        navigate("/signup");
+      }
     } catch (error: any) {
-      setServerError(error.message);
+      console.log(error.message);
+      // Already registered but email not verified → show popup
+      if (
+        error.message?.toLowerCase().includes("not verified") ||
+        error.message?.toLowerCase().includes("already registered") ||
+        error.message?.toLowerCase().includes("already exists")
+      ) {
+        setUnverifiedEmail(data.email);
+        setShowUnverifiedPopup(true);
+      } else {
+        setServerError(error.message);
+      }
     } finally {
       setIsSubmitting(false);
     }
   };
 
+  // Resend then redirect to /verify
+  const handleResend = async (email: string) => {
+    await fetch("/api/auth/resend-verification", {
+      method: "POST",
+      body: JSON.stringify({ email }),
+      headers: {
+        "Content-Type": "application/json",
+      },
+    });
+  };
+
   return (
-    <div className="min-h-screen bg-[#FAFBFC] dark:bg-[#09090B] flex items-center justify-center p-6 font-sans transition-colors duration-300">
-      <motion.div
-        initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
-        className="w-full max-w-[1000px] card rounded-3xl shadow-2xl shadow-slate-200/50 dark:shadow-black/20 overflow-hidden flex flex-col lg:flex-row transition-colors"
-      >
-        <div className="flex-1 p-8 md:p-12">
-          {/* 🔥 FIX 1: Wrapped the logo in a Link to return to Landing Page */}
-          <LogoLink showText size="md" className="mb-10" />
+    <>
+      {/* ── Unverified popup ── */}
+      <AnimatePresence>
+        {showUnverifiedPopup && (
+          <EmailNotVerifiedPopup
+            email={unverifiedEmail}
+            onClose={() => setShowUnverifiedPopup(false)}
+            onResend={() => handleResend(unverifiedEmail)}
+          />
+        )}
+      </AnimatePresence>
 
-          <h2 className="text-3xl font-semibold text-slate-900 dark:text-zinc-100 mb-2 tracking-tight">Create your account</h2>
-          <p className="text-slate-500 dark:text-zinc-500 mb-8 text-sm">Start practicing with the investor panel.</p>
+      <div className="min-h-screen bg-[#FAFBFC] dark:bg-[#09090B] flex items-center justify-center p-6 font-sans transition-colors duration-300">
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="w-full max-w-[1000px] card rounded-3xl shadow-2xl shadow-slate-200/50 dark:shadow-black/20 overflow-hidden flex flex-col lg:flex-row transition-colors"
+        >
+          <div className="flex-1 p-8 md:p-12">
+            <LogoLink showText size="md" className="mb-10" />
 
-          <form className="space-y-5" onSubmit={handleSubmit(onSubmit)}>
-            {serverError && <div className="p-3 bg-rose-50 border border-rose-200 text-rose-600 rounded-xl text-sm font-bold">{serverError}</div>}
+            <h2 className="text-3xl font-semibold text-slate-900 dark:text-zinc-100 mb-2 tracking-tight">
+              Create your account
+            </h2>
+            <p className="text-slate-500 dark:text-zinc-500 mb-8 text-sm">
+              Start practicing with the investor panel.
+            </p>
 
-            <div className="space-y-1.5">
-              <label className="text-xs font-bold text-slate-700 dark:text-zinc-300">Full Name</label>
-              <div className="relative">
-                <User className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
-                <input {...register('name')} type="text" placeholder="Your full name" className={cn("w-full pl-10 pr-4 py-3 bg-slate-50 dark:bg-zinc-800 border rounded-xl focus:outline-none focus:ring-2 transition-all dark:text-zinc-100 text-sm", errors.name ? "border-rose-500 focus:ring-rose-500/20" : "border-slate-200 dark:border-zinc-700 focus:ring-sky-500/20")} />
-              </div>
-              {errors.name && <p className="text-xs font-bold text-rose-500">{errors.name.message}</p>}
-            </div>
-
-            <div className="space-y-1.5">
-              <label className="text-xs font-bold text-slate-700 dark:text-zinc-300">Email Address</label>
-              <div className="relative">
-                <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
-                <input {...register('email')} type="email" placeholder="you@startup.com" className={cn("w-full pl-10 pr-4 py-3 bg-slate-50 dark:bg-zinc-800 border rounded-xl focus:outline-none focus:ring-2 transition-all dark:text-zinc-100 text-sm", errors.email ? "border-rose-500 focus:ring-rose-500/20" : "border-slate-200 dark:border-zinc-700 focus:ring-sky-500/20")} />
-              </div>
-              {errors.email && <p className="text-xs font-bold text-rose-500">{errors.email.message}</p>}
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div className="space-y-1.5">
-                <label className="text-xs font-bold text-slate-700 dark:text-zinc-300">Password</label>
-                <div className="relative">
-                  <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
-                  <input {...register('password')} type={showPassword ? "text" : "password"} placeholder="••••••••" className={cn("w-full pl-10 pr-10 py-3 bg-slate-50 dark:bg-zinc-800 border rounded-xl focus:outline-none focus:ring-2 transition-all dark:text-zinc-100 text-sm", errors.password ? "border-rose-500 focus:ring-rose-500/20" : "border-slate-200 dark:border-zinc-700 focus:ring-sky-500/20")} />
-                  <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 outline-none">
-                    {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
-                  </button>
+            <form className="space-y-5" onSubmit={handleSubmit(onSubmit)}>
+              {serverError && (
+                <div className="p-3 bg-rose-50 border border-rose-200 text-rose-600 rounded-xl text-sm font-bold">
+                  {serverError}
                 </div>
-              </div>
+              )}
 
               <div className="space-y-1.5">
-                <label className="text-xs font-bold text-slate-700 dark:text-zinc-300">Confirm Password</label>
+                <label className="text-xs font-bold text-slate-700 dark:text-zinc-300">
+                  Full Name
+                </label>
                 <div className="relative">
-                  <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
-                  <input {...register('confirmPassword')} type={showConfirmPassword ? "text" : "password"} placeholder="••••••••" className={cn("w-full pl-10 pr-10 py-3 bg-slate-50 dark:bg-zinc-800 border rounded-xl focus:outline-none focus:ring-2 transition-all dark:text-zinc-100 text-sm", errors.confirmPassword ? "border-rose-500 focus:ring-rose-500/20" : "border-slate-200 dark:border-zinc-700 focus:ring-sky-500/20")} />
-                  <button type="button" onClick={() => setShowConfirmPassword(!showConfirmPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 outline-none">
-                    {showConfirmPassword ? <EyeOff size={16} /> : <Eye size={16} />}
-                  </button>
+                  <User
+                    className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"
+                    size={16}
+                  />
+                  <input
+                    {...register("name")}
+                    type="text"
+                    placeholder="Your full name"
+                    className={cn(
+                      "w-full pl-10 pr-4 py-3 bg-slate-50 dark:bg-zinc-800 border rounded-xl focus:outline-none focus:ring-2 transition-all dark:text-zinc-100 text-sm",
+                      errors.name
+                        ? "border-rose-500 focus:ring-rose-500/20"
+                        : "border-slate-200 dark:border-zinc-700 focus:ring-sky-500/20",
+                    )}
+                  />
                 </div>
+                {errors.name && (
+                  <p className="text-xs font-bold text-rose-500">
+                    {errors.name.message}
+                  </p>
+                )}
               </div>
-            </div>
 
-            <div className="space-y-1.5">
-              <label className="text-xs font-bold text-slate-700 dark:text-zinc-300">I am a...</label>
-              <div className="relative">
-                <select {...register('role')} className="w-full pl-4 pr-10 py-3 bg-slate-50 dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-sky-500/20 transition-all appearance-none cursor-pointer dark:text-zinc-100 text-sm">
-                  <option value="Founder">Founder</option>
-                  <option value="Investor">Investor</option>
-                  <option value="Advisor">Advisor</option>
-                </select>
-                <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={16} />
+              <div className="space-y-1.5">
+                <label className="text-xs font-bold text-slate-700 dark:text-zinc-300">
+                  Email Address
+                </label>
+                <div className="relative">
+                  <Mail
+                    className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"
+                    size={16}
+                  />
+                  <input
+                    {...register("email")}
+                    type="email"
+                    placeholder="you@startup.com"
+                    className={cn(
+                      "w-full pl-10 pr-4 py-3 bg-slate-50 dark:bg-zinc-800 border rounded-xl focus:outline-none focus:ring-2 transition-all dark:text-zinc-100 text-sm",
+                      errors.email
+                        ? "border-rose-500 focus:ring-rose-500/20"
+                        : "border-slate-200 dark:border-zinc-700 focus:ring-sky-500/20",
+                    )}
+                  />
+                </div>
+                {errors.email && (
+                  <p className="text-xs font-bold text-rose-500">
+                    {errors.email.message}
+                  </p>
+                )}
               </div>
-            </div>
 
-            <button type="submit" disabled={isSubmitting} className="w-full py-3.5 btn-primary text-sm group disabled:opacity-50 disabled:hover:transform-none mt-4">
-              {isSubmitting ? <Loader2 className="animate-spin" size={16} /> : <>Create Account <ArrowRight size={16} className="group-hover:translate-x-1 transition-transform" /></>}
-            </button>
-          </form>
-
-          <p className="text-center mt-4 text-[11px] text-slate-500 dark:text-zinc-500 leading-relaxed px-2">
-            By creating an account, you agree to our{' '}
-            <Link to="/terms" className="text-sky-500 font-bold hover:underline">Terms of Service</Link>
-            {' '}and{' '}
-            <Link to="/privacy" className="text-sky-500 font-bold hover:underline">Privacy Policy</Link>.
-          </p>
-
-          <p className="text-center mt-4 text-xs text-slate-500 dark:text-zinc-500">
-            Already have an account? <Link to="/login" className="text-sky-500 font-bold hover:text-sky-600">Log in</Link>
-          </p>
-        </div>
-
-        {/* Right Side Carousel */}
-        <div className="hidden lg:flex flex-1 bg-sky-50 dark:bg-zinc-800 flex-col items-center justify-center p-12 relative overflow-hidden">
-          <div className="relative z-10 w-full max-w-sm">
-            <div className="rounded-[32px] overflow-hidden shadow-2xl border-8 border-white dark:border-zinc-900 mb-8 relative aspect-[4/5] bg-slate-100">
-              <div
-                className="flex w-full h-full transition-transform duration-700 ease-in-out"
-                style={{ transform: `translateX(-${currentSlide * 100}%)` }}
-              >
-                {SLIDES.map((slide, i) => (
-                  <div key={i} className="min-w-full h-full shrink-0">
-                    <img src={slide.image} alt={slide.title} className="w-full h-full object-cover" />
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="space-y-1.5">
+                  <label className="text-xs font-bold text-slate-700 dark:text-zinc-300">
+                    Password
+                  </label>
+                  <div className="relative">
+                    <Lock
+                      className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"
+                      size={16}
+                    />
+                    <input
+                      {...register("password")}
+                      type={showPassword ? "text" : "password"}
+                      placeholder="••••••••"
+                      className={cn(
+                        "w-full pl-10 pr-10 py-3 bg-slate-50 dark:bg-zinc-800 border rounded-xl focus:outline-none focus:ring-2 transition-all dark:text-zinc-100 text-sm",
+                        errors.password
+                          ? "border-rose-500 focus:ring-rose-500/20"
+                          : "border-slate-200 dark:border-zinc-700 focus:ring-sky-500/20",
+                      )}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 outline-none"
+                    >
+                      {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                    </button>
                   </div>
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="text-xs font-bold text-slate-700 dark:text-zinc-300">
+                    Confirm Password
+                  </label>
+                  <div className="relative">
+                    <Lock
+                      className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"
+                      size={16}
+                    />
+                    <input
+                      {...register("confirmPassword")}
+                      type={showConfirmPassword ? "text" : "password"}
+                      placeholder="••••••••"
+                      className={cn(
+                        "w-full pl-10 pr-10 py-3 bg-slate-50 dark:bg-zinc-800 border rounded-xl focus:outline-none focus:ring-2 transition-all dark:text-zinc-100 text-sm",
+                        errors.confirmPassword
+                          ? "border-rose-500 focus:ring-rose-500/20"
+                          : "border-slate-200 dark:border-zinc-700 focus:ring-sky-500/20",
+                      )}
+                    />
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setShowConfirmPassword(!showConfirmPassword)
+                      }
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 outline-none"
+                    >
+                      {showConfirmPassword ? (
+                        <EyeOff size={16} />
+                      ) : (
+                        <Eye size={16} />
+                      )}
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-xs font-bold text-slate-700 dark:text-zinc-300">
+                  I am a...
+                </label>
+                <div className="relative">
+                  <select
+                    {...register("role")}
+                    className="w-full pl-4 pr-10 py-3 bg-slate-50 dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-sky-500/20 transition-all appearance-none cursor-pointer dark:text-zinc-100 text-sm"
+                  >
+                    <option value="Founder">Founder</option>
+                    <option value="Investor">Investor</option>
+                    <option value="Advisor">Advisor</option>
+                  </select>
+                  <ChevronDown
+                    className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none"
+                    size={16}
+                  />
+                </div>
+              </div>
+
+              <button
+                type="submit"
+                disabled={isSubmitting}
+                className="w-full py-3.5 btn-primary text-sm group disabled:opacity-50 disabled:hover:transform-none mt-4"
+              >
+                {isSubmitting ? (
+                  <Loader2 className="animate-spin" size={16} />
+                ) : (
+                  <>
+                    Create Account{" "}
+                    <ArrowRight
+                      size={16}
+                      className="group-hover:translate-x-1 transition-transform"
+                    />
+                  </>
+                )}
+              </button>
+            </form>
+
+            <p className="text-center mt-4 text-[11px] text-slate-500 dark:text-zinc-500 leading-relaxed px-2">
+              By creating an account, you agree to our{" "}
+              <Link
+                to="/terms"
+                className="text-sky-500 font-bold hover:underline"
+              >
+                Terms of Service
+              </Link>{" "}
+              and{" "}
+              <Link
+                to="/privacy"
+                className="text-sky-500 font-bold hover:underline"
+              >
+                Privacy Policy
+              </Link>
+              .
+            </p>
+
+            <p className="text-center mt-4 text-xs text-slate-500 dark:text-zinc-500">
+              Already have an account?{" "}
+              <Link
+                to="/login"
+                className="text-sky-500 font-bold hover:text-sky-600"
+              >
+                Log in
+              </Link>
+            </p>
+          </div>
+
+          {/* Right Side Carousel */}
+          <div className="hidden lg:flex flex-1 bg-sky-50 dark:bg-zinc-800 flex-col items-center justify-center p-12 relative overflow-hidden">
+            <div className="relative z-10 w-full max-w-sm">
+              <div className="rounded-[32px] overflow-hidden shadow-2xl border-8 border-white dark:border-zinc-900 mb-8 relative aspect-[4/5] bg-slate-100">
+                <div
+                  className="flex w-full h-full transition-transform duration-700 ease-in-out"
+                  style={{ transform: `translateX(-${currentSlide * 100}%)` }}
+                >
+                  {SLIDES.map((slide, i) => (
+                    <div key={i} className="min-w-full h-full shrink-0">
+                      <img
+                        src={slide.image}
+                        alt={slide.title}
+                        className="w-full h-full object-cover"
+                      />
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div className="h-24 text-center">
+                <h3 className="text-xl font-bold text-slate-900 dark:text-zinc-100 mb-2 transition-all duration-300">
+                  {SLIDES[currentSlide].title}
+                </h3>
+                <p className="text-slate-500 dark:text-zinc-400 text-sm leading-relaxed transition-all duration-300">
+                  {SLIDES[currentSlide].desc}
+                </p>
+              </div>
+
+              <div className="mt-4 flex justify-center gap-2">
+                {SLIDES.map((_, i) => (
+                  <button
+                    key={i}
+                    type="button"
+                    onClick={() => setCurrentSlide(i)}
+                    className={cn(
+                      "h-2 rounded-full transition-all duration-300 outline-none",
+                      i === currentSlide
+                        ? "w-8 bg-sky-500"
+                        : "w-2 bg-sky-200 dark:bg-zinc-700 hover:bg-sky-300",
+                    )}
+                  />
                 ))}
               </div>
             </div>
-
-            <div className="h-24 text-center">
-              <h3 className="text-xl font-bold text-slate-900 dark:text-zinc-100 mb-2 transition-all duration-300">{SLIDES[currentSlide].title}</h3>
-              <p className="text-slate-500 dark:text-zinc-400 text-sm leading-relaxed transition-all duration-300">{SLIDES[currentSlide].desc}</p>
-            </div>
-
-            <div className="mt-4 flex justify-center gap-2">
-              {/* 🔥 FIX 3: Explicitly set type="button" to prevent accidental form triggers */}
-              {SLIDES.map((_, i) => (
-                <button key={i} type="button" onClick={() => setCurrentSlide(i)} className={cn("h-2 rounded-full transition-all duration-300 outline-none", i === currentSlide ? "w-8 bg-sky-500" : "w-2 bg-sky-200 dark:bg-zinc-700 hover:bg-sky-300")} />
-              ))}
-            </div>
+            <div className="absolute top-0 right-0 w-64 h-64 bg-sky-500/10 rounded-full blur-3xl -mr-32 -mt-32 pointer-events-none" />
+            <div className="absolute bottom-0 left-0 w-64 h-64 bg-indigo-500/10 rounded-full blur-3xl -ml-32 -mb-32 pointer-events-none" />
           </div>
-          <div className="absolute top-0 right-0 w-64 h-64 bg-sky-500/10 rounded-full blur-3xl -mr-32 -mt-32 pointer-events-none" />
-          <div className="absolute bottom-0 left-0 w-64 h-64 bg-indigo-500/10 rounded-full blur-3xl -ml-32 -mb-32 pointer-events-none" />
-        </div>
-      </motion.div>
-    </div>
+        </motion.div>
+      </div>
+    </>
   );
 }
