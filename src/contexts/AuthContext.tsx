@@ -1,4 +1,10 @@
-import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import React, {
+  createContext,
+  useContext,
+  useState,
+  useEffect,
+  useCallback,
+} from "react";
 
 interface User {
   id: number;
@@ -24,8 +30,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    const storedUser = localStorage.getItem('user');
-    const storedToken = localStorage.getItem('token');
+    const storedUser = localStorage.getItem("user");
+    const storedToken = localStorage.getItem("token");
 
     if (!storedUser || !storedToken) {
       setIsLoading(false);
@@ -33,22 +39,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
 
     // Verify token is still valid against the backend
-    fetch('/api/auth/me', {
-      headers: { Authorization: `Bearer ${storedToken}` }
+    fetch("/api/auth/me", {
+      headers: { Authorization: `Bearer ${storedToken}` },
     })
-      .then(res => {
+      .then((res) => {
         if (res.ok) {
           try {
             setUser(JSON.parse(storedUser));
             setToken(storedToken);
           } catch (e) {
-            localStorage.removeItem('user');
-            localStorage.removeItem('token');
+            localStorage.removeItem("user");
+            localStorage.removeItem("token");
           }
         } else {
           // Token expired or invalid — clear everything
-          localStorage.removeItem('user');
-          localStorage.removeItem('token');
+          localStorage.removeItem("user");
+          localStorage.removeItem("token");
         }
       })
       .catch(() => {
@@ -62,142 +68,98 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const login = async (email: string, password: string) => {
-    const doLogin = (signal?: AbortSignal) =>
-      fetch('/api/auth/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password }),
-        signal,
-      });
+    const res = await fetch("/api/auth/login", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email, password }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.message || "Login failed");
 
-    let res: Response;
-    try {
-      const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), 15000);
-      res = await doLogin(controller.signal);
-      clearTimeout(timeout);
-    } catch (firstErr: any) {
-      // First attempt timed out / failed — the backend is likely cold-starting.
-      // Retry once (the server should be warm by now).
-      if (firstErr.name === 'AbortError' || firstErr.message?.includes('network')) {
-        try {
-          const controller2 = new AbortController();
-          const timeout2 = setTimeout(() => controller2.abort(), 30000);
-          res = await doLogin(controller2.signal);
-          clearTimeout(timeout2);
-        } catch {
-          throw new Error('The server is still waking up. Please wait a few seconds and try again.');
-        }
-      } else {
-        throw new Error('Network error — please check your connection and try again.');
-      }
-    }
-
-    const data = await res!.json();
-    if (!res!.ok) throw new Error(data.error || 'Login failed');
-    
     setUser(data.user);
     setToken(data.token);
-    localStorage.setItem('user', JSON.stringify(data.user));
-    localStorage.setItem('token', data.token);
+    localStorage.setItem("user", JSON.stringify(data.user));
+    localStorage.setItem("token", data.token);
   };
 
   const signup = async (name: string, email: string, password: string) => {
-    const doSignup = (signal?: AbortSignal) =>
-      fetch('/api/auth/signup', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name, email, password }),
-        signal,
-      });
+    const res = await fetch("/api/auth/signup", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name, email, password }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.message||data.error || "Signup failed");
 
-    let res: Response;
-    try {
-      const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), 15000);
-      res = await doSignup(controller.signal);
-      clearTimeout(timeout);
-    } catch (firstErr: any) {
-      if (firstErr.name === 'AbortError' || firstErr.message?.includes('network')) {
-        try {
-          const controller2 = new AbortController();
-          const timeout2 = setTimeout(() => controller2.abort(), 30000);
-          res = await doSignup(controller2.signal);
-          clearTimeout(timeout2);
-        } catch {
-          throw new Error('The server is still waking up. Please wait a few seconds and try again.');
-        }
-      } else {
-        throw new Error('Network error — please check your connection and try again.');
-      }
-    }
-
-    const data = await res!.json();
-    if (!res!.ok) throw new Error(data.error || 'Signup failed');
-    
     setUser(data.user);
     setToken(data.token);
-    localStorage.setItem('user', JSON.stringify(data.user));
-    localStorage.setItem('token', data.token);
+    localStorage.setItem("user", JSON.stringify(data.user));
+    localStorage.setItem("token", data.token);
+    return data;
   };
 
   const logout = () => {
     setUser(null);
     setToken(null);
-    localStorage.removeItem('user');
-    localStorage.removeItem('token');
+    localStorage.removeItem("user");
+    localStorage.removeItem("token");
   };
 
   /**
    * Authenticated fetch wrapper — automatically attaches the JWT Bearer token
    * to all API requests. Use this instead of raw fetch() for protected endpoints.
    */
-  const authFetch = useCallback(async (url: string, options: RequestInit = {}): Promise<Response> => {
-    const currentToken = token || localStorage.getItem('token');
-    
-    const headers = new Headers(options.headers || {});
-    if (currentToken) {
-      headers.set('Authorization', `Bearer ${currentToken}`);
-    }
+  const authFetch = useCallback(
+    async (url: string, options: RequestInit = {}): Promise<Response> => {
+      const currentToken = token || localStorage.getItem("token");
 
-    const res = await fetch(url, { ...options, headers });
+      const headers = new Headers(options.headers || {});
+      if (currentToken) {
+        headers.set("Authorization", `Bearer ${currentToken}`);
+      }
 
-    // If token expired or invalid, force logout
-    if (res.status === 401) {
-      setUser(null);
-      setToken(null);
-      localStorage.removeItem('user');
-      localStorage.removeItem('token');
-    }
+      const res = await fetch(url, { ...options, headers });
 
-    return res;
-  }, [token]);
+      // If token expired or invalid, force logout
+      if (res.status === 401) {
+        setUser(null);
+        setToken(null);
+        localStorage.removeItem("user");
+        localStorage.removeItem("token");
+      }
+
+      return res;
+    },
+    [token],
+  );
 
   // Refetch user data when the window regains focus so pages show live data
   useEffect(() => {
     const onFocus = () => {
-      const currentToken = localStorage.getItem('token');
+      const currentToken = localStorage.getItem("token");
       if (!currentToken) return;
-      fetch('/api/auth/me', {
-        headers: { Authorization: `Bearer ${currentToken}` }
+      fetch("/api/auth/me", {
+        headers: { Authorization: `Bearer ${currentToken}` },
       })
-        .then(res => {
+        .then((res) => {
           if (!res.ok) {
             setUser(null);
             setToken(null);
-            localStorage.removeItem('user');
-            localStorage.removeItem('token');
+            localStorage.removeItem("user");
+            localStorage.removeItem("token");
           }
         })
         .catch(() => {}); // Ignore network errors silently
     };
 
-    window.addEventListener('focus', onFocus);
-    return () => window.removeEventListener('focus', onFocus);
+    window.addEventListener("focus", onFocus);
+    return () => window.removeEventListener("focus", onFocus);
   }, []);
 
   return (
-    <AuthContext.Provider value={{ user, token, login, signup, logout, isLoading, authFetch }}>
+    <AuthContext.Provider
+      value={{ user, token, login, signup, logout, isLoading, authFetch }}
+    >
       {children}
     </AuthContext.Provider>
   );
@@ -205,6 +167,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
 export const useAuth = () => {
   const context = useContext(AuthContext);
-  if (context === undefined) throw new Error('useAuth must be used within an AuthProvider');
+  if (context === undefined)
+    throw new Error("useAuth must be used within an AuthProvider");
   return context;
 };
