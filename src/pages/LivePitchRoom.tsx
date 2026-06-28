@@ -18,6 +18,7 @@ import {
   Activity,
   TrendingUp,
   Users,
+  Lightbulb,
 } from "lucide-react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
@@ -28,6 +29,7 @@ import { useScreenCapture } from "../hooks/useScreenCapture";
 import { useSocketContext } from "../contexts/SocketContext";
 import { useAuth } from "../contexts/AuthContext";
 import { ThemeToggle } from "../components/ThemeToggle";
+import { matchAnswerTip, type AnswerTip } from "../lib/answerTips";
 
 declare global {
   interface Window {
@@ -447,6 +449,44 @@ const getDeckDisplayUrl = (url: string) => {
 // can see the system is hearing them. A hidden <video> keeps the ref wiring
 // intact. (`stream`/`isCameraMuted` stay in the prop type for call-site
 // compatibility but are intentionally unused.)
+// ─── Answer-Tips coaching card ───────────────────────────────────────────────
+// A read-only, presentational overlay shown over the founder's avatar box while
+// the floor is theirs (AWAITING_FOUNDER). It explains the concept in the
+// panelist's question and gives DIRECTION only — never a model answer. It fades
+// in (quick), but is HIDDEN INSTANTLY by the parent un-mounting it the moment the
+// founder starts speaking (same VAD signal that drives the glow) — there is no
+// exit animation, so the hide can never lag behind the founder's voice.
+const TipCard = React.memo(({ tip }: { tip: AnswerTip }) => (
+  <motion.div
+    initial={{ opacity: 0, y: 10 }}
+    animate={{ opacity: 1, y: 0 }}
+    transition={{ duration: 0.2, ease: "easeOut" }}
+    className="absolute inset-0 z-20 flex flex-col items-center justify-center gap-2 p-3 md:p-5 text-center bg-slate-950/82 backdrop-blur-sm overflow-y-auto custom-scrollbar"
+  >
+    <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-sky-500/20 border border-sky-500/40 shrink-0">
+      <Lightbulb size={12} className="text-sky-300" />
+      <span className="text-[8px] md:text-[9px] font-bold uppercase tracking-widest text-sky-300">
+        Answer Tip
+      </span>
+    </div>
+    <h4 className="text-sm md:text-lg font-extrabold text-white leading-tight shrink-0">
+      {tip.term}
+    </h4>
+    <p className="text-[10px] md:text-xs text-slate-300 leading-snug max-w-xs">
+      {tip.definition}
+    </p>
+    <div className="mt-1 pt-2 border-t border-white/10 max-w-xs">
+      <p className="text-[8px] md:text-[9px] font-bold uppercase tracking-widest text-emerald-400 mb-1">
+        How to answer
+      </p>
+      <p className="text-[11px] md:text-sm text-white/90 leading-snug font-medium">
+        {tip.tip}
+      </p>
+    </div>
+  </motion.div>
+));
+TipCard.displayName = "TipCard";
+
 const CameraViewer = React.memo(
   ({
     videoRef,
@@ -575,6 +615,30 @@ export default function LivePitchRoom() {
   }, []);
   const [isMicMuted, setIsMicMuted] = useState(false);
   const [isCameraMuted, setIsCameraMuted] = useState(false);
+
+  // ── Answer-Tips coaching layer (read-only, additive visual overlay) ────────
+  // Gated behind a toggle (default ON). When OFF the avatar box behaves exactly
+  // as before. This layer only OBSERVES existing conversation state — it never
+  // feeds back into the panel, audio, or scoring.
+  const [coachingTipsEnabled, setCoachingTipsEnabled] = useState(
+    () =>
+      (typeof window !== "undefined"
+        ? window.localStorage?.getItem("pn_coaching_tips")
+        : null) !== "off",
+  );
+  const [currentTip, setCurrentTip] = useState<AnswerTip | null>(null);
+  // True from a question's turn_complete until the founder (or the panel) speaks
+  // again. Combined with the live VAD signal to decide whether the card shows.
+  const [awaitingFounderTip, setAwaitingFounderTip] = useState(false);
+  const toggleCoachingTips = useCallback(() => {
+    setCoachingTipsEnabled((prev) => {
+      const next = !prev;
+      try {
+        window.localStorage?.setItem("pn_coaching_tips", next ? "on" : "off");
+      } catch {}
+      return next;
+    });
+  }, []);
   const [messages, setMessages] = useState<
     {
       id: string;
@@ -588,6 +652,13 @@ export default function LivePitchRoom() {
   useEffect(() => {
     messagesRef.current = messages;
   }, [messages]);
+
+  // Once the founder starts answering (VAD glow) — or the panel speaks again —
+  // retire the current tip so it doesn't flash back during a mid-answer pause.
+  // The card returns only on the NEXT question's turn_complete.
+  useEffect(() => {
+    if (isUserSpeaking || isSpeaking) setAwaitingFounderTip(false);
+  }, [isUserSpeaking, isSpeaking]);
   const [isEvaluatingPitch, setIsEvaluatingPitch] = useState(false);
   const [isConcluding, setIsConcluding] = useState(false);
   const [isTurnComplete, setIsTurnComplete] = useState(false);
@@ -1297,6 +1368,19 @@ export default function LivePitchRoom() {
           const markTurnComplete = () => {
             setIsTurnComplete(true);
             turnStartedRef.current = true;
+            // ── Answer-Tips: the floor is now the founder's. Keyword-match the
+            // panelist's last spoken line and surface the matching card. This is
+            // read-only — it never signals the panel.
+            const lastAi = [...messagesRef.current]
+              .reverse()
+              .find(
+                (m) =>
+                  m.type === "ai" &&
+                  m.speaker !== "System" &&
+                  !m.text.startsWith("[Verdict]"),
+              );
+            setCurrentTip(matchAnswerTip(lastAi?.text));
+            setAwaitingFounderTip(true);
           };
           if (
             !audioContextRef.current ||
@@ -1701,6 +1785,7 @@ export default function LivePitchRoom() {
     if (!chatInput.trim() || !socket || !isConnected || verdictPhase) return;
 
     setIsTurnComplete(false);
+    setAwaitingFounderTip(false); // founder is answering via chat — retire the tip
     pendingTimeoutsRef.current.forEach((t) => clearTimeout(t));
     pendingTimeoutsRef.current = [];
 
@@ -1973,6 +2058,18 @@ export default function LivePitchRoom() {
     ? getPersonas(pitchConfig.investorArchetype, pitchConfig.mode)
     : [];
 
+  // AWAITING_FOUNDER ⇒ show the Tip Card. The `!isUserSpeaking` term ties the
+  // hide to the exact same VAD signal as the glow, so the card vanishes the
+  // instant the founder speaks (no separate timer / animation delay).
+  const showCoachingTip =
+    coachingTipsEnabled &&
+    awaitingFounderTip &&
+    !!currentTip &&
+    !isUserSpeaking &&
+    !isSpeaking &&
+    isPitching &&
+    !verdictPhase;
+
   if (!pitchConfig) {
     return (
       <div className="h-screen bg-slate-900 text-white flex flex-col items-center justify-center">
@@ -2198,6 +2295,11 @@ export default function LivePitchRoom() {
               </div>
             )}
 
+            {/* AWAITING_FOUNDER — Tip Card pops large over the main area
+                regardless of deck/camera view. Conditionally mounted (no exit
+                animation) so it vanishes the instant the founder speaks. */}
+            {showCoachingTip && currentTip && <TipCard tip={currentTip} />}
+
             <button
               onClick={() =>
                 setMainView((v) => (v === "slide" ? "camera" : "slide"))
@@ -2258,6 +2360,23 @@ export default function LivePitchRoom() {
                   )}
                 </button>
               )}
+              <button
+                onClick={toggleCoachingTips}
+                title={
+                  coachingTipsEnabled
+                    ? "Coaching Tips: ON — answer hints appear between questions"
+                    : "Coaching Tips: OFF — exam mode (avatar + glow only)"
+                }
+                aria-pressed={coachingTipsEnabled}
+                className={cn(
+                  "w-12 h-12 rounded-xl transition-all flex items-center justify-center cursor-pointer",
+                  coachingTipsEnabled
+                    ? "bg-amber-400/20 text-amber-500 hover:bg-amber-400/30"
+                    : "bg-slate-100 dark:bg-zinc-800 text-slate-400 dark:text-zinc-500 hover:bg-slate-200 dark:hover:bg-zinc-700",
+                )}
+              >
+                <Lightbulb size={20} />
+              </button>
               <div className="w-px h-8 bg-slate-200 dark:bg-white/10 mx-2" />
               <button
                 onClick={triggerConclusion}
@@ -2576,6 +2695,9 @@ export default function LivePitchRoom() {
                   </div>
                 )}
 
+                {/* AWAITING_FOUNDER — Tip Card over the mobile main area. */}
+                {showCoachingTip && currentTip && <TipCard tip={currentTip} />}
+
                 <button
                   onClick={() =>
                     setMainView((v) => (v === "slide" ? "camera" : "slide"))
@@ -2631,6 +2753,23 @@ export default function LivePitchRoom() {
                   ) : (
                     <MonitorOff size={17} />
                   )}
+                </button>
+                <button
+                  onClick={toggleCoachingTips}
+                  title={
+                    coachingTipsEnabled
+                      ? "Coaching Tips: ON"
+                      : "Coaching Tips: OFF"
+                  }
+                  aria-pressed={coachingTipsEnabled}
+                  className={cn(
+                    "w-10 h-10 rounded-xl transition-all flex items-center justify-center cursor-pointer shrink-0",
+                    coachingTipsEnabled
+                      ? "bg-amber-400/20 text-amber-500"
+                      : "bg-slate-100 dark:bg-zinc-800 text-slate-400 dark:text-zinc-500",
+                  )}
+                >
+                  <Lightbulb size={17} />
                 </button>
                 <div className="w-px h-6 bg-slate-200 dark:bg-white/10 mx-1 shrink-0" />
                 <button
