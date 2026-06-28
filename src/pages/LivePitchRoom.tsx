@@ -1370,6 +1370,23 @@ export default function LivePitchRoom() {
           return;
         }
 
+        // Defensive guard: solo (practice) mode has no live AI, so the server
+        // never generates a greeting, panel/coach turn, or verdict. If any AI
+        // audio/transcript/verdict message ever arrives anyway (e.g. a future
+        // server-side regression), drop it so the practice session stays silent.
+        // The founder's own transcript bubble (chat_message role "user") and
+        // report/score messages are intentionally left untouched.
+        if (
+          pitchConfig?.mode === "solo" &&
+          (data.type === "audio" ||
+            data.type === "transcript" ||
+            data.type === "greeting" ||
+            data.type === "verdict_message" ||
+            data.type === "verdict_complete")
+        ) {
+          return;
+        }
+
         if (data.type === "stop_audio" || data.type === "interrupt") {
           if (verdictPhase) return;
           // Only honor a stop if the AI is actually mid-turn (speaking now or
@@ -1994,14 +2011,19 @@ export default function LivePitchRoom() {
     if (verdictCountdownRef.current) clearInterval(verdictCountdownRef.current);
     if (verdictMaxTimerRef.current) clearTimeout(verdictMaxTimerRef.current);
 
+    const isSoloReview = pitchConfig?.mode === "solo";
     const isCoachOrSolo =
       pitchConfig?.mode === "coach" || pitchConfig?.mode === "solo";
     const statusMessages = isCoachOrSolo
       ? [
-          "Riley is reviewing your session...",
+          isSoloReview
+            ? "Riley is reviewing your recording..."
+            : "Riley is reviewing your session...",
           "Analyzing communication and clarity...",
           "Identifying areas for improvement...",
-          "Finalizing your coaching report...",
+          isSoloReview
+            ? "Finalizing your practice report..."
+            : "Finalizing your coaching report...",
         ]
       : [
           "Panel is grading your pitch...",
