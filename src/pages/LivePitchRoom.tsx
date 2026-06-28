@@ -653,12 +653,41 @@ export default function LivePitchRoom() {
     messagesRef.current = messages;
   }, [messages]);
 
-  // Once the founder starts answering (VAD glow) — or the panel speaks again —
-  // retire the current tip so it doesn't flash back during a mid-answer pause.
-  // The card returns only on the NEXT question's turn_complete.
+  // Once the founder starts answering (VAD glow), retire the tip so it doesn't
+  // flash back during a mid-answer pause — it returns only on the NEXT question's
+  // turn_complete. NOTE: we deliberately do NOT clear on `isSpeaking`. While the
+  // panel speaks the card is already hidden by the `!isSpeaking` term in
+  // `showCoachingTip`; clearing here would let a trailing/duplicate audio chunk
+  // permanently kill an awaiting tip so it never reappears.
   useEffect(() => {
-    if (isUserSpeaking || isSpeaking) setAwaitingFounderTip(false);
-  }, [isUserSpeaking, isSpeaking]);
+    if (isUserSpeaking) setAwaitingFounderTip(false);
+  }, [isUserSpeaking]);
+
+  // Diagnostics for the coaching layer. OFF by default — enable in the console
+  // with `localStorage.setItem("pn_tips_debug","1")` then reload to see why a
+  // card is/!isn't showing.
+  const tipsDebug =
+    typeof window !== "undefined" &&
+    window.localStorage?.getItem("pn_tips_debug") === "1";
+  useEffect(() => {
+    if (!tipsDebug) return;
+    console.log("[tips]", {
+      coachingTipsEnabled,
+      awaitingFounderTip,
+      tip: currentTip?.term ?? null,
+      isUserSpeaking,
+      isSpeaking,
+      isPitching,
+    });
+  }, [
+    tipsDebug,
+    coachingTipsEnabled,
+    awaitingFounderTip,
+    currentTip,
+    isUserSpeaking,
+    isSpeaking,
+    isPitching,
+  ]);
   const [isEvaluatingPitch, setIsEvaluatingPitch] = useState(false);
   const [isConcluding, setIsConcluding] = useState(false);
   const [isTurnComplete, setIsTurnComplete] = useState(false);
@@ -1379,7 +1408,14 @@ export default function LivePitchRoom() {
                   m.speaker !== "System" &&
                   !m.text.startsWith("[Verdict]"),
               );
-            setCurrentTip(matchAnswerTip(lastAi?.text));
+            const matched = matchAnswerTip(lastAi?.text);
+            if (window.localStorage?.getItem("pn_tips_debug") === "1") {
+              console.log("[tips] turn_complete → awaiting", {
+                question: lastAi?.text?.slice(0, 80),
+                tip: matched.term,
+              });
+            }
+            setCurrentTip(matched);
             setAwaitingFounderTip(true);
           };
           if (
