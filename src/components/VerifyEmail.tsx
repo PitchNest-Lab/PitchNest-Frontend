@@ -17,8 +17,8 @@ const steps = [
     label: "Open the email",
     detail: (
       <>
-        from <span className="text-sky-500 font-bold">hello@pitchnest.io</span>{" "}
-        — check spam if you don't see it
+        from <span className="text-sky-500 font-bold">pitchnestapp@gmail.com</span>{" "}
+        — check spam/promotions if you don't see it
       </>
     ),
   },
