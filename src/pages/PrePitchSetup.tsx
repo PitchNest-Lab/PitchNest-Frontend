@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
+import { FirstTimeTour } from '../components/FirstTimeTour';
 import { 
   Users, Target, User, Upload, FileText, Camera, Mic, CheckCircle2,
   PlayCircle, Clock, Loader2, Monitor, Briefcase, AlignLeft, X
@@ -187,6 +188,14 @@ export default function PrePitchSetup() {
 
   return (
     <div className="max-w-6xl mx-auto min-h-[calc(100vh-80px)] lg:h-[calc(100vh-80px)] flex flex-col lg:overflow-hidden pb-6 md:pb-10 px-4 lg:px-0">
+      <FirstTimeTour
+        tourKey="setup"
+        steps={[
+          { title: "Set up your pitch", body: "Choose your mode — Panel, Coach, or Solo — plus industry, funding stage, and how tough the investors should be." },
+          { title: "Attach a deck (optional)", body: "Select a pitch deck so the panel can reference your slides and ask sharper, more specific questions." },
+          { title: "Start when you're ready", body: "Hit start to enter the live room. You can tweak any of these settings before every session." },
+        ]}
+      />
       <div className="flex items-center justify-between shrink-0 mb-6 mt-2 lg:mt-0">
         <div>
           <h1 className="text-2xl md:text-3xl font-extrabold text-slate-900 dark:text-zinc-100">Pre-Pitch Configuration</h1>

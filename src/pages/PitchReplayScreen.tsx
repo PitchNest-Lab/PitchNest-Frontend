@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { Link, useSearchParams } from "react-router-dom";
+import { FirstTimeTour } from "../components/FirstTimeTour";
 import {
   Play,
   Film,
@@ -215,6 +216,13 @@ export default function PitchReplayScreen() {
 
   return (
     <div className="space-y-8 pb-20">
+      <FirstTimeTour
+        tourKey="replay"
+        steps={[
+          { title: "Replay your pitch", body: "Revisit a past session — read back the full conversation between you and the panel exactly as it happened." },
+          { title: "Learn from the moment", body: "See where the questions got tough and how you answered, then open the full report for scores and next steps." },
+        ]}
+      />
       <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
         <div className="flex items-center gap-4">
           <Link

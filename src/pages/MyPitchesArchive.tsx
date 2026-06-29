@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
+import { FirstTimeTour } from "../components/FirstTimeTour";
 import {
   Search,
   Filter,
@@ -312,6 +313,14 @@ export default function MyPitchesArchive() {
 
   return (
     <div className="space-y-10">
+      <FirstTimeTour
+        tourKey="my-pitches"
+        steps={[
+          { title: "Your pitch history", body: "Every session you run is saved here with its score, so you can see how you're improving over time." },
+          { title: "Open any report", body: "Tap a pitch to reopen its full report, or jump into the replay to revisit how the conversation went." },
+          { title: "Keep it tidy", body: "Select pitches to delete ones you no longer need — your best runs stay one tap away." },
+        ]}
+      />
       <div className="flex flex-col sm:flex-row sm:justify-between sm:items-end gap-6">
         <div>
           <h1 className="text-4xl font-bold text-slate-900 dark:text-zinc-100 mb-2">

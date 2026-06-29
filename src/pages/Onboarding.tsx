@@ -67,18 +67,25 @@ export default function Onboarding() {
     navigate("/dashboard");
   };
 
-  // ✅ FIX: Added Skip Onboarding function
+  // Skip onboarding — marks the user onboarded so they aren't sent back here.
+  // The backend route is PUT /api/profile/skip-onboarding; using POST here meant
+  // the request 404'd and the skip never persisted. Navigate regardless so a
+  // mail/network hiccup can't trap the user on this screen.
   const handleSkip = async () => {
     localStorage.setItem("pitchnest_onboarding_complete", "true");
     localStorage.setItem("pitchnest_startup_name", "My Startup");
     localStorage.setItem("pitchnest_funding_stage", "Pre-Seed");
-    const token = localStorage.getItem("token");
-    await fetch("/api/profile/skip-onboarding", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
-    });
+    try {
+      const token = localStorage.getItem("token");
+      await fetch("/api/profile/skip-onboarding", {
+        method: "PUT",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+    } catch (err) {
+      console.warn("Failed to persist skip-onboarding:", err);
+    }
 
     navigate("/dashboard");
   };

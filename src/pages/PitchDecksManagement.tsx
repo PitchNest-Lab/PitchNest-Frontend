@@ -1,4 +1,5 @@
 import React, { useState, useCallback, useEffect } from "react";
+import { FirstTimeTour } from "../components/FirstTimeTour";
 import {
   Eye,
   Upload,
@@ -261,6 +262,13 @@ export default function PitchDecksManagement() {
 
   return (
     <div className="space-y-10 pb-20">
+      <FirstTimeTour
+        tourKey="decks"
+        steps={[
+          { title: "Manage your pitch decks", body: "Upload your slides here once, then attach a deck to any session so the AI panel can reference it." },
+          { title: "Smarter, deck-aware questions", body: "When a deck is attached, the investors read it and challenge your real numbers and claims — not generic ones." },
+        ]}
+      />
       {/* Header Stats */}
       <div className="flex flex-col sm:flex-row sm:justify-between sm:items-end gap-6">
         <div>

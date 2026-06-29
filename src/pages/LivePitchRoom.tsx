@@ -30,6 +30,7 @@ import { useSocketContext } from "../contexts/SocketContext";
 import { useAuth } from "../contexts/AuthContext";
 import { ThemeToggle } from "../components/ThemeToggle";
 import { matchAnswerTip, type AnswerTip } from "../lib/answerTips";
+import { FirstTimeTour } from "../components/FirstTimeTour";
 
 declare global {
   interface Window {
@@ -2251,6 +2252,14 @@ export default function LivePitchRoom() {
 
   return (
     <div className="h-screen max-h-screen bg-slate-50 dark:bg-zinc-950 text-slate-800 dark:text-white font-sans flex flex-col relative overflow-hidden transition-colors">
+      <FirstTimeTour
+        tourKey="live-room"
+        steps={[
+          { title: "You're in the room", body: "Once you start, the panel listens as you pitch. Speak naturally — they'll jump in with questions, just like a real investor meeting." },
+          { title: "Answer tips between questions", body: "After each question, a quick hint shows what to focus on in your answer. Toggle tips off any time for exam mode." },
+          { title: "End when you're done", body: "Hit End Session to wrap up — the panel stops, gives their verdicts, and you get a full scored report." },
+        ]}
+      />
       <AnimatePresence>
         {roomState !== "live" && (
           <motion.div

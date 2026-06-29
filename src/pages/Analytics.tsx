@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
+import { FirstTimeTour } from '../components/FirstTimeTour';
 import { 
   BarChart3, 
   ArrowUpRight,
@@ -227,6 +228,13 @@ export default function Analytics() {
   return (
     <Tooltip.Provider>
       <div className="space-y-8 pb-20">
+        <FirstTimeTour
+          tourKey="analytics"
+          steps={[
+            { title: "Your performance, at a glance", body: "These charts roll up every session — track how your scores trend across delivery, clarity, scalability, and readiness." },
+            { title: "Spot patterns over time", body: "Use the trends to see what's improving and which areas keep tripping you up, so you know what to practice next." },
+          ]}
+        />
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end gap-4">
           <div>
             <h1 className="text-3xl font-semibold text-slate-900 dark:text-zinc-100 mb-2 tracking-tight">Analytics</h1>
