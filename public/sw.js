@@ -1,6 +1,8 @@
-// Bumped to v3 so the old cache (which held the previous manifest + single
-// "any maskable" icon) is purged and the corrected icons propagate to installs.
-const CACHE_NAME = 'pitchnest-cache-v3';
+// Bumped to v4: the HTML shell (navigations + index.html) is now served
+// NETWORK-FIRST so a fresh deploy shows up immediately instead of being masked
+// by a stale cached shell that points at old, content-hashed JS bundles. Other
+// static assets keep stale-while-revalidate (hashed bundles are safe to reuse).
+const CACHE_NAME = 'pitchnest-cache-v4';
 const ASSETS_TO_CACHE = [
   '/',
   '/index.html',
@@ -41,6 +43,20 @@ self.addEventListener('activate', (event) => {
   );
 });
 
+// True when this request is for the app shell HTML (a page navigation or an
+// explicit request for the document). These must be network-first so the user
+// always boots the latest deploy.
+function isHtmlRequest(request) {
+  const url = new URL(request.url);
+  return (
+    request.mode === 'navigate' ||
+    request.destination === 'document' ||
+    url.pathname === '/' ||
+    url.pathname === '/index.html' ||
+    (request.headers.get('Accept') || '').includes('text/html')
+  );
+}
+
 // Fetch event: serve from cache or network, bypassing API and WebSockets
 self.addEventListener('fetch', (event) => {
   const url = new URL(event.request.url);
@@ -55,7 +71,27 @@ self.addEventListener('fetch', (event) => {
     return; // Let browser fetch naturally without intercepting
   }
 
-  // Stale-While-Revalidate caching strategy for static frontend assets
+  // ── HTML shell: NETWORK-FIRST ──────────────────────────────────────────────
+  // Always try the network so a new deploy is picked up instantly; fall back to
+  // the cached shell only when offline so the installed PWA still launches.
+  if (isHtmlRequest(event.request)) {
+    event.respondWith(
+      fetch(event.request)
+        .then((networkResponse) => {
+          if (networkResponse && networkResponse.status === 200 && networkResponse.type === 'basic') {
+            const copy = networkResponse.clone();
+            caches.open(CACHE_NAME).then((cache) => cache.put(event.request, copy));
+          }
+          return networkResponse;
+        })
+        .catch(() =>
+          caches.match(event.request).then((cached) => cached || caches.match('/index.html'))
+        )
+    );
+    return;
+  }
+
+  // ── Other static assets: STALE-WHILE-REVALIDATE ────────────────────────────
   event.respondWith(
     caches.match(event.request).then((cachedResponse) => {
       if (cachedResponse) {

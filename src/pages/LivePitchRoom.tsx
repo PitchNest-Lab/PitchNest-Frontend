@@ -627,9 +627,20 @@ export default function LivePitchRoom() {
         : null) !== "off",
   );
   const [currentTip, setCurrentTip] = useState<AnswerTip | null>(null);
+  // Latest AI-generated tip for the current question (server `answer_tip`). Held
+  // in a ref so the socket handler can stash it the instant it arrives (often
+  // while the panel is still speaking) and `turn_complete` can prefer it over the
+  // local keyword card. Null = no AI tip yet → fall back to matchAnswerTip().
+  const pendingAiTipRef = useRef<AnswerTip | null>(null);
   // True from a question's turn_complete until the founder (or the panel) speaks
   // again. Combined with the live VAD signal to decide whether the card shows.
   const [awaitingFounderTip, setAwaitingFounderTip] = useState(false);
+  // Mirror of awaitingFounderTip for the socket handler (avoids a stale closure
+  // when deciding whether a late-arriving AI tip should upgrade the live card).
+  const awaitingFounderTipRef = useRef(false);
+  useEffect(() => {
+    awaitingFounderTipRef.current = awaitingFounderTip;
+  }, [awaitingFounderTip]);
   const toggleCoachingTips = useCallback(() => {
     setCoachingTipsEnabled((prev) => {
       const next = !prev;
@@ -760,6 +771,7 @@ export default function LivePitchRoom() {
 
   const audioContextRef = useRef<AudioContext | null>(null);
   const nextStartTimeRef = useRef(0);
+  const wakeLockRef = useRef<any>(null);
   const fallbackTimerRef = useRef<NodeJS.Timeout | null>(null);
   const statusIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const pitchStartTimeRef = useRef<number>(0);
@@ -789,6 +801,53 @@ export default function LivePitchRoom() {
   const lastLoudFrameRef = useRef(0);
   const userSpeakingUiRef = useRef(false);
   // ──────────────────────────────────────────────────────────────────────
+
+  // ── Keep the screen awake while in the live pitch room ──────────────────
+  // Pitching is hands-free (the founder is talking, not tapping), so the phone
+  // would otherwise dim/lock mid-pitch. The Screen Wake Lock API holds the
+  // display on. The OS auto-releases the lock when the tab is backgrounded, so
+  // we re-acquire on visibilitychange. Scoped to this component only — it is
+  // released on unmount, so no other screen is affected. No-ops where the API
+  // is unsupported (older iOS, etc.).
+  useEffect(() => {
+    let cancelled = false;
+    const nav = navigator as any;
+    if (!nav?.wakeLock?.request) return;
+
+    const acquire = async () => {
+      if (cancelled || document.visibilityState !== "visible") return;
+      try {
+        if (wakeLockRef.current) return;
+        const lock = await nav.wakeLock.request("screen");
+        if (cancelled) {
+          lock.release().catch(() => {});
+          return;
+        }
+        wakeLockRef.current = lock;
+        lock.addEventListener?.("release", () => {
+          // Cleared by the OS (e.g. tab hidden); allow re-acquiring later.
+          if (wakeLockRef.current === lock) wakeLockRef.current = null;
+        });
+      } catch {
+        // Permission/feature unavailable — silently fall back to default behavior.
+      }
+    };
+
+    const onVisibility = () => {
+      if (document.visibilityState === "visible") acquire();
+    };
+
+    acquire();
+    document.addEventListener("visibilitychange", onVisibility);
+
+    return () => {
+      cancelled = true;
+      document.removeEventListener("visibilitychange", onVisibility);
+      const lock = wakeLockRef.current;
+      wakeLockRef.current = null;
+      if (lock) lock.release?.().catch(() => {});
+    };
+  }, []);
 
   useEffect(() => {
     if (!("speechSynthesis" in window)) return;
@@ -1414,9 +1473,11 @@ export default function LivePitchRoom() {
           const markTurnComplete = () => {
             setIsTurnComplete(true);
             turnStartedRef.current = true;
-            // ── Answer-Tips: the floor is now the founder's. Keyword-match the
-            // panelist's last spoken line and surface the matching card. This is
-            // read-only — it never signals the panel.
+            // ── Answer-Tips: the floor is now the founder's. Prefer the
+            // AI-generated card for THIS question (server `answer_tip`, aligned
+            // to the actual discussion); if it hasn't arrived (slow/failed),
+            // fall back to the local keyword card so a tip is always present.
+            // Read-only — it never signals the panel.
             const lastAi = [...messagesRef.current]
               .reverse()
               .find(
@@ -1425,11 +1486,14 @@ export default function LivePitchRoom() {
                   m.speaker !== "System" &&
                   !m.text.startsWith("[Verdict]"),
               );
-            const matched = matchAnswerTip(lastAi?.text);
+            const aiTip = pendingAiTipRef.current;
+            pendingAiTipRef.current = null; // consumed for this turn
+            const matched = aiTip || matchAnswerTip(lastAi?.text);
             if (window.localStorage?.getItem("pn_tips_debug") === "1") {
               console.log("[tips] turn_complete → awaiting", {
                 question: lastAi?.text?.slice(0, 80),
                 tip: matched.term,
+                source: aiTip ? "ai" : "keyword",
               });
             }
             setCurrentTip(matched);
@@ -1449,6 +1513,26 @@ export default function LivePitchRoom() {
               150,
           );
           window.setTimeout(markTurnComplete, remainingMs);
+          return;
+        }
+
+        // ── AI-powered answer tip for the current question ─────────────
+        // Arrives (usually) while the panel is still speaking. Stash it so the
+        // upcoming turn_complete prefers it over the keyword card. If the
+        // founder's floor is already open (tip arrived late), upgrade the
+        // visible card in place. Purely additive — never blocks anything.
+        if (data.type === "answer_tip" && (data.term || data.tip)) {
+          const aiTip: AnswerTip = {
+            term: data.term || "Answer Tip",
+            definition: data.definition || "",
+            tip: data.tip || "",
+            patterns: [],
+          };
+          if (awaitingFounderTipRef.current) {
+            setCurrentTip(aiTip);
+          } else {
+            pendingAiTipRef.current = aiTip;
+          }
           return;
         }
 
