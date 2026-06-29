@@ -2010,6 +2010,21 @@ export default function LivePitchRoom() {
   // Trigger verdict when isConcluding + turn is complete (manual End Session)
   const triggerConclusion = async () => {
     if (isConcluding || verdictPhase) return;
+
+    // Cut the panel off the instant End Session is pressed. If the AI is
+    // mid-sentence, silence local playback, drop its remaining buffered audio,
+    // and tell the server to abort the in-flight turn — so the verdicts start
+    // immediately instead of after the current point finishes. (Only latch
+    // bargedIn when actually speaking; the server's turn_aborted clears it again
+    // before the verdict audio, and an idle conclusion must not drop that audio.)
+    if (isSpeakingRef.current || activeSourcesRef.current.length > 0) {
+      bargedInRef.current = true;
+      stopAiAudio();
+      if (socket && socket.readyState === WebSocket.OPEN) {
+        socket.send(JSON.stringify({ type: "interrupt" }));
+      }
+    }
+
     setIsConcluding(true);
     setIsTurnComplete(false);
     wakeAudio();

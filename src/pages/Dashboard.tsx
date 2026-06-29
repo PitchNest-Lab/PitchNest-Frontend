@@ -17,6 +17,22 @@ import { cn } from "../lib/utils";
 import { Skeleton } from "../components/Skeleton";
 import { useAuth } from "../contexts/AuthContext";
 import { LogoMark } from "../components/Logo";
+import { FirstTimeTour } from "../components/FirstTimeTour";
+
+const DASHBOARD_TOUR_STEPS = [
+  {
+    title: "Welcome to PitchNest 👋",
+    body: "This is your home base. Start a practice session, then come back here to track your scores and progress over time.",
+  },
+  {
+    title: "Pitch to an AI investor panel",
+    body: "Hit “Start New Session” to pitch live. The panel listens, asks real follow-up questions, and gives a verdict — Panel, Coach, or Solo practice modes.",
+  },
+  {
+    title: "Review your reports",
+    body: "After each session you get a scored report with strengths, risks, and next steps. Your recent pitches show up right here.",
+  },
+];
 
 // --- Components ---
 const RecentPitchItem = ({
@@ -286,6 +302,8 @@ export default function Dashboard() {
 
   return (
     <div className="space-y-8 pb-20">
+      <FirstTimeTour tourKey="dashboard" steps={DASHBOARD_TOUR_STEPS} />
+
       {/* Welcome Hero */}
       <motion.div
         initial={{ opacity: 0, y: 10 }}

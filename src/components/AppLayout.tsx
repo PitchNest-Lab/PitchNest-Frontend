@@ -25,6 +25,7 @@ import { cn } from '../lib/utils';
 import { ThemeToggle } from './ThemeToggle';
 import { useAuth } from '../contexts/AuthContext';
 import { LogoLink, LogoMark } from './Logo';
+import { InstallPrompt } from './InstallPrompt';
 
 const SidebarItem = ({ icon: Icon, label, path, active, onClick }: { icon: any, label: string, path: string, active: boolean, onClick?: () => void }) => (
   <Link to={path} onClick={onClick} className={cn(
@@ -400,6 +401,9 @@ export default function AppLayout() {
           <Outlet />
         </div>
       </main>
+
+      {/* Phone install reminder (iOS + Android), dismissible */}
+      <InstallPrompt />
     </div>
   );
 }

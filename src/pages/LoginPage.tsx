@@ -371,8 +371,10 @@ export default function LoginPage() {
                 setServerError("");
                 try {
                   localStorage.clear();
-                  await loginWithGoogle(credential);
-                  navigate(from, { replace: true });
+                  const data = await loginWithGoogle(credential);
+                  // New Google users land on onboarding (server decides via
+                  // redirectTo); returning users go to their intended page.
+                  navigate(data?.redirectTo || from, { replace: true });
                 } catch (error: any) {
                   setServerError(error.message || "Google sign-in failed.");
                 }
