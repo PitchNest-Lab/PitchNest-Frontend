@@ -1,10 +1,14 @@
-const CACHE_NAME = 'pitchnest-cache-v2';
+// Bumped to v3 so the old cache (which held the previous manifest + single
+// "any maskable" icon) is purged and the corrected icons propagate to installs.
+const CACHE_NAME = 'pitchnest-cache-v3';
 const ASSETS_TO_CACHE = [
   '/',
   '/index.html',
   '/icon.svg',
   '/logo.png',
   '/logo.svg',
+  '/logo-maskable-192.png',
+  '/logo-maskable-512.png',
   '/dashboard-mockup.png'
 ];
 

@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Link, useSearchParams, useLocation } from 'react-router-dom';
 import { 
-  Share2, FileDown, Calendar, Users, Target, Activity, 
+  FileDown, Calendar, Users, Target, Activity,
   CheckCircle2, AlertTriangle, Play, Zap, Star, TrendingUp, ShieldAlert, Loader2
 } from 'lucide-react';
 import { Radar, RadarChart, PolarGrid, PolarAngleAxis, ResponsiveContainer } from 'recharts';
@@ -153,18 +153,15 @@ export default function PostPitchReport() {
             </span>
           </div>
         </div>
-        <div className="flex gap-3">
-          <button className="px-5 py-2.5 bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 font-bold rounded-xl hover:bg-slate-50 transition-all flex items-center gap-2 text-sm shadow-sm">
-            <Share2 size={16} /> Share
-          </button>
+        <div className="flex gap-3 w-full sm:w-auto">
           <button
             onClick={handleDownloadPDF}
             disabled={isDownloading}
-            className="px-5 py-2.5 bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 font-bold rounded-xl hover:bg-slate-50 transition-all flex items-center gap-2 text-sm shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
+            className="flex-1 sm:flex-none justify-center px-6 py-2.5 bg-sky-500 text-white font-bold rounded-xl hover:bg-sky-600 transition-all flex items-center gap-2 text-sm shadow-md disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {isDownloading ? <Loader2 size={16} className="animate-spin" /> : <FileDown size={16} />} {isDownloading ? "Generating..." : "Download Detailed Report"}
           </button>
-          <Link to="/setup" className="px-6 py-2.5 bg-sky-500 text-white font-bold rounded-xl hover:bg-sky-600 transition-all flex items-center gap-2 text-sm shadow-md">
+          <Link to="/setup" className="flex-1 sm:flex-none justify-center px-6 py-2.5 bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 font-bold rounded-xl hover:bg-slate-50 transition-all flex items-center gap-2 text-sm shadow-sm">
             <Calendar size={16} /> Start New Session
           </Link>
         </div>

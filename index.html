@@ -34,7 +34,9 @@
   <meta name="mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="default" />
   <meta name="apple-mobile-web-app-title" content="PitchNest" />
-  <link rel="apple-touch-icon" href="/logo.png" />
+  <!-- iOS fills transparent areas of an apple-touch-icon with BLACK, so this
+       must be a full-bleed (no-transparency) square — using the maskable asset. -->
+  <link rel="apple-touch-icon" href="/logo-maskable-512.png" />
 
   <title>PitchNest — AI Investor Pitch Practice</title>
 </head>

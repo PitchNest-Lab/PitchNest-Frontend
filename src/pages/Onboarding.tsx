@@ -237,22 +237,26 @@ export default function Onboarding() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-zinc-950 flex flex-col items-center justify-center p-6 font-sans transition-colors duration-300 relative">
+    <div className="min-h-screen bg-slate-50 dark:bg-zinc-950 flex flex-col items-center p-6 font-sans transition-colors duration-300 relative overflow-y-auto">
       
       {/* Background Glow */}
       <div className="fixed inset-0 pointer-events-none overflow-hidden flex items-center justify-center">
         <div className="w-[800px] h-[800px] bg-sky-500/10 rounded-full blur-[120px] opacity-50" />
       </div>
 
-      {/* ✅ FIX: Skip Button */}
-      <button 
-        onClick={handleSkip} 
-        className="absolute top-8 right-8 text-slate-400 hover:text-slate-900 dark:hover:text-white text-sm font-bold transition-colors z-20"
+      {/* ✅ FIX: Skip Button — smaller on mobile and tucked into the corner so it
+          never crowds the centered PitchNest logo on narrow screens. */}
+      <button
+        onClick={handleSkip}
+        className="absolute top-4 right-4 sm:top-8 sm:right-8 text-slate-400 hover:text-slate-900 dark:hover:text-white text-xs sm:text-sm font-bold transition-colors z-20"
       >
         Skip Onboarding
       </button>
 
-      <div className="w-full max-w-2xl relative z-10 flex flex-col h-[700px]">
+      {/* my-auto centers the wizard when it fits and lets the page scroll (via the
+          parent's overflow-y-auto) when the viewport is shorter than the content,
+          so the Continue/Back buttons are always reachable on small screens. */}
+      <div className="w-full max-w-2xl relative z-10 flex flex-col h-auto min-h-[600px] sm:min-h-[700px] my-auto py-4">
         {/* Logo Header */}
         <div className="flex justify-center mb-10 shrink-0">
           <Logo showText size="lg" textClassName="text-2xl font-extrabold" />
