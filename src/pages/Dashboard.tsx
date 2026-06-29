@@ -22,15 +22,22 @@ import { FirstTimeTour } from "../components/FirstTimeTour";
 const DASHBOARD_TOUR_STEPS = [
   {
     title: "Welcome to PitchNest 👋",
-    body: "This is your home base. Start a practice session, then come back here to track your scores and progress over time.",
+    body: "This is your home base. Quick 30-second tour of where everything lives — you can skip any time.",
   },
   {
-    title: "Pitch to an AI investor panel",
-    body: "Hit “Start New Session” to pitch live. The panel listens, asks real follow-up questions, and gives a verdict — Panel, Coach, or Solo practice modes.",
+    title: "Start a pitch here",
+    body: "Click this to set up a session and pitch live to the AI panel — Panel, Coach, or Solo practice modes.",
+    target: '[data-tour="dashboard-start"]',
   },
   {
-    title: "Review your reports",
-    body: "After each session you get a scored report with strengths, risks, and next steps. Your recent pitches show up right here.",
+    title: "Track your progress",
+    body: "Your scores roll up here — average, best, and total pitches — so you can see yourself improving over time.",
+    target: '[data-tour="dashboard-stats"]',
+  },
+  {
+    title: "Revisit past pitches",
+    body: "Every session lands here with its score. Open one to read the full report or replay the conversation.",
+    target: '[data-tour="dashboard-recent"]',
   },
 ];
 
@@ -321,6 +328,7 @@ export default function Dashboard() {
           </p>
           <Link
             to="/setup"
+            data-tour="dashboard-start"
             className="inline-flex items-center gap-2 px-8 py-3.5 bg-white text-indigo-600 font-semibold rounded-xl shadow-xl hover:bg-white/95 transition-all"
           >
             <LogoMark size="xs" className="w-[18px] h-[18px]" />
@@ -333,7 +341,10 @@ export default function Dashboard() {
       </motion.div>
 
       {/* Dynamic Stats Overview */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+      <div
+        data-tour="dashboard-stats"
+        className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6"
+      >
         {[
           {
             label: "Average Pitch Score",
@@ -415,7 +426,7 @@ export default function Dashboard() {
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         {/* Recent Pitches List */}
-        <div className="lg:col-span-2 space-y-6">
+        <div data-tour="dashboard-recent" className="lg:col-span-2 space-y-6">
           <div className="flex justify-between items-center">
             <div className="flex items-center gap-4">
               <h3 className="text-xl font-semibold text-slate-900 dark:text-zinc-100 tracking-tight">
