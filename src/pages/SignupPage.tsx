@@ -206,10 +206,12 @@ export default function SignupPage() {
     try {
       localStorage.clear();
 
-      const res = (await signup(data.name, data.email, data.password)) as
-        | { token?: string }
-        | null
-        | undefined;
+      const res = (await signup(
+        data.name,
+        data.email,
+        data.password,
+        data.role,
+      )) as { token?: string } | null | undefined;
 
       if (res?.token) {
         navigate("/verify", { state: { email: data.email } });

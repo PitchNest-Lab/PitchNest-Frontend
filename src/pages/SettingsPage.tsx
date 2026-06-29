@@ -55,9 +55,13 @@ export default function SettingsPage() {
   const [activeSector, setActiveSector] = useState("Venture Capital");
   const [twoFactorEnabled, setTwoFactorEnabled] = useState(true);
 
-  const [userData, setUserData] = useState<{name: string, email?: string, bio?: string, avatarUrl?: string}>({ 
-    name: "Founder", 
+  const ROLE_OPTIONS = ["Founder", "Investor", "Advisor"] as const;
+  type Role = (typeof ROLE_OPTIONS)[number];
+
+  const [userData, setUserData] = useState<{name: string, email?: string, bio?: string, avatarUrl?: string, role?: Role}>({
+    name: "Founder",
     email: "founder@pitchnest.io",
+    role: "Founder",
     bio: "Building the next generation of AI-driven tools for venture building. Focused on creating scalable technologies and empowering startups to nail their stories and secure funding."
   });
 
@@ -65,6 +69,9 @@ export default function SettingsPage() {
   const [editName, setEditName] = useState("");
   const [editEmail, setEditEmail] = useState("");
   const [editBio, setEditBio] = useState("");
+  const [editRole, setEditRole] = useState<Role>("Founder");
+  const [profileError, setProfileError] = useState("");
+  const [isSavingProfile, setIsSavingProfile] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [showDeleteModal, setShowDeleteModal] = useState(false);
@@ -81,8 +88,9 @@ export default function SettingsPage() {
         setUserData(prev => ({
           ...prev,
           ...parsed,
+          role: parsed.role || prev.role,
           bio: parsed.bio || prev.bio
-        })); 
+        }));
       } catch (e) {}
     }
   }, []);
@@ -92,21 +100,48 @@ export default function SettingsPage() {
       setEditName(userData.name);
       setEditEmail(userData.email || "");
       setEditBio(userData.bio || "");
+      setEditRole(userData.role || "Founder");
+      setProfileError("");
     }
     setIsEditing(!isEditing);
   };
 
-  const handleSaveProfile = () => {
-    const updated = {
-      ...userData,
-      name: editName,
-      email: editEmail,
-      bio: editBio
-    };
-    setUserData(updated);
-    localStorage.setItem("user", JSON.stringify(updated));
-    window.dispatchEvent(new Event("userUpdate"));
-    setIsEditing(false);
+  const handleSaveProfile = async () => {
+    setProfileError("");
+    setIsSavingProfile(true);
+    try {
+      // Role is the only field persisted to the backend (name/email/bio remain
+      // local-only for now — see follow-up note). Persist it, then merge the
+      // server's authoritative user back into local state + storage.
+      const res = await authFetch('/api/auth/me', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ role: editRole }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(data.error || 'Failed to update profile.');
+      }
+
+      // Persist the locally-edited name/email/bio (still local-only) and take the
+      // authoritative role back from the server. Pulling only `role` from the
+      // response avoids clobbering the just-typed name/email with stale DB values.
+      const updated = {
+        ...userData,
+        name: editName,
+        email: editEmail,
+        bio: editBio,
+        role: (data.user?.role as Role) || editRole,
+      };
+      setUserData(updated);
+      localStorage.setItem("user", JSON.stringify(updated));
+      window.dispatchEvent(new Event("userUpdate"));
+      setIsEditing(false);
+    } catch (err: unknown) {
+      setProfileError(err instanceof Error ? err.message : 'Failed to update profile.');
+    } finally {
+      setIsSavingProfile(false);
+    }
   };
 
   const handleAvatarClick = () => {
@@ -245,13 +280,25 @@ export default function SettingsPage() {
                     </div>
                     <div className="col-span-1">
                       <label className="block text-[10px] font-bold text-slate-400 dark:text-zinc-500 uppercase tracking-widest mb-2">Email Address</label>
-                      <input 
-                        type="email" 
+                      <input
+                        type="email"
                         value={editEmail}
                         onChange={(e) => setEditEmail(e.target.value)}
                         className="w-full px-4 py-2.5 bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-xl text-sm dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-sky-500/20"
                         placeholder="Enter email address"
                       />
+                    </div>
+                    <div className="sm:col-span-2">
+                      <label className="block text-[10px] font-bold text-slate-400 dark:text-zinc-500 uppercase tracking-widest mb-2">Role</label>
+                      <select
+                        value={editRole}
+                        onChange={(e) => setEditRole(e.target.value as Role)}
+                        className="w-full px-4 py-2.5 bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-xl text-sm dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-sky-500/20 appearance-none cursor-pointer"
+                      >
+                        {ROLE_OPTIONS.map((r) => (
+                          <option key={r} value={r}>{r}</option>
+                        ))}
+                      </select>
                     </div>
                     <div className="sm:col-span-2">
                       <label className="block text-[10px] font-bold text-slate-400 dark:text-zinc-500 uppercase tracking-widest mb-2">Founder Bio</label>
@@ -263,18 +310,26 @@ export default function SettingsPage() {
                         placeholder="Tell investors about yourself..."
                       />
                     </div>
+                    {profileError && (
+                      <div className="sm:col-span-2">
+                        <p className="text-xs font-bold text-rose-500">{profileError}</p>
+                      </div>
+                    )}
                     <div className="sm:col-span-2 flex justify-end gap-3 mt-2">
-                      <button 
-                        onClick={() => setIsEditing(false)}
-                        className="px-4 py-2 border border-slate-200 dark:border-zinc-700 rounded-xl text-xs font-bold text-slate-600 dark:text-zinc-400 hover:bg-slate-50 dark:hover:bg-zinc-800 cursor-pointer"
+                      <button
+                        onClick={() => { setIsEditing(false); setProfileError(""); }}
+                        disabled={isSavingProfile}
+                        className="px-4 py-2 border border-slate-200 dark:border-zinc-700 rounded-xl text-xs font-bold text-slate-600 dark:text-zinc-400 hover:bg-slate-50 dark:hover:bg-zinc-800 cursor-pointer disabled:opacity-50"
                       >
                         Cancel
                       </button>
-                      <button 
+                      <button
                         onClick={handleSaveProfile}
-                        className="px-5 py-2 bg-sky-500 hover:bg-sky-600 text-white rounded-xl text-xs font-bold shadow-md cursor-pointer"
+                        disabled={isSavingProfile}
+                        className="px-5 py-2 bg-sky-500 hover:bg-sky-600 text-white rounded-xl text-xs font-bold shadow-md cursor-pointer disabled:opacity-50 flex items-center gap-2"
                       >
-                        Save Changes
+                        {isSavingProfile && <Loader2 size={14} className="animate-spin" />}
+                        {isSavingProfile ? "Saving..." : "Save Changes"}
                       </button>
                     </div>
                   </>
@@ -287,6 +342,10 @@ export default function SettingsPage() {
                     <div>
                       <p className="text-[10px] font-bold text-slate-400 dark:text-zinc-500 uppercase tracking-widest mb-1">Email Address</p>
                       <p className="text-sm font-bold text-slate-900 dark:text-zinc-100">{userData.email || "No email provided"}</p>
+                    </div>
+                    <div className="sm:col-span-2">
+                      <p className="text-[10px] font-bold text-slate-400 dark:text-zinc-500 uppercase tracking-widest mb-1">Role</p>
+                      <p className="text-sm font-bold text-slate-900 dark:text-zinc-100">{userData.role || "Founder"}</p>
                     </div>
                     <div className="sm:col-span-2">
                       <p className="text-[10px] font-bold text-slate-400 dark:text-zinc-500 uppercase tracking-widest mb-1">Founder Bio</p>

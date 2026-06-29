@@ -6,17 +6,25 @@ import React, {
   useCallback,
 } from "react";
 
+export type UserRole = "Founder" | "Investor" | "Advisor";
+
 interface User {
   id: number;
   name: string;
   email: string;
+  role?: UserRole;
 }
 
 interface AuthContextType {
   user: User | null;
   token: string | null;
   login: (email: string, password: string) => Promise<void>;
-  signup: (name: string, email: string, password: string) => Promise<void>;
+  signup: (
+    name: string,
+    email: string,
+    password: string,
+    role?: UserRole,
+  ) => Promise<any>;
   logout: () => void;
   isLoading: boolean;
   authFetch: (url: string, options?: RequestInit) => Promise<Response>;
@@ -82,11 +90,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     localStorage.setItem("token", data.token);
   };
 
-  const signup = async (name: string, email: string, password: string) => {
+  const signup = async (
+    name: string,
+    email: string,
+    password: string,
+    role?: UserRole,
+  ) => {
     const res = await fetch("/api/auth/signup", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name, email, password }),
+      body: JSON.stringify({ name, email, password, role }),
     });
     const data = await res.json();
     if (!res.ok) throw new Error(data.message||data.error || "Signup failed");
