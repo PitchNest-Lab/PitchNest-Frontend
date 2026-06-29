@@ -1453,6 +1453,7 @@ export default function LivePitchRoom() {
         }
 
         // ── Handle verdict_message from server ─────────────────────────
+
         if (data.type === "verdict_message" && data.speaker && data.text) {
           const verdictValue: "invest" | "pass" | "maybe" =
             data.verdict === "invest"
@@ -1566,13 +1567,17 @@ export default function LivePitchRoom() {
           if (AUDIO_DEBUG) console.log("received audio", data);
           if (!window.firstAudioReceived) {
             window.firstAudioReceived = performance.now();
-            if (AUDIO_DEBUG) {
-              console.log("🔊 First audio received:", window.firstAudioReceived);
+
+            console.log("🔊 First audio received:", window.firstAudioReceived);
+
+            if (typeof window.firstAudioSent === "number") {
               console.log(
                 "⏱ Total latency:",
                 window.firstAudioReceived - window.firstAudioSent,
                 "ms",
               );
+            } else {
+              console.log("⏱ Total latency: firstAudioSent is undefined");
             }
           }
           const hasAudio = !!data.data;
