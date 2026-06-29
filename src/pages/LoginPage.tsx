@@ -18,6 +18,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { cn } from "../lib/utils";
 import { useAuth } from "../contexts/AuthContext";
+import { GoogleSignInButton } from "../components/GoogleSignInButton";
 
 const loginSchema = z.object({
   email: z.string().email("Invalid email address"),
@@ -167,7 +168,7 @@ export default function LoginPage() {
   const [showUnverifiedPopup, setShowUnverifiedPopup] = useState(false);
   const [unverifiedEmail, setUnverifiedEmail] = useState("");
 
-  const { login } = useAuth();
+  const { login, loginWithGoogle } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -365,18 +366,19 @@ export default function LoginPage() {
               </div>
             </div>
 
-            <button
-              type="button"
-              onClick={(e) => e.preventDefault()}
-              className="w-full py-4 bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 text-slate-700 dark:text-zinc-300 font-bold rounded-2xl hover:bg-slate-50 dark:hover:bg-zinc-800 transition-all flex items-center justify-center gap-3"
-            >
-              <img
-                src="https://www.google.com/favicon.ico"
-                className="w-5 h-5"
-                alt="Google"
-              />
-              Continue with Google
-            </button>
+            <GoogleSignInButton
+              onCredential={async (credential) => {
+                setServerError("");
+                try {
+                  localStorage.clear();
+                  await loginWithGoogle(credential);
+                  navigate(from, { replace: true });
+                } catch (error: any) {
+                  setServerError(error.message || "Google sign-in failed.");
+                }
+              }}
+              onError={(message) => setServerError(message)}
+            />
 
             <p className="text-center mt-10 text-sm text-slate-500 dark:text-zinc-500">
               Don't have an account?{" "}

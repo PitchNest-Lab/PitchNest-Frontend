@@ -67,7 +67,6 @@ export default function SettingsPage() {
 
   const [isEditing, setIsEditing] = useState(false);
   const [editName, setEditName] = useState("");
-  const [editEmail, setEditEmail] = useState("");
   const [editBio, setEditBio] = useState("");
   const [editRole, setEditRole] = useState<Role>("Founder");
   const [profileError, setProfileError] = useState("");
@@ -98,7 +97,6 @@ export default function SettingsPage() {
   const handleEditToggle = () => {
     if (!isEditing) {
       setEditName(userData.name);
-      setEditEmail(userData.email || "");
       setEditBio(userData.bio || "");
       setEditRole(userData.role || "Founder");
       setProfileError("");
@@ -110,27 +108,23 @@ export default function SettingsPage() {
     setProfileError("");
     setIsSavingProfile(true);
     try {
-      // Role is the only field persisted to the backend (name/email/bio remain
-      // local-only for now — see follow-up note). Persist it, then merge the
-      // server's authoritative user back into local state + storage.
+      // Name, bio, and role are persisted to the backend. Email is read-only
+      // here (it is the login identity), so it is never sent and stays local.
       const res = await authFetch('/api/auth/me', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ role: editRole }),
+        body: JSON.stringify({ name: editName, bio: editBio, role: editRole }),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
         throw new Error(data.error || 'Failed to update profile.');
       }
 
-      // Persist the locally-edited name/email/bio (still local-only) and take the
-      // authoritative role back from the server. Pulling only `role` from the
-      // response avoids clobbering the just-typed name/email with stale DB values.
+      // Take the server's authoritative name/bio/role; keep email as-is.
       const updated = {
         ...userData,
-        name: editName,
-        email: editEmail,
-        bio: editBio,
+        name: data.user?.name ?? editName,
+        bio: data.user?.bio ?? editBio,
         role: (data.user?.role as Role) || editRole,
       };
       setUserData(updated);
@@ -282,11 +276,12 @@ export default function SettingsPage() {
                       <label className="block text-[10px] font-bold text-slate-400 dark:text-zinc-500 uppercase tracking-widest mb-2">Email Address</label>
                       <input
                         type="email"
-                        value={editEmail}
-                        onChange={(e) => setEditEmail(e.target.value)}
-                        className="w-full px-4 py-2.5 bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-xl text-sm dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-sky-500/20"
-                        placeholder="Enter email address"
+                        value={userData.email || ""}
+                        readOnly
+                        disabled
+                        className="w-full px-4 py-2.5 bg-slate-100 dark:bg-zinc-800/60 border border-slate-200 dark:border-zinc-700 rounded-xl text-sm text-slate-500 dark:text-zinc-400 cursor-not-allowed focus:outline-none"
                       />
+                      <p className="text-[10px] text-slate-400 dark:text-zinc-500 mt-1">Email can't be changed.</p>
                     </div>
                     <div className="sm:col-span-2">
                       <label className="block text-[10px] font-bold text-slate-400 dark:text-zinc-500 uppercase tracking-widest mb-2">Role</label>
