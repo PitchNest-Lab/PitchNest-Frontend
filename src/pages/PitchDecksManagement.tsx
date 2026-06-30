@@ -265,8 +265,8 @@ export default function PitchDecksManagement() {
       <FirstTimeTour
         tourKey="decks"
         steps={[
-          { title: "Manage your pitch decks", body: "Upload your slides here once, then attach a deck to any session so the AI panel can reference it." },
-          { title: "Smarter, deck-aware questions", body: "When a deck is attached, the investors read it and challenge your real numbers and claims — not generic ones." },
+          { title: "Upload your slides", body: "Drag & drop or tap Add Pitch Deck to store your slides here once — PDF or PPTX, up to 25MB.", target: '[data-tour="decks-upload"]' },
+          { title: "Smarter, deck-aware questions", body: "Attach a deck to any session and the investors read it — they'll challenge your real numbers and claims, not generic ones." },
         ]}
       />
       {/* Header Stats */}
@@ -320,6 +320,7 @@ export default function PitchDecksManagement() {
           {/* Dropzone Area */}
           <div
             {...getRootProps()}
+            data-tour="decks-upload"
             className={cn(
               "border-2 border-dashed rounded-[32px] flex flex-col items-center justify-center p-8 transition-all group min-h-[300px]",
               isDragActive

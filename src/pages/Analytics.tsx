@@ -231,8 +231,8 @@ export default function Analytics() {
         <FirstTimeTour
           tourKey="analytics"
           steps={[
-            { title: "Your performance, at a glance", body: "These charts roll up every session — track how your scores trend across delivery, clarity, scalability, and readiness." },
-            { title: "Spot patterns over time", body: "Use the trends to see what's improving and which areas keep tripping you up, so you know what to practice next." },
+            { title: "Your performance, at a glance", body: "These cards roll up every session — your average readiness, total pitches, and where you've improved most.", target: '[data-tour="analytics-stats"]' },
+            { title: "Spot patterns over time", body: "Use the trends to see what's improving and which areas keep tripping you up, so you know what to practice next.", target: '[data-tour="analytics-trends"]' },
           ]}
         />
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end gap-4">
@@ -250,7 +250,7 @@ export default function Analytics() {
           </Tabs.Root>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+        <div data-tour="analytics-stats" className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
           <StatCard isLoading={isLoading} title="Avg. Investment Readiness" value={hasData ? avgReadiness.toString() : "—"} subtitle={hasData ? "/100" : ""} progress={hasData ? avgReadiness : undefined} trend={hasData && avgReadiness >= 70 ? "Strong" : undefined} tooltip="Based on AI analysis of your historical pitch sessions." />
           <StatCard isLoading={isLoading} title="Total Sessions" value={totalSessions.toString()} subtitle="pitches" tooltip="Total number of recorded pitches sent to the AI panel." />
           <StatCard isLoading={isLoading} title="Most Improved" value={mostImproved} tooltip="The metric that has shown the highest growth trajectory." />
@@ -258,7 +258,7 @@ export default function Analytics() {
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }} className="lg:col-span-2 card p-8 dark:bg-zinc-900 dark:border-zinc-800">
+          <motion.div data-tour="analytics-trends" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }} className="lg:col-span-2 card p-8 dark:bg-zinc-900 dark:border-zinc-800">
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-10 gap-4">
               <h3 className="text-lg font-bold text-slate-900 dark:text-zinc-100">Pitch Score Trends</h3>
               <div className="flex items-center gap-6">

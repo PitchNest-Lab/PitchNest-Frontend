@@ -316,7 +316,7 @@ export default function MyPitchesArchive() {
       <FirstTimeTour
         tourKey="my-pitches"
         steps={[
-          { title: "Your pitch history", body: "Every session you run is saved here with its score, so you can see how you're improving over time." },
+          { title: "Your pitch history", body: "Every session you run is saved here with its score, so you can see how you're improving over time.", target: '[data-tour="pitches-list"]' },
           { title: "Open any report", body: "Tap a pitch to reopen its full report, or jump into the replay to revisit how the conversation went." },
           { title: "Keep it tidy", body: "Select pitches to delete ones you no longer need — your best runs stay one tap away." },
         ]}
@@ -362,7 +362,7 @@ export default function MyPitchesArchive() {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
-        <div className="lg:col-span-3 space-y-4">
+        <div data-tour="pitches-list" className="lg:col-span-3 space-y-4">
           <div className="hidden sm:flex items-center justify-between px-6 text-[10px] font-bold text-slate-400 dark:text-zinc-500 uppercase tracking-widest">
             <div className="flex items-center gap-6 flex-1">
               <input

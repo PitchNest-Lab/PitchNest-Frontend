@@ -118,26 +118,31 @@ export function FirstTimeTour({
   const isLast = index === steps.length - 1;
 
   // Position the instruction card: below the element if there's room, else above;
-  // centered when there's no target. Clamped to the viewport.
+  // centered when there's no target. Always clamped to the viewport so it can
+  // never spill off-screen on small phones.
   const vw = typeof window !== "undefined" ? window.innerWidth : 1024;
   const vh = typeof window !== "undefined" ? window.innerHeight : 768;
+  // Never wider than the screen (minus a small gutter on each side).
+  const cardW = Math.min(CARD_W, vw - 16);
   let cardStyle: React.CSSProperties;
   if (rect) {
     const belowTop = rect.top + rect.height + PAD + 12;
     const fitsBelow = belowTop + cardSize.h < vh - 8;
     const top = fitsBelow
       ? belowTop
-      : Math.max(8, rect.top - cardSize.h - PAD - 12);
-    let left = rect.left + rect.width / 2 - cardSize.w / 2;
-    left = Math.min(Math.max(8, left), vw - cardSize.w - 8);
-    cardStyle = { position: "fixed", top, left, width: cardSize.w };
+      : Math.max(8, Math.min(rect.top - cardSize.h - PAD - 12, vh - cardSize.h - 8));
+    let left = rect.left + rect.width / 2 - cardW / 2;
+    left = Math.min(Math.max(8, left), Math.max(8, vw - cardW - 8));
+    cardStyle = { position: "fixed", top, left, width: cardW };
   } else {
+    // Center with px math (not a CSS transform): framer-motion's `y` animation
+    // sets its own transform and would wipe out translate(-50%,-50%), pushing
+    // the card off-screen on phones.
     cardStyle = {
       position: "fixed",
-      top: "50%",
-      left: "50%",
-      transform: "translate(-50%, -50%)",
-      width: Math.min(CARD_W, vw - 24),
+      top: Math.max(8, vh / 2 - cardSize.h / 2),
+      left: Math.max(8, vw / 2 - cardW / 2),
+      width: cardW,
     };
   }
 
@@ -149,8 +154,9 @@ export function FirstTimeTour({
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
-          // Block page interaction behind the tour; clicking the dim area is a
-          // no-op (use Skip/✕ to exit) so a tap near a button can't dismiss it.
+          // Block page interaction behind the tour. Tapping the dim area advances
+          // to the next step (or finishes on the last one). Skip/✕ exit early.
+          onClick={() => (isLast ? finish() : setIndex((i) => i + 1))}
           style={{ background: rect ? "transparent" : "rgba(2,6,23,0.6)" }}
         >
           {/* Spotlight: a box-shadow ring dims everything outside the element. */}

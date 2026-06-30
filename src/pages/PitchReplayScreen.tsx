@@ -219,8 +219,8 @@ export default function PitchReplayScreen() {
       <FirstTimeTour
         tourKey="replay"
         steps={[
-          { title: "Replay your pitch", body: "Revisit a past session — read back the full conversation between you and the panel exactly as it happened." },
-          { title: "Learn from the moment", body: "See where the questions got tough and how you answered, then open the full report for scores and next steps." },
+          { title: "Read back the conversation", body: "The full transcript of your session — every question from the panel and how you answered, exactly as it happened.", target: '[data-tour="replay-transcript"]' },
+          { title: "Open the full report", body: "Jump to the scored report for your verdicts, metrics, and actionable next steps.", target: '[data-tour="replay-report"]' },
         ]}
       />
       <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
@@ -255,6 +255,7 @@ export default function PitchReplayScreen() {
           </button>
           <Link
             to={`/report?session=${session.id}`}
+            data-tour="replay-report"
             className="flex-1 sm:flex-initial px-4 py-2.5 bg-sky-500 text-white font-bold rounded-xl hover:bg-sky-600 transition-all flex items-center justify-center gap-2 text-sm"
           >
             <Share2 size={16} /> View Full Report
@@ -298,7 +299,7 @@ export default function PitchReplayScreen() {
         </div>
 
         {/* Transcript — full width on mobile, sidebar on desktop */}
-        <div className="card flex flex-col h-[400px] lg:h-[500px] overflow-hidden dark:bg-zinc-900 dark:border-zinc-800 shadow-lg border border-slate-100">
+        <div data-tour="replay-transcript" className="card flex flex-col h-[400px] lg:h-[500px] overflow-hidden dark:bg-zinc-900 dark:border-zinc-800 shadow-lg border border-slate-100">
           <div className="p-6 sm:p-8 border-b border-slate-100 dark:border-zinc-800 flex items-center justify-between">
             <div className="flex items-center gap-2">
               <FileText className="text-sky-500" size={20} />

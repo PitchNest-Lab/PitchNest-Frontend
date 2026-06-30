@@ -191,9 +191,9 @@ export default function PrePitchSetup() {
       <FirstTimeTour
         tourKey="setup"
         steps={[
-          { title: "Set up your pitch", body: "Choose your mode — Panel, Coach, or Solo — plus industry, funding stage, and how tough the investors should be." },
-          { title: "Attach a deck (optional)", body: "Select a pitch deck so the panel can reference your slides and ask sharper, more specific questions." },
-          { title: "Start when you're ready", body: "Hit start to enter the live room. You can tweak any of these settings before every session." },
+          { title: "Pick your mode", body: "Panel, Coach, or Solo. Below it you'll set industry, funding stage, and how tough the investors should be.", target: '[data-tour="setup-mode"]' },
+          { title: "Attach a deck (optional)", body: "Select a pitch deck so the panel can reference your slides and ask sharper, more specific questions.", target: '[data-tour="setup-deck"]' },
+          { title: "Start when you're ready", body: "Hit Enter Live Room to begin. You can tweak any of these settings before every session.", target: '[data-tour="setup-start"]' },
         ]}
       />
       <div className="flex items-center justify-between shrink-0 mb-6 mt-2 lg:mt-0">
@@ -210,7 +210,7 @@ export default function PrePitchSetup() {
         {/* LEFT COLUMN: Setup */}
         <div className="lg:col-span-8 flex flex-col gap-6 lg:overflow-y-auto pr-0 lg:pr-2 custom-scrollbar">
           
-          <div className="flex gap-2 sm:gap-4 shrink-0">
+          <div data-tour="setup-mode" className="flex gap-2 sm:gap-4 shrink-0">
             <ModeCard title="AI Panel" icon={Users} active={currentMode === 'panel'} onClick={() => setValue('mode', 'panel')} />
             <ModeCard title="Coach" icon={Target} active={currentMode === 'coach'} onClick={() => setValue('mode', 'coach')} />
             <ModeCard title="Solo" icon={User} active={currentMode === 'solo'} onClick={() => setValue('mode', 'solo')} />
@@ -322,7 +322,7 @@ export default function PrePitchSetup() {
 
         {/* RIGHT COLUMN: Deck & Submit */}
         <div className="lg:col-span-4 flex flex-col gap-4 min-h-[300px] lg:min-h-0 min-w-0">
-          <div className="flex-1 bg-slate-900 rounded-[32px] p-5 md:p-6 flex flex-col text-white min-h-0 min-w-0 overflow-hidden">
+          <div data-tour="setup-deck" className="flex-1 bg-slate-900 rounded-[32px] p-5 md:p-6 flex flex-col text-white min-h-0 min-w-0 overflow-hidden">
             <h3 className="text-sm font-bold uppercase tracking-widest text-white/50 mb-4 shrink-0">Select Deck</h3>
             
             <div className="flex-1 overflow-y-auto space-y-2 pr-1 custom-scrollbar min-h-[140px] lg:min-h-0 min-w-0">
@@ -375,7 +375,7 @@ export default function PrePitchSetup() {
                 className="hidden"
               />
               
-              <button type="submit" disabled={isSubmitting} className="w-full py-4 bg-sky-500 text-white font-bold rounded-2xl hover:bg-sky-400 transition-all flex items-center justify-center gap-2 group disabled:opacity-50 cursor-pointer">
+              <button type="submit" data-tour="setup-start" disabled={isSubmitting} className="w-full py-4 bg-sky-500 text-white font-bold rounded-2xl hover:bg-sky-400 transition-all flex items-center justify-center gap-2 group disabled:opacity-50 cursor-pointer">
                 {isSubmitting ? <Loader2 className="animate-spin" size={20} /> : <>Enter Live Room <PlayCircle size={20} className="group-hover:translate-x-1 transition-transform" /></>}
               </button>
             </div>
