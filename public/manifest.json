@@ -1,8 +1,10 @@
 {
+  "id": "/login",
   "name": "PitchNest Live",
   "short_name": "PitchNest",
   "description": "Pitch room sandbox with live AI investors and coaching.",
   "start_url": "/login",
+  "scope": "/",
   "display": "standalone",
   "background_color": "#0f172a",
   "theme_color": "#0ea5e9",
@@ -18,7 +20,7 @@
       "src": "/logo-maskable-192.png",
       "sizes": "192x192",
       "type": "image/png",
-      "purpose": "maskable"
+      "purpose": "any maskable"
     },
     {
       "src": "/logo-maskable-512.png",
