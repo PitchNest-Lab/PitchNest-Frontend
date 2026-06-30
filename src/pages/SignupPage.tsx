@@ -204,7 +204,12 @@ export default function SignupPage() {
     setIsSubmitting(true);
     setServerError("");
     try {
-      localStorage.clear();
+      // Clear only auth-related keys — preserve tour flags (pn_tour_*)
+      localStorage.removeItem("user");
+      localStorage.removeItem("token");
+      localStorage.removeItem("pitchnest_onboarding_complete");
+      localStorage.removeItem("pitchnest_startup_name");
+      localStorage.removeItem("pitchnest_funding_stage");
 
       const res = (await signup(
         data.name,

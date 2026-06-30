@@ -2,6 +2,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { X, ChevronLeft, ChevronRight, Sparkles } from "lucide-react";
+import { useAuth } from "../contexts/AuthContext";
 
 export interface TourStep {
   title: string;
@@ -19,10 +20,18 @@ const KEY_PREFIX = "pn_tour_";
 const PAD = 6; // px of breathing room around a highlighted element
 const CARD_W = 340;
 
+/**
+ * Build the full localStorage key for a tour, scoped to a specific user so
+ * different accounts on the same browser each get their own tour state.
+ */
+function tourStorageKey(tourKey: string, userId?: number | string): string {
+  return userId ? `${KEY_PREFIX}${userId}_${tourKey}` : `${KEY_PREFIX}${tourKey}`;
+}
+
 /** Has the user already seen (or skipped) this tour? */
-export function hasSeenTour(tourKey: string): boolean {
+export function hasSeenTour(tourKey: string, userId?: number | string): boolean {
   try {
-    return localStorage.getItem(KEY_PREFIX + tourKey) === "1";
+    return localStorage.getItem(tourStorageKey(tourKey, userId)) === "1";
   } catch {
     return true; // if storage is unavailable, don't nag
   }
@@ -38,9 +47,10 @@ interface Box {
 /**
  * A lightweight, skippable "first time on this page" walkthrough. Steps can
  * either point at a real element on the page (spotlight + anchored tip) or show
- * as a centered card. Shown once per `tourKey` (remembered in localStorage).
- * Purely guided via the controls — it blocks accidental page interaction so a
- * stray tap can't navigate away mid-tour, but Skip/✕ always get you out.
+ * as a centered card. Shown once per `tourKey` per user (remembered in
+ * localStorage, scoped by user ID). Purely guided via the controls — it blocks
+ * accidental page interaction so a stray tap can't navigate away mid-tour, but
+ * Skip/✕ always get you out.
  */
 export function FirstTimeTour({
   tourKey,
@@ -51,6 +61,7 @@ export function FirstTimeTour({
   steps: TourStep[];
   eyebrow?: string;
 }) {
+  const { user } = useAuth();
   const [open, setOpen] = useState(false);
   const [index, setIndex] = useState(0);
   const [rect, setRect] = useState<Box | null>(null);
@@ -58,8 +69,8 @@ export function FirstTimeTour({
   const [cardSize, setCardSize] = useState({ w: CARD_W, h: 200 });
 
   useEffect(() => {
-    if (steps.length > 0 && !hasSeenTour(tourKey)) setOpen(true);
-  }, [tourKey, steps.length]);
+    if (steps.length > 0 && !hasSeenTour(tourKey, user?.id)) setOpen(true);
+  }, [tourKey, steps.length, user?.id]);
 
   const step = steps[index];
   const target = step?.target;
@@ -110,7 +121,7 @@ export function FirstTimeTour({
 
   const finish = () => {
     try {
-      localStorage.setItem(KEY_PREFIX + tourKey, "1");
+      localStorage.setItem(tourStorageKey(tourKey, user?.id), "1");
     } catch {}
     setOpen(false);
   };

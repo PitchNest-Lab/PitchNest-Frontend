@@ -194,7 +194,13 @@ export default function LoginPage() {
     setIsSubmitting(true);
     setServerError("");
     try {
-      localStorage.clear();
+      // Clear only auth-related keys — preserve tour flags (pn_tour_*) so
+      // returning users don't get re-shown the walkthrough on every login.
+      localStorage.removeItem("user");
+      localStorage.removeItem("token");
+      localStorage.removeItem("pitchnest_onboarding_complete");
+      localStorage.removeItem("pitchnest_startup_name");
+      localStorage.removeItem("pitchnest_funding_stage");
       await login(data.email, data.password);
       navigate(from, { replace: true });
     } catch (error: any) {
@@ -370,7 +376,12 @@ export default function LoginPage() {
               onCredential={async (credential) => {
                 setServerError("");
                 try {
-                  localStorage.clear();
+                  // Clear only auth-related keys — preserve tour flags
+                  localStorage.removeItem("user");
+                  localStorage.removeItem("token");
+                  localStorage.removeItem("pitchnest_onboarding_complete");
+                  localStorage.removeItem("pitchnest_startup_name");
+                  localStorage.removeItem("pitchnest_funding_stage");
                   const data = await loginWithGoogle(credential);
                   // New Google users land on onboarding (server decides via
                   // redirectTo); returning users go to their intended page.
