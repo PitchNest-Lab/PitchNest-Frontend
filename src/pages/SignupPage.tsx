@@ -76,16 +76,23 @@ function EmailNotVerifiedPopup({
   const handleResend = async () => {
     setResending(true);
     await onResend();
-    setTimer(60);
-    setResent(true);
-    setTimeout(() => {
-      setTimer((prev) => prev - 1);
-      setResending(false);
-      setResent(true);
-    }, 60 * 1000);
     setResending(false);
     setResent(true);
+    setTimer(60);
   };
+
+  useEffect(() => {
+    if (timer <= 0) {
+      setResent(false);
+      return;
+    }
+
+    const interval = setInterval(() => {
+      setTimer((prev) => prev - 1);
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, [timer]);
 
   return (
     <motion.div

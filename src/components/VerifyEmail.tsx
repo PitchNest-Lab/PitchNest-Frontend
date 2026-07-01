@@ -116,22 +116,28 @@ export default function VerifyEmailPage() {
   const email =
     location.state?.email || sessionStorage.getItem("verifyEmail") || "";
 
-  // "idle"      → no token in URL, show email sent screen
-  // "verifying" → token found, API call in progress
-  // "error"     → token invalid or expired
+  // "idle"      → no token in URL, show email sent/code entry screen
+  // "verifying" → token found/submitted, API call in progress
+  // "error"     → URL token invalid or expired (manually entered code failures stay inline)
   const [status, setStatus] = useState<"idle" | "verifying" | "error">("idle");
   const [errorMessage, setErrorMessage] = useState("");
   const [resending, setResending] = useState(false);
   const [resent, setResent] = useState(false);
+  const [timer, setTimer] = useState(0);
+  const [otp, setOtp] = useState<string[]>(new Array(6).fill(""));
 
-  useEffect(() => {
-    const token = new URLSearchParams(window.location.search).get("token");
-    if (!token) return; // no token → stay on email sent screen
-
+  const verifyToken = (token: string, isManual: boolean = false) => {
     setStatus("verifying");
-
+    setErrorMessage("");
     fetch(`/api/auth/verify-email?token=${token}`)
-      .then((r) => r.json())
+      .then((r) => {
+        if (!r.ok) {
+          return r.json().then((data) => {
+            throw new Error(data.message || data.error || "Invalid code");
+          });
+        }
+        return r.json();
+      })
       .then((data) => {
         if (data.message === "Email verified successfully") {
           localStorage.setItem("user", JSON.stringify(data.user));
@@ -142,15 +148,84 @@ export default function VerifyEmailPage() {
             navigate("/onboarding", { replace: true });
           }
         } else {
-          setErrorMessage(data.message);
-          setStatus("error");
+          if (isManual) {
+            setErrorMessage(data.message || "Invalid code");
+            setStatus("idle");
+          } else {
+            setErrorMessage(data.message || "Failed to verify");
+            setStatus("error");
+          }
         }
       })
-      .catch(() => {
-        setErrorMessage("Something went wrong");
-        setStatus("error");
+      .catch((err: any) => {
+        if (isManual) {
+          setErrorMessage(err.message || "Something went wrong");
+          setStatus("idle");
+        } else {
+          setErrorMessage(err.message || "Something went wrong");
+          setStatus("error");
+        }
       });
+  };
+
+  // 1. Initial URL Token verification
+  useEffect(() => {
+    const token = new URLSearchParams(window.location.search).get("token");
+    if (token) {
+      verifyToken(token, false);
+    }
   }, []);
+
+  // 2. Poll for cross-device verification status
+  useEffect(() => {
+    const storedToken = localStorage.getItem("token");
+    if (!storedToken || status === "verifying") return;
+
+    const interval = setInterval(() => {
+      fetch("/api/auth/me", {
+        headers: { Authorization: `Bearer ${storedToken}` },
+      })
+        .then((res) => {
+          if (res.ok) return res.json();
+          throw new Error("Me query failed");
+        })
+        .then((data) => {
+          if (data.isEmailVerified) {
+            clearInterval(interval);
+            const storedUser = localStorage.getItem("user");
+            if (storedUser) {
+              try {
+                const userObj = JSON.parse(storedUser);
+                userObj.isEmailVerified = true;
+                localStorage.setItem("user", JSON.stringify(userObj));
+              } catch (e) {}
+            }
+            if (data.onboardingCompleted) {
+              navigate("/dashboard", { replace: true });
+            } else {
+              navigate("/onboarding", { replace: true });
+            }
+          }
+        })
+        .catch(() => {});
+    }, 3000);
+
+    return () => clearInterval(interval);
+  }, [navigate, status]);
+
+  // 3. Resend timer countdown ticking
+  useEffect(() => {
+    if (timer <= 0) {
+      setResent(false);
+      return;
+    }
+
+    const interval = setInterval(() => {
+      setTimer((prev) => prev - 1);
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, [timer]);
 
   const handleResend = async () => {
     setResending(true);
@@ -162,11 +237,53 @@ export default function VerifyEmailPage() {
       });
       if (res.ok) {
         setResent(true);
-        setStatus("idle"); // go back to email sent screen
-        setTimeout(() => setResent(false), 4000);
+        setTimer(60);
+        setStatus("idle"); // reset back to verification input page if error was showing
       }
     } finally {
       setResending(false);
+    }
+  };
+
+  const handleOtpChange = (value: string, index: number) => {
+    if (isNaN(Number(value))) return;
+
+    const newOtp = [...otp];
+    newOtp[index] = value;
+    setOtp(newOtp);
+
+    // Clear inline error when typing
+    setErrorMessage("");
+
+    // Shift focus to next input field
+    if (value !== "") {
+      const nextInput = document.getElementById(`otp-${index + 1}`);
+      if (nextInput) {
+        (nextInput as HTMLInputElement).focus();
+      }
+    }
+
+    // Auto-verify if all 6 digits are typed
+    const otpCode = newOtp.join("");
+    if (otpCode.length === 6) {
+      verifyToken(otpCode, true);
+    }
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>, index: number) => {
+    if (e.key === "Backspace") {
+      const newOtp = [...otp];
+      if (otp[index] === "") {
+        // Shift focus to previous field and clear it
+        const prevInput = document.getElementById(`otp-${index - 1}`);
+        if (prevInput) {
+          (prevInput as HTMLInputElement).focus();
+          newOtp[index - 1] = "";
+        }
+      } else {
+        newOtp[index] = "";
+      }
+      setOtp(newOtp);
     }
   };
 
@@ -207,11 +324,35 @@ export default function VerifyEmailPage() {
                 Check your inbox
               </h2>
               <p className="text-slate-500 dark:text-zinc-500 text-sm text-center mb-1">
-                We sent a verification link to
+                We sent a verification code to
               </p>
               <p className="text-sky-500 font-bold text-sm text-center mb-8">
                 {email}
               </p>
+
+              {/* 6-Digit OTP Box UI */}
+              <div className="flex justify-center gap-2 mb-6">
+                {otp.map((digit, index) => (
+                  <input
+                    key={index}
+                    id={`otp-${index}`}
+                    type="text"
+                    maxLength={1}
+                    value={digit}
+                    onChange={(e) => handleOtpChange(e.target.value, index)}
+                    onKeyDown={(e) => handleKeyDown(e, index)}
+                    onFocus={(e) => e.target.select()}
+                    className="w-12 h-12 text-center text-xl font-bold border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 rounded-xl focus:border-sky-500 focus:ring-2 focus:ring-sky-500/20 outline-none text-slate-800 dark:text-zinc-100 transition-all duration-150"
+                  />
+                ))}
+              </div>
+
+              {/* Inline Error Message */}
+              {errorMessage && (
+                <p className="text-xs text-rose-500 text-center font-semibold mb-6">
+                  {errorMessage}
+                </p>
+              )}
 
               {/* Steps */}
               <div className="bg-slate-50 dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-2xl p-5 mb-6 space-y-4">
@@ -222,9 +363,9 @@ export default function VerifyEmailPage() {
                     </span>
                     <p className="text-sm text-slate-500 dark:text-zinc-400 leading-relaxed">
                       <span className="font-bold text-slate-700 dark:text-zinc-200">
-                        {s.label}
+                        {s.num === 2 ? 'Enter code or click "Verify"' : s.label}
                       </span>{" "}
-                      {s.detail}
+                      {s.num === 2 ? "to confirm your address" : s.detail}
                     </p>
                   </div>
                 ))}
@@ -254,7 +395,7 @@ export default function VerifyEmailPage() {
               <button
                 type="button"
                 onClick={handleResend}
-                disabled={resending || resent}
+                disabled={resending || timer > 0}
                 className="w-full flex items-center justify-center gap-2 py-3 border border-slate-200 dark:border-zinc-700 bg-slate-50 dark:bg-zinc-800 hover:bg-slate-100 dark:hover:bg-zinc-700 text-slate-600 dark:text-zinc-300 font-semibold text-sm rounded-xl transition-all duration-150 disabled:opacity-60 mb-5"
               >
                 {resending ? (
@@ -262,11 +403,11 @@ export default function VerifyEmailPage() {
                     <Loader2 size={15} className="animate-spin" />
                     Sending…
                   </>
-                ) : resent ? (
+                ) : timer > 0 ? (
                   <>
                     <CheckCircle size={15} className="text-emerald-500" />
-                    <span className="text-emerald-600 dark:text-emerald-400">
-                      Sent! Check your inbox
+                    <span className="text-slate-500">
+                      Resend in {timer}s
                     </span>
                   </>
                 ) : (
@@ -289,7 +430,7 @@ export default function VerifyEmailPage() {
               </p>
               <p className="flex items-center justify-center gap-1 text-[11px] text-slate-400 dark:text-zinc-600 pb-2">
                 <Clock size={12} />
-                Link expires in 24 hours
+                Link and code expire in 24 hours
               </p>
             </div>
           </div>
