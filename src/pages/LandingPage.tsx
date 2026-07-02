@@ -232,9 +232,9 @@ export default function LandingPage() {
         <StatsBand />
 
         {/* ── The Problem ── */}
-        <section id="problem" className="py-[clamp(80px,10vw,128px)] border-y border-slate-100 dark:border-zinc-800/60 scroll-mt-28">
+        <section id="problem" className="py-[clamp(44px,5vw,72px)] border-y border-slate-100 dark:border-zinc-800/60 scroll-mt-28">
           <div className="max-w-6xl mx-auto px-5 sm:px-8">
-            <SectionReveal className="text-center mb-12 sm:mb-16 max-w-3xl mx-auto">
+            <SectionReveal className="text-center mb-10 sm:mb-12 max-w-3xl mx-auto">
               <p className="section-label mb-3">The problem</p>
               <h2 className="section-heading mb-4">Most founders find the gaps live — when it's already too late</h2>
               <p className="section-subheading mx-auto">You walk in under-rehearsed, get caught off guard, and burn a lead you can't get back.</p>
@@ -257,9 +257,9 @@ export default function LandingPage() {
         </section>
 
         {/* ── The Solution ── */}
-        <section id="solution" className="py-[clamp(80px,10vw,128px)] scroll-mt-28">
+        <section id="solution" className="py-[clamp(44px,5vw,72px)] scroll-mt-28">
           <div className="max-w-6xl mx-auto px-5 sm:px-8">
-            <SectionReveal className="text-center mb-12 sm:mb-16 max-w-3xl mx-auto">
+            <SectionReveal className="text-center mb-10 sm:mb-12 max-w-3xl mx-auto">
               <p className="section-label mb-3">The solution</p>
               <h2 className="section-heading mb-4">Get grilled in private, so nothing surprises you in public</h2>
               <p className="section-subheading mx-auto">Pitch out loud to a panel of AI investors — a lead partner, a financial analyst, and a technical partner. They listen, interrupt with hard questions, and debate your thesis. When you're done, you get a structured readiness report with the specific fixes to make before your next real meeting.</p>
@@ -282,9 +282,9 @@ export default function LandingPage() {
         </section>
 
         {/* ── How it works ── */}
-        <section id="how-it-works" className="py-[clamp(80px,10vw,128px)] bg-slate-50/80 dark:bg-zinc-900/30 scroll-mt-28">
+        <section id="how-it-works" className="py-[clamp(44px,5vw,72px)] bg-slate-50/80 dark:bg-zinc-900/30 scroll-mt-28">
           <div className="max-w-6xl mx-auto px-5 sm:px-8">
-            <SectionReveal className="text-center mb-12 sm:mb-16">
+            <SectionReveal className="text-center mb-10 sm:mb-12">
               <p className="section-label mb-3">How it works</p>
               <h2 className="section-heading">Three steps to investor-ready</h2>
             </SectionReveal>
@@ -305,9 +305,9 @@ export default function LandingPage() {
         </section>
 
         {/* ── In the Room ── */}
-        <section id="in-the-room" className="py-[clamp(80px,10vw,128px)] scroll-mt-28">
+        <section id="in-the-room" className="py-[clamp(44px,5vw,72px)] scroll-mt-28">
           <div className="max-w-6xl mx-auto px-5 sm:px-8">
-            <SectionReveal className="text-center mb-12 sm:mb-16 max-w-3xl mx-auto">
+            <SectionReveal className="text-center mb-10 sm:mb-12 max-w-3xl mx-auto">
               <p className="section-label mb-3">In the room</p>
               <h2 className="section-heading mb-4">A panel that actually makes you sweat</h2>
               <p className="section-subheading mx-auto">Three distinct AI investors question and debate your pitch in real time.</p>
@@ -330,9 +330,9 @@ export default function LandingPage() {
         </section>
 
         {/* ── In Your Report ── */}
-        <section id="your-report" className="py-[clamp(80px,10vw,128px)] bg-slate-50/80 dark:bg-zinc-900/30 scroll-mt-28">
+        <section id="your-report" className="py-[clamp(44px,5vw,72px)] bg-slate-50/80 dark:bg-zinc-900/30 scroll-mt-28">
           <div className="max-w-6xl mx-auto px-5 sm:px-8">
-            <SectionReveal className="text-center mb-12 sm:mb-16 max-w-3xl mx-auto">
+            <SectionReveal className="text-center mb-10 sm:mb-12 max-w-3xl mx-auto">
               <p className="section-label mb-3">In your report</p>
               <h2 className="section-heading mb-4">Walk away with a battle plan, not just a score</h2>
               <p className="section-subheading mx-auto">The second you finish, PitchNest generates a detailed readiness report — the kind of prep a pitch coach would charge for.</p>
@@ -386,9 +386,9 @@ export default function LandingPage() {
         </section>
 
         {/* ── Why PitchNest ── */}
-        <section id="why-pitchnest" className="py-[clamp(80px,10vw,128px)] scroll-mt-28">
+        <section id="why-pitchnest" className="py-[clamp(44px,5vw,72px)] scroll-mt-28">
           <div className="max-w-6xl mx-auto px-5 sm:px-8">
-            <SectionReveal className="text-center mb-12 sm:mb-16 max-w-3xl mx-auto">
+            <SectionReveal className="text-center mb-10 sm:mb-12 max-w-3xl mx-auto">
               <p className="section-label mb-3">Why PitchNest</p>
               <h2 className="section-heading mb-4">Preparation is the one variable you control</h2>
               <p className="section-subheading mx-auto">Investors get one shot at you. PitchNest makes sure you've already had a hundred.</p>
@@ -410,7 +410,7 @@ export default function LandingPage() {
         </section>
 
         {/* ── Early Access (honest — no fabricated testimonials) ── */}
-        <section id="early-access" className="py-[clamp(80px,10vw,128px)] bg-slate-50/80 dark:bg-zinc-900/30 scroll-mt-28">
+        <section id="early-access" className="py-[clamp(44px,5vw,72px)] bg-slate-50/80 dark:bg-zinc-900/30 scroll-mt-28">
           <div className="max-w-4xl mx-auto px-5 sm:px-8">
             <SectionReveal>
               <div className="card p-8 sm:p-14 text-center relative overflow-hidden">
@@ -431,7 +431,7 @@ export default function LandingPage() {
         </section>
 
         {/* ── FAQ ── */}
-        <section id="faq" className="py-[clamp(80px,10vw,128px)] border-t border-slate-100 dark:border-zinc-800/60 scroll-mt-28">
+        <section id="faq" className="py-[clamp(44px,5vw,72px)] border-t border-slate-100 dark:border-zinc-800/60 scroll-mt-28">
           <div className="max-w-3xl mx-auto px-5 sm:px-8">
             <SectionReveal className="text-center mb-12">
               <p className="section-label mb-3">FAQ</p>

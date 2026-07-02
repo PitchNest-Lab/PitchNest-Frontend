@@ -53,7 +53,7 @@ export function StatsBand() {
   const inView = useInView(ref, { once: true, margin: '-60px' });
 
   return (
-    <section className="pb-16 sm:pb-24">
+    <section className="pb-8 sm:pb-12">
       <div className="max-w-6xl mx-auto px-5 sm:px-8">
         <SectionReveal>
           <div
