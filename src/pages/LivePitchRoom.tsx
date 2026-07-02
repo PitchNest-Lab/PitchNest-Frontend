@@ -551,6 +551,31 @@ const CameraViewer = React.memo(
 );
 CameraViewer.displayName = "CameraViewer";
 
+const RESUME_KEY = "pn_activeSession";
+
+type ResumeRecord = {
+  v: number;
+  endsAt: number;
+  startedAt: number;
+  messages: any[];
+  mode: string | null;
+};
+
+// Reads the in-progress session snapshot saved to sessionStorage. sessionStorage
+// is per-tab and cleared by the browser when the tab closes, so a refresh keeps
+// it (we resume) while a real close drops it (the session is abandoned).
+function readResumeRecord(): ResumeRecord | null {
+  try {
+    const raw = sessionStorage.getItem(RESUME_KEY);
+    if (!raw) return null;
+    const rec = JSON.parse(raw);
+    if (!rec || typeof rec.endsAt !== "number") return null;
+    return rec as ResumeRecord;
+  } catch {
+    return null;
+  }
+}
+
 export default function LivePitchRoom() {
   const location = useLocation();
   const navigate = useNavigate();
@@ -575,11 +600,18 @@ export default function LivePitchRoom() {
   const canScreenShare =
     typeof navigator?.mediaDevices?.getDisplayMedia === "function";
 
-  const [roomState, setRoomState] = useState<"waiting" | "countdown" | "live">(
-    "waiting",
-  );
+  const [roomState, setRoomState] = useState<
+    "waiting" | "countdown" | "live" | "resume"
+  >(() => {
+    const rec = readResumeRecord();
+    return rec && rec.endsAt > Date.now() ? "resume" : "waiting";
+  });
   const [countdown, setCountdown] = useState(3);
   const [timeLeft, setTimeLeft] = useState(() => {
+    const resumeRec = readResumeRecord();
+    if (resumeRec && resumeRec.endsAt > Date.now()) {
+      return Math.max(1, Math.round((resumeRec.endsAt - Date.now()) / 1000));
+    }
     if (location.state?.pitchConfig) {
       return (location.state.pitchConfig.duration || 15) * 60;
     }
@@ -659,11 +691,63 @@ export default function LivePitchRoom() {
       speaker?: string;
       inputMethod?: "voice" | "chat";
     }[]
-  >([]);
+  >(() => {
+    const rec = readResumeRecord();
+    return rec && rec.endsAt > Date.now() && Array.isArray(rec.messages)
+      ? rec.messages
+      : [];
+  });
   const messagesRef = useRef(messages);
   useEffect(() => {
     messagesRef.current = messages;
   }, [messages]);
+
+  // ── Level A session resume (survive accidental refresh) ────────────────────
+  const sessionEndsAtRef = useRef<number>(0);
+  const isResumeRef = useRef(false);
+  const didInitResumeRef = useRef(false);
+
+  const persistActiveSession = useCallback(() => {
+    if (!sessionEndsAtRef.current) return;
+    try {
+      sessionStorage.setItem(
+        RESUME_KEY,
+        JSON.stringify({
+          v: 1,
+          endsAt: sessionEndsAtRef.current,
+          startedAt: pitchStartTimeRef.current,
+          messages: messagesRef.current,
+          mode: pitchConfig?.mode || null,
+        }),
+      );
+    } catch {}
+  }, [pitchConfig?.mode]);
+
+  // Restore an in-progress session after a refresh. roomState/timeLeft/messages
+  // are already rehydrated by the lazy initializers above; here we restore the
+  // refs and flag the socket handshake so it resumes instead of greeting.
+  useEffect(() => {
+    if (didInitResumeRef.current) return;
+    didInitResumeRef.current = true;
+    const rec = readResumeRecord();
+    if (!rec) return;
+    if (rec.endsAt <= Date.now() || !pitchConfig) {
+      try {
+        sessionStorage.removeItem(RESUME_KEY);
+      } catch {}
+      setRoomState((s) => (s === "resume" ? "waiting" : s));
+      return;
+    }
+    pitchStartTimeRef.current = rec.startedAt || Date.now();
+    sessionEndsAtRef.current = rec.endsAt;
+    isResumeRef.current = true;
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Keep the resume snapshot fresh as the transcript grows.
+  useEffect(() => {
+    if (!isPitching) return;
+    persistActiveSession();
+  }, [messages, isPitching, persistActiveSession]);
 
   // Once the founder starts answering (VAD glow), retire the tip so it doesn't
   // flash back during a mid-answer pause — it returns only on the NEXT question's
@@ -1041,6 +1125,29 @@ export default function LivePitchRoom() {
     setRoomState("countdown");
   };
 
+  // Resume after a refresh: re-unlock the audio context (needs this user
+  // gesture per browser autoplay policy), re-sync the clock against the saved
+  // absolute end time, and continue the live session without restarting.
+  const handleResumeClick = async () => {
+    try {
+      if (!audioContextRef.current) {
+        audioContextRef.current = new (
+          window.AudioContext || (window as any).webkitAudioContext
+        )();
+      }
+      if (audioContextRef.current.state === "suspended") {
+        await audioContextRef.current.resume();
+      }
+    } catch (e) {
+      console.error("Audio Context Unlock Failed:", e);
+    }
+    setTimeLeft(
+      Math.max(1, Math.round((sessionEndsAtRef.current - Date.now()) / 1000)),
+    );
+    setRoomState("live");
+    handleAutoStart(true);
+  };
+
   useEffect(() => {
     if (roomState === "countdown") {
       if (countdown > 0) {
@@ -1053,9 +1160,14 @@ export default function LivePitchRoom() {
     }
   }, [roomState, countdown]);
 
-  const handleAutoStart = async () => {
+  const handleAutoStart = async (isResume = false) => {
     setIsPitching(true);
-    pitchStartTimeRef.current = Date.now();
+    if (!isResume) {
+      pitchStartTimeRef.current = Date.now();
+      sessionEndsAtRef.current =
+        Date.now() + (pitchConfig?.duration || 15) * 60 * 1000;
+    }
+    persistActiveSession();
     if (pitchConfig?.screenShareEnabled && !isCapturing) {
       try {
         startCapture();
@@ -1100,6 +1212,9 @@ export default function LivePitchRoom() {
         JSON.stringify({
           type: "client_ready",
           config: { ...pitchConfig, userId: user?.id },
+          ...(isResumeRef.current
+            ? { resume: true, transcript: messagesRef.current }
+            : {}),
         }),
       );
       sentReadyForSocketRef.current = socket;
@@ -2080,6 +2195,11 @@ export default function LivePitchRoom() {
   const handleEndSession = async () => {
     if (sessionLockedRef.current) return;
     sessionLockedRef.current = true;
+    // Ending for real (End button / timer / verdict) — drop the resume snapshot
+    // so a later reload (e.g. on the report screen) can't resume a finished pitch.
+    try {
+      sessionStorage.removeItem(RESUME_KEY);
+    } catch {}
 
     // Ensure evaluation is started (no-op on the backend if already running) —
     // covers end paths that skip triggerConclusion (e.g. time-up, idle).
@@ -2294,6 +2414,33 @@ export default function LivePitchRoom() {
                   className="px-8 md:px-10 py-3 md:py-4 bg-sky-500 text-white font-bold rounded-2xl hover:bg-sky-600 transition-all text-lg md:text-xl shadow-[0_0_40px_rgba(14,165,233,0.3)] flex items-center gap-3 cursor-pointer"
                 >
                   <Sparkles size={22} /> Enter Live Room
+                </button>
+              </motion.div>
+            ) : roomState === "resume" ? (
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="text-center flex flex-col items-center px-6"
+              >
+                <div className="w-20 h-20 md:w-24 md:h-24 bg-amber-500/20 text-amber-400 rounded-full flex items-center justify-center mb-5 md:mb-6 border border-amber-500/30">
+                  <Mic size={40} />
+                </div>
+                <h2 className="text-2xl md:text-3xl font-bold text-white mb-3 md:mb-4">
+                  Resume your pitch
+                </h2>
+                <p className="text-slate-400 mb-2 max-w-md text-sm md:text-base">
+                  The page reloaded, but your session is still live. Your
+                  transcript and timer were saved — pick up right where you left
+                  off.
+                </p>
+                <p className="text-amber-300/90 mb-6 md:mb-8 font-mono text-lg">
+                  {formatTime(timeLeft)} remaining
+                </p>
+                <button
+                  onClick={handleResumeClick}
+                  className="px-8 md:px-10 py-3 md:py-4 bg-amber-500 text-white font-bold rounded-2xl hover:bg-amber-600 transition-all text-lg md:text-xl shadow-[0_0_40px_rgba(245,158,11,0.3)] flex items-center gap-3 cursor-pointer"
+                >
+                  <Sparkles size={22} /> Resume session
                 </button>
               </motion.div>
             ) : (
