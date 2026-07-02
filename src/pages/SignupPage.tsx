@@ -43,7 +43,7 @@ const SLIDES = [
     image:
       "https://images.unsplash.com/photo-1556761175-5973dc0f32d7?auto=format&fit=crop&w=800&q=80",
     title: "The AI Pitch Deck Evolution",
-    desc: "Join 10,000+ founders using PitchNest to refine their narratives with real-time AI feedback.",
+    desc: "Join 500+ founders using PitchNest to refine their narratives with real-time AI feedback.",
   },
   {
     image:
@@ -101,7 +101,7 @@ function EmailNotVerifiedPopup({
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
       className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm"
-  
+
     >
       <motion.div
         initial={{ opacity: 0, scale: 0.95, y: 12 }}
