@@ -29,18 +29,17 @@ export const useMediaRecorder = () => {
     }
   }, []);
 
-  // FIX: use ref instead of state — stopStream is now stable (never recreated)
   const stopStream = useCallback(() => {
     if (streamRef.current) {
       streamRef.current.getTracks().forEach(track => track.stop());
       streamRef.current = null;
       setStream(null);
     }
-  }, []); // CHANGE: empty deps — this function never changes identity now
+  }, []);
 
   const startRecording = useCallback(() => {
-    if (!streamRef.current) return; // CHANGE: use ref
-    const mediaRecorder = new MediaRecorder(streamRef.current, { // CHANGE: use ref
+    if (!streamRef.current) return;
+    const mediaRecorder = new MediaRecorder(streamRef.current, {
       mimeType: MediaRecorder.isTypeSupported('video/webm;codecs=vp8,opus')
         ? 'video/webm;codecs=vp8,opus'
         : '',
@@ -54,7 +53,7 @@ export const useMediaRecorder = () => {
     };
     mediaRecorder.start();
     setIsRecording(true);
-  }, []); // CHANGE: empty deps — uses ref, not state
+  }, []);
 
   const stopRecording = useCallback(() => {
     if (mediaRecorderRef.current && isRecording) {

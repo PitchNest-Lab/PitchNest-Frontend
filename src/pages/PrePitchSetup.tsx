@@ -102,9 +102,8 @@ export default function PrePitchSetup() {
   const { register, handleSubmit, setValue, watch, formState: { errors } } = useForm<SetupFormValues>({
     resolver: zodResolver(setupSchema),
     defaultValues: {
-      mode: 'panel', 
-      // 🔥 FIX 1: Frictionless defaults so judges don't get stuck on validation
-      businessName: 'My Startup', 
+      mode: 'panel',
+      businessName: 'My Startup',
       description: 'We are building the next generation of AI tools for enterprise.', 
       industry: 'SaaS & Enterprise',
       investorArchetype: 'Seed Stage - Venture Capital', 

@@ -18,7 +18,6 @@ interface User {
   settings?: Record<string, any>;
 }
 
-/** Safely parse a JSON string from storage, returning null on any failure. */
 function safeParse<T = any>(value: string | null): T | null {
   if (!value) return null;
   try {
@@ -60,9 +59,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       return;
     }
 
-    // Verify token is still valid against the backend, and refresh the cached
-    // user with the server's authoritative fields (role, bio, avatarUrl,
-    // settings) so changes made on another device show up here.
     fetch("/api/auth/me", {
       headers: { Authorization: `Bearer ${storedToken}` },
     })
@@ -201,8 +197,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             localStorage.removeItem("token");
             return;
           }
-          // Merge fresh server fields into the cached user so avatar/settings/
-          // profile edits from other sessions propagate on tab focus.
           const fresh = await res.json().catch(() => null);
           if (!fresh?.id) return;
           const stored = safeParse<User>(localStorage.getItem("user"));

@@ -90,7 +90,7 @@ export default function Onboarding() {
     navigate("/dashboard");
   };
 
-  // 🔥 FIX 1: Extracted the step content into a switch statement so AnimatePresence can properly hook into the changing 'key'
+  // Switch statement so AnimatePresence can hook into the changing key.
   const renderStepContent = () => {
     switch (step) {
       case 1:
@@ -352,8 +352,7 @@ export default function Onboarding() {
         <div className="w-[800px] h-[800px] bg-sky-500/10 rounded-full blur-[120px] opacity-50" />
       </div>
 
-      {/* ✅ FIX: Skip Button — smaller on mobile and tucked into the corner so it
-          never crowds the centered PitchNest logo on narrow screens. */}
+      {/* Skip button, tucked into the corner so it doesn't crowd the logo on mobile. */}
       <button
         onClick={handleSkip}
         className="absolute top-4 right-4 sm:top-8 sm:right-8 text-slate-400 hover:text-slate-900 dark:hover:text-white text-xs sm:text-sm font-bold transition-colors z-20"
@@ -391,7 +390,7 @@ export default function Onboarding() {
         <div className="bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 rounded-[40px] p-8 md:p-12 shadow-2xl shadow-slate-200 dark:shadow-none overflow-hidden relative flex-1 flex flex-col">
           <AnimatePresence mode="wait">
             <motion.div
-              key={step} // 🔥 The key prop forces Framer Motion to trigger exit/initial animations
+              key={step} // key change replays Framer Motion's exit/initial animations
               initial={{ opacity: 0, x: 20 }}
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: -20 }}

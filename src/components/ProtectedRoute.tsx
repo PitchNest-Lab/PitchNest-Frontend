@@ -7,7 +7,6 @@ interface ProtectedRouteProps {
 }
 
 export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
-  // 🔥 FIX 1: Use 'user' to match the new AuthContext
   const { user, isLoading } = useAuth();
   const location = useLocation();
 

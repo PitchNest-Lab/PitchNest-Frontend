@@ -19,7 +19,7 @@ export default defineConfig(({ mode }) => {
       hmr: true,
       proxy: {
         '/api': {
-          target: 'http://127.0.0.1:3000', // 🔥 FIX: Changed from localhost to 127.0.0.1
+          target: 'http://127.0.0.1:3000',
           changeOrigin: true,
           secure: false,
         }

@@ -56,8 +56,6 @@ export default function SettingsPage() {
   const ROLE_OPTIONS = ["Founder", "Investor", "Advisor"] as const;
   type Role = (typeof ROLE_OPTIONS)[number];
 
-  // Real user is loaded from the authenticated session below; these are neutral
-  // fallbacks, not sample data.
   const [userData, setUserData] = useState<{name: string, email?: string, bio?: string, avatarUrl?: string, role?: Role}>({
     name: "Founder",
     role: "Founder",
@@ -92,8 +90,6 @@ export default function SettingsPage() {
           bio: parsed.bio ?? prev.bio,
         }));
 
-        // Hydrate preference controls from the user's saved settings so toggles,
-        // toughness, and sector reflect what was persisted on the backend.
         const s = parsed.settings;
         if (s && typeof s === "object") {
           if (s.notifications && typeof s.notifications === "object") {
@@ -106,11 +102,6 @@ export default function SettingsPage() {
     }
   }, []);
 
-  /**
-   * Persist a partial settings patch to the backend and mirror it into the
-   * cached user so other views stay in sync. Preferences are non-critical, so
-   * failures are swallowed (the local UI still reflects the choice).
-   */
   const persistSettings = async (partial: Record<string, unknown>) => {
     try {
       const res = await authFetch('/api/auth/settings', {
@@ -195,9 +186,6 @@ export default function SettingsPage() {
 
     setIsUploadingAvatar(true);
     try {
-      // Upload to Supabase storage via the backend; it persists the URL on the
-      // user row so the avatar is real and syncs across devices (not base64 in
-      // this browser's localStorage as before).
       const form = new FormData();
       form.append("avatar", file);
       const res = await authFetch("/api/upload-avatar", { method: "POST", body: form });
@@ -419,7 +407,6 @@ export default function SettingsPage() {
               </div>
             </div>
 
-            {/* 🔥 FIX: Added Sign Out button at the bottom of the profile tab */}
             <div className="mt-auto pt-10 flex justify-end border-t border-slate-100 dark:border-zinc-800">
               <button 
                 onClick={handleLogout}

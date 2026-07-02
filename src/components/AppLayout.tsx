@@ -74,7 +74,6 @@ export default function AppLayout() {
     setIsInstallable(false);
   };
   
-  // 🔥 DATA FIX: Dynamic User Profile
   const [userData, setUserData] = useState<{name: string, email?: string, bio?: string, avatarUrl?: string, role?: string}>({ name: "Founder" });
 
   const loadUserData = () => {
@@ -96,10 +95,7 @@ export default function AppLayout() {
   const [notifications, setNotifications] = useState<any[]>([]);
 
   useEffect(() => {
-    // There is no notifications backend yet, so we no longer seed fake
-    // "your pitch was analyzed" messages. Start empty (the dropdown shows an
-    // honest empty state) and one-time purge the old hardcoded seed (ids n1–n3)
-    // from any cache created by a previous build.
+    // No notifications backend yet — start empty and purge the old seeded fakes (n1–n3).
     const SEED_IDS = ["n1", "n2", "n3"];
     const parsed = (() => {
       try { return JSON.parse(localStorage.getItem("notifications") || "[]"); }

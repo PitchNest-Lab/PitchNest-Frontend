@@ -114,7 +114,6 @@ const DeckCard = ({
         </p>
       </div>
       <div className="space-y-3">
-        {/* 🔥 FIX 1: Removed the dead "Edit" button and made Preview span full width */}
         <div className="grid grid-cols-1 gap-3">
           <a
             href={fileUrl || "#"}
@@ -158,7 +157,7 @@ export default function PitchDecksManagement() {
   useEffect(() => {
     const fetchDecks = async () => {
       try {
-        // 🔥 FIX 2: Added cache-buster so deleted/uploaded decks sync perfectly
+        // Cache-buster so deleted/uploaded decks stay in sync.
         const response = await authFetch(`/api/decks?t=${Date.now()}`, {
           headers: {
             "Cache-Control": "no-cache",
@@ -398,7 +397,6 @@ export default function PitchDecksManagement() {
               </div>
             </>
           ) : decks.length === 0 ? (
-            // 🔥 FIX 3: Centered empty state spanning the full layout accurately
             <div className="md:col-span-1 lg:col-span-2 flex flex-col items-center justify-center p-10 text-slate-400 border-2 border-dashed border-slate-100 dark:border-zinc-800 rounded-[32px]">
               <FileText size={48} className="mb-4 opacity-50" />
               <p>No pitch decks uploaded yet.</p>
