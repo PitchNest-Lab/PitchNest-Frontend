@@ -14,6 +14,18 @@ interface User {
   email: string;
   role?: UserRole;
   bio?: string;
+  avatarUrl?: string | null;
+  settings?: Record<string, any>;
+}
+
+/** Safely parse a JSON string from storage, returning null on any failure. */
+function safeParse<T = any>(value: string | null): T | null {
+  if (!value) return null;
+  try {
+    return JSON.parse(value) as T;
+  } catch {
+    return null;
+  }
 }
 
 interface AuthContextType {
@@ -48,19 +60,26 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       return;
     }
 
-    // Verify token is still valid against the backend
+    // Verify token is still valid against the backend, and refresh the cached
+    // user with the server's authoritative fields (role, bio, avatarUrl,
+    // settings) so changes made on another device show up here.
     fetch("/api/auth/me", {
       headers: { Authorization: `Bearer ${storedToken}` },
     })
-      .then((res) => {
+      .then(async (res) => {
         if (res.ok) {
-          try {
-            setUser(JSON.parse(storedUser));
-            setToken(storedToken);
-          } catch (e) {
+          const stored = safeParse<User>(storedUser);
+          const fresh = await res.json().catch(() => null);
+          const merged = { ...(stored || {}), ...(fresh || {}) } as User;
+          if (!merged.id) {
             localStorage.removeItem("user");
             localStorage.removeItem("token");
+            return;
           }
+          setUser(merged);
+          setToken(storedToken);
+          localStorage.setItem("user", JSON.stringify(merged));
+          window.dispatchEvent(new Event("userUpdate"));
         } else {
           // Token expired or invalid — clear everything
           localStorage.removeItem("user");
@@ -69,10 +88,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       })
       .catch(() => {
         // Network error — trust local storage to avoid locking out offline users
-        try {
-          setUser(JSON.parse(storedUser));
+        const stored = safeParse<User>(storedUser);
+        if (stored) {
+          setUser(stored);
           setToken(storedToken);
-        } catch (e) {}
+        }
       })
       .finally(() => setIsLoading(false));
   }, []);
@@ -173,13 +193,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       fetch("/api/auth/me", {
         headers: { Authorization: `Bearer ${currentToken}` },
       })
-        .then((res) => {
+        .then(async (res) => {
           if (!res.ok) {
             setUser(null);
             setToken(null);
             localStorage.removeItem("user");
             localStorage.removeItem("token");
+            return;
           }
+          // Merge fresh server fields into the cached user so avatar/settings/
+          // profile edits from other sessions propagate on tab focus.
+          const fresh = await res.json().catch(() => null);
+          if (!fresh?.id) return;
+          const stored = safeParse<User>(localStorage.getItem("user"));
+          const merged = { ...(stored || {}), ...fresh } as User;
+          setUser(merged);
+          localStorage.setItem("user", JSON.stringify(merged));
+          window.dispatchEvent(new Event("userUpdate"));
         })
         .catch(() => {}); // Ignore network errors silently
     };

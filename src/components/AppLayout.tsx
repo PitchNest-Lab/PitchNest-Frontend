@@ -75,7 +75,7 @@ export default function AppLayout() {
   };
   
   // 🔥 DATA FIX: Dynamic User Profile
-  const [userData, setUserData] = useState<{name: string, email?: string, bio?: string, avatarUrl?: string}>({ name: "Founder" });
+  const [userData, setUserData] = useState<{name: string, email?: string, bio?: string, avatarUrl?: string, role?: string}>({ name: "Founder" });
 
   const loadUserData = () => {
     const storedUser = localStorage.getItem("user");
@@ -96,21 +96,21 @@ export default function AppLayout() {
   const [notifications, setNotifications] = useState<any[]>([]);
 
   useEffect(() => {
-    const stored = localStorage.getItem("notifications");
-    if (stored) {
-      try {
-        setNotifications(JSON.parse(stored));
-      } catch (e) {
-        setNotifications([]);
-      }
-    } else {
-      const defaultNotifications = [
-        { id: "n1", title: "Pitch Evaluated", message: "Your pitch 'PitchNest' has been analyzed.", time: "2 hours ago", read: false, link: "/report", type: "report" },
-        { id: "n2", title: "New AI Insight Available", message: "We have dynamic feedback regarding your market scalability.", time: "1 day ago", read: false, link: "/analytics", type: "insight" },
-        { id: "n3", title: "Welcome to PitchNest", message: "Complete setup and invite your first VC panel to get started.", time: "3 days ago", read: true, link: "/setup", type: "alert" }
-      ];
-      setNotifications(defaultNotifications);
-      localStorage.setItem("notifications", JSON.stringify(defaultNotifications));
+    // There is no notifications backend yet, so we no longer seed fake
+    // "your pitch was analyzed" messages. Start empty (the dropdown shows an
+    // honest empty state) and one-time purge the old hardcoded seed (ids n1–n3)
+    // from any cache created by a previous build.
+    const SEED_IDS = ["n1", "n2", "n3"];
+    const parsed = (() => {
+      try { return JSON.parse(localStorage.getItem("notifications") || "[]"); }
+      catch { return []; }
+    })();
+    const cleaned = Array.isArray(parsed)
+      ? parsed.filter((n: any) => !SEED_IDS.includes(n?.id))
+      : [];
+    setNotifications(cleaned);
+    if (!Array.isArray(parsed) || cleaned.length !== parsed.length) {
+      localStorage.setItem("notifications", JSON.stringify(cleaned));
     }
   }, []);
 
@@ -226,10 +226,10 @@ export default function AppLayout() {
 
         <div className="mt-6 p-4 gradient-brand rounded-2xl text-white relative overflow-hidden group shrink-0">
           <div className="relative z-10">
-            <span className="text-[10px] font-semibold uppercase tracking-widest text-white/70">Pro Plan</span>
-            <p className="text-xs mt-1 text-white font-medium">Unlimited analysis</p>
+            <span className="text-[10px] font-semibold uppercase tracking-widest text-white/70">Early access</span>
+            <p className="text-xs mt-1 text-white font-medium">Free while in beta</p>
             <Link to="/settings" onClick={() => setIsMobileMenuOpen(false)} className="mt-4 block w-full py-2 bg-white text-indigo-600 text-center text-xs font-semibold rounded-lg hover:bg-white/95 transition-colors">
-              Manage subscription
+              View plan
             </Link>
           </div>
           <div className="absolute -right-4 -bottom-4 w-24 h-24 bg-white/10 rounded-full blur-2xl group-hover:scale-110 transition-transform" />
@@ -244,7 +244,7 @@ export default function AppLayout() {
           />
           <div className="flex-1 min-w-0">
             <p className="text-xs font-bold text-slate-900 dark:text-zinc-100 truncate">{userData.name}</p>
-            <p className="text-[10px] text-slate-400 dark:text-zinc-500 font-medium truncate">Founder Plan</p>
+            <p className="text-[10px] text-slate-400 dark:text-zinc-500 font-medium truncate">{userData.role || "Founder"}</p>
           </div>
           <button type="button" onClick={handleLogout} className="p-2 text-slate-400 dark:text-zinc-500 hover:text-rose-500 transition-colors cursor-pointer" aria-label="Log out">
             <LogOut size={16} />
@@ -383,7 +383,7 @@ export default function AppLayout() {
               <div className="flex items-center gap-3 pl-6 border-l border-slate-200 dark:border-zinc-800">
                 <div className="text-right hidden sm:block">
                   <p className="text-sm font-bold text-slate-900 dark:text-zinc-100 truncate max-w-[120px]">{userData.name}</p>
-                  <p className="text-[10px] text-slate-400 dark:text-zinc-500 font-medium">Founder</p>
+                  <p className="text-[10px] text-slate-400 dark:text-zinc-500 font-medium">{userData.role || "Founder"}</p>
                 </div>
                 <img 
                   src={userData.avatarUrl || `https://api.dicebear.com/7.x/avataaars/svg?seed=${userData.name}`} 

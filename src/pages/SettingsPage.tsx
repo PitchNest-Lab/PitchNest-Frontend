@@ -4,10 +4,9 @@ import {
   User, 
   Shield, 
   CreditCard, 
-  Sparkles, 
-  Bell, 
-  Lock, 
-  CheckCircle2,
+  Sparkles,
+  Bell,
+  Lock,
   Globe,
   Edit3,
   Users,
@@ -53,17 +52,19 @@ export default function SettingsPage() {
   
   const [aiToughness, setAiToughness] = useState(85);
   const [activeSector, setActiveSector] = useState("Venture Capital");
-  const [twoFactorEnabled, setTwoFactorEnabled] = useState(true);
 
   const ROLE_OPTIONS = ["Founder", "Investor", "Advisor"] as const;
   type Role = (typeof ROLE_OPTIONS)[number];
 
+  // Real user is loaded from the authenticated session below; these are neutral
+  // fallbacks, not sample data.
   const [userData, setUserData] = useState<{name: string, email?: string, bio?: string, avatarUrl?: string, role?: Role}>({
     name: "Founder",
-    email: "founder@pitchnest.io",
     role: "Founder",
-    bio: "Building the next generation of AI-driven tools for venture building. Focused on creating scalable technologies and empowering startups to nail their stories and secure funding."
   });
+
+  const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
+  const [avatarError, setAvatarError] = useState("");
 
   const [isEditing, setIsEditing] = useState(false);
   const [editName, setEditName] = useState("");
@@ -82,17 +83,51 @@ export default function SettingsPage() {
   useEffect(() => {
     const storedUser = localStorage.getItem("user");
     if (storedUser) {
-      try { 
+      try {
         const parsed = JSON.parse(storedUser);
         setUserData(prev => ({
           ...prev,
           ...parsed,
           role: parsed.role || prev.role,
-          bio: parsed.bio || prev.bio
+          bio: parsed.bio ?? prev.bio,
         }));
+
+        // Hydrate preference controls from the user's saved settings so toggles,
+        // toughness, and sector reflect what was persisted on the backend.
+        const s = parsed.settings;
+        if (s && typeof s === "object") {
+          if (s.notifications && typeof s.notifications === "object") {
+            setNotifications(prev => ({ ...prev, ...s.notifications }));
+          }
+          if (typeof s.aiToughness === "number") setAiToughness(s.aiToughness);
+          if (typeof s.activeSector === "string") setActiveSector(s.activeSector);
+        }
       } catch (e) {}
     }
   }, []);
+
+  /**
+   * Persist a partial settings patch to the backend and mirror it into the
+   * cached user so other views stay in sync. Preferences are non-critical, so
+   * failures are swallowed (the local UI still reflects the choice).
+   */
+  const persistSettings = async (partial: Record<string, unknown>) => {
+    try {
+      const res = await authFetch('/api/auth/settings', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ settings: partial }),
+      });
+      if (!res.ok) return;
+      const data = await res.json().catch(() => ({}));
+      const storedUser = JSON.parse(localStorage.getItem("user") || "{}");
+      storedUser.settings = { ...(storedUser.settings || {}), ...(data.settings || partial) };
+      localStorage.setItem("user", JSON.stringify(storedUser));
+      window.dispatchEvent(new Event("userUpdate"));
+    } catch (e) {
+      /* non-blocking */
+    }
+  };
 
   const handleEditToggle = () => {
     if (!isEditing) {
@@ -142,22 +177,47 @@ export default function SettingsPage() {
     fileInputRef.current?.click();
   };
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+    setAvatarError("");
 
-    const reader = new FileReader();
-    reader.onloadend = () => {
-      const base64String = reader.result as string;
-      const updated = {
-        ...userData,
-        avatarUrl: base64String
-      };
+    if (!file.type.startsWith("image/")) {
+      setAvatarError("Please choose an image file.");
+      if (fileInputRef.current) fileInputRef.current.value = "";
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      setAvatarError("Image must be under 5MB.");
+      if (fileInputRef.current) fileInputRef.current.value = "";
+      return;
+    }
+
+    setIsUploadingAvatar(true);
+    try {
+      // Upload to Supabase storage via the backend; it persists the URL on the
+      // user row so the avatar is real and syncs across devices (not base64 in
+      // this browser's localStorage as before).
+      const form = new FormData();
+      form.append("avatar", file);
+      const res = await authFetch("/api/upload-avatar", { method: "POST", body: form });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || !data.avatarUrl) {
+        throw new Error(data.error || "Failed to upload image.");
+      }
+
+      const updated = { ...userData, avatarUrl: data.avatarUrl };
       setUserData(updated);
-      localStorage.setItem("user", JSON.stringify(updated));
+      const storedUser = JSON.parse(localStorage.getItem("user") || "{}");
+      storedUser.avatarUrl = data.avatarUrl;
+      localStorage.setItem("user", JSON.stringify(storedUser));
       window.dispatchEvent(new Event("userUpdate"));
-    };
-    reader.readAsDataURL(file);
+    } catch (err: unknown) {
+      setAvatarError(err instanceof Error ? err.message : "Failed to upload image.");
+    } finally {
+      setIsUploadingAvatar(false);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    }
   };
 
   const handleLogout = () => {
@@ -239,25 +299,31 @@ export default function SettingsPage() {
             </div>
 
             <div className="flex flex-col sm:flex-row items-center gap-8 p-8 bg-slate-50 dark:bg-zinc-800/50 rounded-[32px] transition-colors">
-              <div className="relative shrink-0">
-                <img 
-                  src={userData.avatarUrl || `https://api.dicebear.com/7.x/avataaars/svg?seed=${userData.name}`} 
-                  className="w-24 h-24 rounded-full border-4 border-white dark:border-zinc-800 shadow-lg bg-sky-100 object-cover"
-                  alt="Profile Avatar"
-                />
-                <button 
-                  onClick={handleAvatarClick}
-                  className="absolute bottom-0 right-0 p-2 bg-white dark:bg-zinc-900 rounded-full shadow-md text-slate-400 dark:text-zinc-500 hover:text-sky-500 transition-colors border border-slate-100 dark:border-zinc-800 active:scale-95 cursor-pointer"
-                >
-                  <Edit3 size={14} />
-                </button>
-                <input 
-                  type="file" 
-                  ref={fileInputRef} 
-                  onChange={handleFileChange} 
-                  accept="image/*" 
-                  className="hidden" 
-                />
+              <div className="shrink-0 flex flex-col items-center">
+                <div className="relative">
+                  <img
+                    src={userData.avatarUrl || `https://api.dicebear.com/7.x/avataaars/svg?seed=${userData.name}`}
+                    className="w-24 h-24 rounded-full border-4 border-white dark:border-zinc-800 shadow-lg bg-sky-100 object-cover"
+                    alt="Profile Avatar"
+                  />
+                  <button
+                    onClick={handleAvatarClick}
+                    disabled={isUploadingAvatar}
+                    className="absolute bottom-0 right-0 p-2 bg-white dark:bg-zinc-900 rounded-full shadow-md text-slate-400 dark:text-zinc-500 hover:text-sky-500 transition-colors border border-slate-100 dark:border-zinc-800 active:scale-95 cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
+                  >
+                    {isUploadingAvatar ? <Loader2 size={14} className="animate-spin" /> : <Edit3 size={14} />}
+                  </button>
+                  <input
+                    type="file"
+                    ref={fileInputRef}
+                    onChange={handleFileChange}
+                    accept="image/*"
+                    className="hidden"
+                  />
+                </div>
+                {avatarError && (
+                  <p className="mt-2 text-[10px] text-rose-500 text-center max-w-[120px]">{avatarError}</p>
+                )}
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-12 gap-y-6 flex-1 w-full">
                 {isEditing ? (
@@ -345,7 +411,7 @@ export default function SettingsPage() {
                     <div className="sm:col-span-2">
                       <p className="text-[10px] font-bold text-slate-400 dark:text-zinc-500 uppercase tracking-widest mb-1">Founder Bio</p>
                       <p className="text-sm text-slate-600 dark:text-zinc-400 leading-relaxed">
-                        {userData.bio}
+                        {userData.bio || "No bio yet. Add one so investors know your story."}
                       </p>
                     </div>
                   </>
@@ -389,30 +455,19 @@ export default function SettingsPage() {
 
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between p-4 border border-slate-100 dark:border-zinc-800 rounded-2xl gap-4">
                   <div className="flex items-center gap-4">
-                    <div className={cn(
-                      "w-10 h-10 rounded-xl flex items-center justify-center shrink-0 transition-colors",
-                      twoFactorEnabled ? "bg-emerald-50 dark:bg-emerald-900/20 text-emerald-500" : "bg-slate-50 dark:bg-zinc-800 text-slate-400"
-                    )}>
+                    <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 bg-slate-50 dark:bg-zinc-800 text-slate-400">
                       <Shield size={20} />
                     </div>
                     <div>
                       <p className="text-sm font-bold text-slate-900 dark:text-zinc-100">Two-factor Authentication</p>
                       <p className="text-xs text-slate-500 dark:text-zinc-500">
-                        {twoFactorEnabled ? "Active via Authenticator App" : "Not configured"}
+                        Add an extra layer of security to your account.
                       </p>
                     </div>
                   </div>
-                  <button 
-                    onClick={() => setTwoFactorEnabled(!twoFactorEnabled)}
-                    className={cn(
-                      "px-4 py-2 text-xs font-bold rounded-lg transition-colors w-full sm:w-auto active:scale-95",
-                      twoFactorEnabled 
-                        ? "bg-rose-50 dark:bg-rose-900/20 text-rose-600 hover:bg-rose-100 dark:hover:bg-rose-900/40" 
-                        : "bg-sky-50 dark:bg-sky-900/20 text-sky-600 hover:bg-sky-100 dark:hover:bg-sky-900/40"
-                    )}
-                  >
-                    {twoFactorEnabled ? "Disable" : "Enable"}
-                  </button>
+                  <span className="px-4 py-2 text-xs font-bold rounded-lg bg-slate-100 dark:bg-zinc-800 text-slate-500 dark:text-zinc-400 w-full sm:w-auto text-center">
+                    Coming soon
+                  </span>
                 </div>
               </div>
             </SettingSection>
@@ -467,46 +522,27 @@ export default function SettingsPage() {
           {/* SUBSCRIPTION TAB */}
           <Tabs.Content value="subscription" className="space-y-10 outline-none">
             <h2 className="text-xl font-bold text-slate-900 dark:text-zinc-100">Subscription</h2>
-            
+
             <div className="app-hero-banner p-8 sm:p-10">
               <div className="relative z-10 flex flex-col sm:flex-row justify-between items-start sm:items-end gap-6">
                 <div>
-                  <span className="text-[10px] font-bold uppercase tracking-widest text-white/70">Active Plan</span>
-                  <h3 className="text-4xl font-bold mt-2 mb-1">Founder Pro</h3>
-                  <p className="text-white/80 text-sm">Next billing on June 15, 2026</p>
+                  <span className="text-[10px] font-bold uppercase tracking-widest text-white/70">Current Plan</span>
+                  <h3 className="text-4xl font-bold mt-2 mb-1">Early Access</h3>
+                  <p className="text-white/80 text-sm">Free while PitchNest is in beta</p>
                 </div>
                 <div className="sm:text-right">
-                  <p className="text-4xl font-bold">$49<span className="text-lg font-medium">/mo</span></p>
-                  <p className="text-white/70 text-xs mt-1">Billed monthly</p>
+                  <p className="text-4xl font-bold">$0<span className="text-lg font-medium">/mo</span></p>
+                  <p className="text-white/70 text-xs mt-1">No card required</p>
                 </div>
               </div>
               <div className="absolute -right-20 -top-20 w-64 h-64 bg-white/10 rounded-full blur-3xl pointer-events-none" />
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-8">
-              <div className="space-y-6">
-                <h4 className="text-sm font-bold text-slate-900 dark:text-zinc-100 uppercase tracking-widest">Plan Features</h4>
-                <ul className="space-y-4">
-                  {[
-                    { text: "Unlimited AI Pitch Reviews", active: true },
-                    { text: "Full Analytics Dashboard", active: true },
-                    { text: "Priority Support (Scale Plan)", active: false }
-                  ].map((feature, i) => (
-                    <li key={i} className="flex items-center gap-3 text-sm text-slate-600 dark:text-zinc-400">
-                      <CheckCircle2 size={18} className={!feature.active ? "text-slate-300 dark:text-zinc-700" : "text-emerald-500 dark:text-emerald-400"} />
-                      {feature.text}
-                    </li>
-                  ))}
-                </ul>
-              </div>
-              <div className="flex flex-col gap-3 justify-center">
-                <button className="w-full py-4 bg-sky-500 text-white font-bold rounded-2xl shadow-xl shadow-sky-200 dark:shadow-sky-500/10 hover:bg-sky-600 transition-all active:scale-95">
-                  Upgrade to Scale
-                </button>
-                <button className="w-full py-4 bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 text-slate-700 dark:text-zinc-300 font-bold rounded-2xl hover:bg-slate-50 dark:hover:bg-zinc-700 transition-all active:scale-95">
-                  Manage Billing
-                </button>
-              </div>
+            <div className="p-5 border border-slate-200 dark:border-zinc-800 rounded-2xl bg-slate-50/50 dark:bg-zinc-800/30">
+              <p className="text-sm text-slate-600 dark:text-zinc-400 leading-relaxed">
+                You have full access to every feature during early access. Paid plans and billing
+                aren't available yet — we'll let you know here before anything changes.
+              </p>
             </div>
           </Tabs.Content>
 
@@ -528,12 +564,14 @@ export default function SettingsPage() {
                 
                 <div className="relative h-2 bg-slate-100 dark:bg-zinc-800 rounded-full">
                   <div className="absolute top-0 left-0 h-full bg-sky-500 rounded-full transition-all" style={{ width: `${aiToughness}%` }} />
-                  <input 
+                  <input
                     type="range"
                     min="0"
                     max="100"
                     value={aiToughness}
                     onChange={(e) => setAiToughness(parseInt(e.target.value))}
+                    onPointerUp={() => persistSettings({ aiToughness })}
+                    onKeyUp={() => persistSettings({ aiToughness })}
                     className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
                   />
                   <div 
@@ -557,9 +595,9 @@ export default function SettingsPage() {
                   { label: "Angel Investor", icon: Users },
                   { label: "Strategic Corporate", icon: Globe }
                 ].map((item, i) => (
-                  <button 
+                  <button
                     key={i}
-                    onClick={() => setActiveSector(item.label)}
+                    onClick={() => { setActiveSector(item.label); persistSettings({ activeSector: item.label }); }}
                     className={cn(
                       "p-6 rounded-2xl border-2 transition-all flex flex-col items-center gap-3 text-center",
                       activeSector === item.label 
@@ -584,9 +622,13 @@ export default function SettingsPage() {
                 label="Pitch Analysis Alerts" 
                 description="Email when your pitch analysis is ready."
               >
-                <Switch.Root 
+                <Switch.Root
                   checked={notifications.pitchAlerts}
-                  onCheckedChange={(checked) => setNotifications(prev => ({ ...prev, pitchAlerts: checked }))}
+                  onCheckedChange={(checked) => {
+                    const next = { ...notifications, pitchAlerts: checked };
+                    setNotifications(next);
+                    persistSettings({ notifications: next });
+                  }}
                   className="w-11 h-6 bg-slate-200 dark:bg-zinc-800 rounded-full relative data-[state=checked]:bg-sky-500 transition-colors cursor-pointer outline-none"
                 >
                   <Switch.Thumb className="block w-4 h-4 bg-white rounded-full shadow-sm transition-transform translate-x-1 data-[state=checked]:translate-x-6" />
@@ -597,9 +639,13 @@ export default function SettingsPage() {
                 label="Weekly Progress Report" 
                 description="Summary of your improvement and deck views."
               >
-                <Switch.Root 
+                <Switch.Root
                   checked={notifications.weeklyReport}
-                  onCheckedChange={(checked) => setNotifications(prev => ({ ...prev, weeklyReport: checked }))}
+                  onCheckedChange={(checked) => {
+                    const next = { ...notifications, weeklyReport: checked };
+                    setNotifications(next);
+                    persistSettings({ notifications: next });
+                  }}
                   className="w-11 h-6 bg-slate-200 dark:bg-zinc-800 rounded-full relative data-[state=checked]:bg-sky-500 transition-colors cursor-pointer outline-none"
                 >
                   <Switch.Thumb className="block w-4 h-4 bg-white rounded-full shadow-sm transition-transform translate-x-1 data-[state=checked]:translate-x-6" />
@@ -610,9 +656,13 @@ export default function SettingsPage() {
                 label="Investor Inquiries" 
                 description="In-app notifications when an investor requests access."
               >
-                <Switch.Root 
+                <Switch.Root
                   checked={notifications.investorInquiries}
-                  onCheckedChange={(checked) => setNotifications(prev => ({ ...prev, investorInquiries: checked }))}
+                  onCheckedChange={(checked) => {
+                    const next = { ...notifications, investorInquiries: checked };
+                    setNotifications(next);
+                    persistSettings({ notifications: next });
+                  }}
                   className="w-11 h-6 bg-slate-200 dark:bg-zinc-800 rounded-full relative data-[state=checked]:bg-sky-500 transition-colors cursor-pointer outline-none"
                 >
                   <Switch.Thumb className="block w-4 h-4 bg-white rounded-full shadow-sm transition-transform translate-x-1 data-[state=checked]:translate-x-6" />

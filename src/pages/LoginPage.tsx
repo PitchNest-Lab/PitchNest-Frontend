@@ -221,20 +221,20 @@ export default function LoginPage() {
 
   // Resend verification email then redirect to /verify
   const handleResendAndRedirect = async () => {
-    console.log("Before resend");
-    let res = await fetch("/api/auth/resend-verification", {
-      method: "POST",
-      body: JSON.stringify({ email: unverifiedEmail }),
-      headers: { "Content-Type": "application/json" },
-    });
-    console.log("After resend", res.status);
-    console.log(showUnverifiedPopup);
-    // // Small delay so user sees "Sent!" state before redirect
-    // await new Promise((r) => setTimeout(r, 900));
-    // sessionStorage.setItem("verifyEmail", unverifiedEmail);
-    // navigate("/verify", { state: { email: unverifiedEmail } });
+    try {
+      await fetch("/api/auth/resend-verification", {
+        method: "POST",
+        body: JSON.stringify({ email: unverifiedEmail }),
+        headers: {
+          "Content-Type": "application/json",
+        },
+      });
+      sessionStorage.setItem("verifyEmail", unverifiedEmail);
+      navigate("/verify", { state: { email: unverifiedEmail } });
+    } catch (error) {
+      console.error("Failed to resend verification email:", error);
+    }
   };
-
   return (
     <>
       {/* ── Email not verified popup ── */}
