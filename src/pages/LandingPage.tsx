@@ -1,9 +1,9 @@
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
-  PlayCircle, ArrowRight, Users, MessageSquare, BarChart3,
-  ShieldCheck, HelpCircle, FileText, Target, TrendingUp, FileCheck,
-  ChevronDown, Zap, Phone, Mail, Menu, X, Star
+  PlayCircle, ArrowRight, Users, MessageSquare, ShieldCheck, HelpCircle,
+  FileText, Target, TrendingUp, ChevronDown, Zap, Phone, Mail, Menu, X,
+  Clock, CheckCircle2, Sparkles,
 } from 'lucide-react';
 import { motion } from 'motion/react';
 import { cn } from '../lib/utils';
@@ -16,47 +16,62 @@ import heroImage from '../assets/heroImage.jpeg';
 import { StatsBand } from '../components/landing/StatsBand';
 import { LogoLink, LogoMark } from '../components/Logo';
 
-const testimonials = [
-  { name: "Jessica Martinez", initials: "JM", company: "HealthTech AI", quote: "PitchNest surfaced the gaps in my narrative before I walked into my Series A meetings. We closed $8M.", result: "Raised $8M Series A" },
-  { name: "David Chen", initials: "DC", company: "Quantum Labs", quote: "The panel asked questions I had never prepared for. That alone was worth months of practice.", result: "Raised $3.5M Seed" },
-  { name: "Sophia Williams", initials: "SW", company: "FinFlow", quote: "Real-time feedback on delivery and substance. It felt closer to a real partner meeting than anything else I've used.", result: "Raised $12M Series B" },
-  { name: "Alex Rivera", initials: "AR", company: "DataSync", quote: "Hearing investors debate my thesis out loud changed how I structure every slide in my deck.", result: "Raised $5M Series A" },
-  { name: "Priya Patel", initials: "PP", company: "CloudNest", quote: "Three sessions in, I stopped fumbling on unit economics. The confidence carried into every real conversation.", result: "Raised $2M Pre-Seed" },
+const problems = [
+  { icon: Clock, title: "One shot per investor", desc: "Fumble the live Q&A and that lead is gone — you rarely get a second meeting." },
+  { icon: MessageSquare, title: "Feedback is vague", desc: "Rejections come back as “not a fit right now,” with nothing on what actually went wrong." },
+  { icon: Users, title: "Your circle is too nice", desc: "Friends and co-founders won't grill you the way a real partner will." },
+  { icon: HelpCircle, title: "The follow-ups blindside you", desc: "It's not the pitch that's hard — it's the questions on your TAM, unit economics, and moat you didn't see coming." },
 ];
 
-const startupLogos = ["HealthTech AI", "Quantum Labs", "FinFlow", "DataSync", "CloudNest", "AI Forge"];
-
-const features = [
-  { icon: Users, title: "Live Investor Panel", desc: "Three distinct investor personas debate your startup in real time — challenging assumptions and building consensus." },
-  { icon: MessageSquare, title: "Delivery Feedback", desc: "Instant analysis of your pacing, clarity, and messaging as you present." },
-  { icon: HelpCircle, title: "Q&A Simulation", desc: "Adaptive follow-up questions that respond to what you actually say, not a script." },
-  { icon: FileText, title: "Deck Analysis", desc: "Upload your deck and get slide-specific questions on TAM, unit economics, and GTM." },
-  { icon: Target, title: "Performance Scoring", desc: "Structured scores across confidence, clarity, depth, and response quality." },
-  { icon: TrendingUp, title: "Sentiment Tracking", desc: "See how each investor persona shifts during your session." },
-  { icon: FileCheck, title: "Readiness Report", desc: "A detailed fundraising readiness breakdown with concrete next steps." },
-  { icon: BarChart3, title: "Session Analytics", desc: "Track improvement across sessions with clear, actionable metrics." },
+const solutionPoints = [
+  { icon: MessageSquare, title: "A panel that pushes back", desc: "Adaptive follow-up questions based on what you actually say — not a fixed script." },
+  { icon: FileText, title: "It reads your deck", desc: "Upload it and the panel asks about your numbers: TAM, unit economics, go-to-market." },
+  { icon: Target, title: "An honest score, not a pep talk", desc: "Readiness graded on delivery, clarity, scalability, and overall strength — with concrete fixes." },
 ];
 
-const readinessMetrics = [
-  { label: "Pitch Clarity", pct: 92 },
-  { label: "Market Knowledge", pct: 85 },
-  { label: "Financial Literacy", pct: 78 },
-  { label: "Response Quality", pct: 88 },
+const roomFeatures = [
+  { icon: Users, title: "Live AI investor panel", desc: "Three distinct personas question and debate your pitch in real time. Prefer 1-on-1? Switch to Coach mode." },
+  { icon: FileText, title: "Deck-aware Q&A", desc: "Upload your deck and get slide-grounded questions on your TAM, unit economics, and GTM." },
+  { icon: Zap, title: "Adaptive follow-ups", desc: "The panel reacts to what you actually say — no two sessions are the same." },
+  { icon: Target, title: "Practice any room", desc: "Angel, seed VC, YC-style, PE, or Shark-Tank-style panels — tune the aggressiveness." },
+  { icon: PlayCircle, title: "Full replay", desc: "Every session is recorded so you can review exactly where you lost them." },
+];
+
+const reportItems = [
+  "Verdict + executive summary — invest, watch, or decline, and why, in plain language.",
+  "Readiness scorecard — an overall score broken down across delivery, clarity, scalability, and readiness.",
+  "Delivery analytics — filler-word %, talk ratio, confidence over time, and how many questions you fielded.",
+  "Strengths & critical risks — what landed, and the red flags that will sink you if you don't fix them.",
+  "Toughest questions + answer frameworks — the ones you fumbled, with a structure to nail them next time.",
+  "Competitive landscape & SWOT — AI-identified competitors and gaps to exploit (estimates labeled as such).",
+  "Prioritized action plan + practice drills — ranked fixes to run before your next session.",
+  "Progress tracking — scores saved across sessions so you can watch your readiness climb.",
+  "Shareable — send the read-only report to co-founders, advisors, or your accelerator.",
+];
+
+const reportTags = ["Delivery analytics", "Competitive SWOT", "Action plan", "Practice drills", "Shareable"];
+
+const whyItems = [
+  { icon: ShieldCheck, title: "Safe to fail", desc: "Stumble on the hard questions here, not in front of a partner. No relationship burned." },
+  { icon: TrendingUp, title: "Reps, not luck", desc: "Investors get one shot at you. You get unlimited shots at getting ready." },
+  { icon: Target, title: "A target to beat", desc: "Each report projects your score after the fixes — so every rep has a number to chase." },
+  { icon: Zap, title: "Feedback in minutes", desc: "Structured critique the moment you finish. No waiting, no guesswork." },
+  { icon: FileText, title: "Deck-aware, not generic", desc: "It interrogates your business, not pitch clichés." },
+  { icon: Sparkles, title: "Free in early access", desc: "No card required. Get in before your next raise." },
 ];
 
 const faqs = [
-  { q: "What is PitchNest?", a: "PitchNest simulates a real investor pitch session. You present to a panel of AI investors who listen, ask questions, debate your thesis, and deliver a structured performance report." },
-  { q: "How realistic is the panel?", a: "Each investor has a distinct persona — a skeptical lead partner, a numbers-focused analyst, and a technical evaluator. They react to your answers, push back on claims, and debate among themselves." },
-  { q: "Can I upload my pitch deck?", a: "Yes. Upload a PDF and the panel references your slides, financials, and market data during the session." },
-  { q: "Is PitchNest free?", a: "We are in early access — sign up and start pitching today. Early adopters get priority access to new features as we roll them out." },
-  { q: "What feedback do I receive?", a: "A full evaluation covering pitch clarity, market knowledge, financial literacy, response quality, and fundraising readiness — with specific, actionable recommendations." },
-  { q: "Can I practice multiple times?", a: "Every session is saved with a full transcript replay and evaluation report so you can track progress over time." },
+  { q: "What is PitchNest?", a: "A private rehearsal room where you pitch to an AI investor panel that questions your deck and scores your readiness — so you fix the gaps before real meetings." },
+  { q: "How realistic is the panel?", a: "It asks the kinds of pointed, adaptive questions real partners do, and debates your thesis out loud. It's practice — not a prediction of any investor's decision." },
+  { q: "Can I upload my pitch deck?", a: "Yes. The panel reads it and asks questions grounded in your slides and numbers." },
+  { q: "Does it judge how I look on camera?", a: "Not today. PitchNest analyzes your spoken pitch and your deck. Visual delivery analysis is on our roadmap." },
+  { q: "What do I get after a session?", a: "A detailed readiness report — verdict, scorecard, delivery analytics, competitive landscape and SWOT, a prioritized action plan with practice drills, and your projected score if you fix the gaps — plus a replay you can review and share." },
+  { q: "Is it free?", a: "Free during early access — no card required. Your scores are saved so you can track improvement across sessions." },
 ];
 
 const navLinks = [
-  { href: "#stories", label: "Reviews" },
-  { href: "#features", label: "Features" },
   { href: "#how-it-works", label: "How it works" },
+  { href: "#your-report", label: "Your report" },
   { href: "#why-pitchnest", label: "Why PitchNest" },
   { href: "#faq", label: "FAQ" },
 ];
@@ -64,22 +79,12 @@ const navLinks = [
 export default function LandingPage() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [navScrolled, setNavScrolled] = useState(false);
-  const [testimonialIdx, setTestimonialIdx] = useState(0);
-  const [showAllFeatures, setShowAllFeatures] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   useEffect(() => { if (localStorage.getItem('user')) setIsLoggedIn(true); }, []);
 
   // Pre-warm the Render backend so login/signup don't hit a cold start
   useEffect(() => { fetch('/api/health').catch(() => {}); }, []);
-
-  useEffect(() => {
-    const timer = setInterval(
-      () => setTestimonialIdx((prev) => (prev + 1) % testimonials.length),
-      5000,
-    );
-    return () => clearInterval(timer);
-  }, []);
 
   useEffect(() => {
     const onScroll = (e: Event) => {
@@ -94,8 +99,6 @@ export default function LandingPage() {
       window.removeEventListener('scroll', onScroll);
     };
   }, []);
-
-  const visibleFeatures = showAllFeatures ? features : features.slice(0, 4);
 
   return (
     <SmoothScroll>
@@ -113,12 +116,7 @@ export default function LandingPage() {
                 <a
                   key={link.href}
                   href={link.href}
-                  className={cn(
-                    "text-sm font-medium transition-colors",
-                    link.href === "#waitlist"
-                      ? "text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 dark:hover:text-indigo-300"
-                      : "text-slate-500 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-100"
-                  )}
+                  className="text-sm font-medium transition-colors text-slate-500 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-100"
                 >
                   {link.label}
                 </a>
@@ -179,21 +177,31 @@ export default function LandingPage() {
         <section className="relative max-w-6xl mx-auto px-5 sm:px-8 pt-12 sm:pt-20 pb-16 sm:pb-20">
           <div className="max-w-3xl mx-auto text-center">
             <motion.div initial="hidden" animate="show" variants={{ hidden: {}, show: { transition: { staggerChildren: 0.08, delayChildren: 0.06 } } }}>
+              <motion.div variants={heroBlock} className="flex justify-center mb-6">
+                <span className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-indigo-50 dark:bg-indigo-950/40 border border-indigo-100 dark:border-indigo-900/60 text-xs font-semibold text-indigo-600 dark:text-indigo-300">
+                  <span className="w-1.5 h-1.5 rounded-full bg-indigo-500" />
+                  For founders raising pre-seed to Series A
+                </span>
+              </motion.div>
+
               <HeroWords />
 
               <motion.p variants={heroBlock} className="section-subheading mx-auto mb-10">
-                Present to a panel that listens, pushes back, and debates your thesis — then get a structured report on exactly where to improve before your next real meeting.
+                A rehearsal room where you pitch to an AI investor panel that listens, pushes back, and grills your deck — then hands you a scored readiness report showing exactly what to fix. Before the meeting that actually matters.
               </motion.p>
 
-              <motion.div variants={heroBlock} className="flex flex-col sm:flex-row items-center justify-center gap-3 mb-12">
+              <motion.div variants={heroBlock} className="flex flex-col sm:flex-row items-center justify-center gap-3 mb-4">
                 <Link to={isLoggedIn ? "/dashboard" : "/signup"} className="btn-primary w-full sm:w-auto px-8 py-3.5 text-base">
-                  Start pitching <ArrowRight size={18} />
+                  Start pitching free <ArrowRight size={18} />
                 </Link>
-                <a href="https://www.youtube.com" target="_blank" rel="noreferrer" className="btn-secondary w-full sm:w-auto px-8 py-3.5 text-base">
-                  <PlayCircle size={18} /> Watch demo
+                <a href="#how-it-works" className="btn-secondary w-full sm:w-auto px-8 py-3.5 text-base">
+                  <PlayCircle size={18} /> See how it works
                 </a>
               </motion.div>
 
+              <motion.p variants={heroBlock} className="text-xs text-slate-400 dark:text-zinc-500">
+                No credit card · Free while in early access
+              </motion.p>
             </motion.div>
           </div>
 
@@ -207,11 +215,10 @@ export default function LandingPage() {
               <div className="relative rounded-xl sm:rounded-[22px] overflow-hidden bg-slate-900">
                 <img
                   src={heroImage}
-                  alt="PitchNest AI investor panel"
+                  alt="PitchNest live pitch session with an AI investor panel"
                   className="w-full h-auto object-cover"
                   loading="lazy"
                 />
-                {/* Live badge overlay */}
                 <div className="absolute top-4 right-4 flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-black/40 backdrop-blur-sm">
                   <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
                   <span className="text-xs font-medium text-emerald-300">Live</span>
@@ -224,92 +231,42 @@ export default function LandingPage() {
         <InvestorMarquee />
         <StatsBand />
 
-        {/* ── Founder reviews ── */}
-        <section id="stories" className="py-[clamp(80px,10vw,128px)] border-y border-slate-100 dark:border-zinc-800/60 scroll-mt-28">
+        {/* ── The Problem ── */}
+        <section id="problem" className="py-[clamp(80px,10vw,128px)] border-y border-slate-100 dark:border-zinc-800/60 scroll-mt-28">
           <div className="max-w-6xl mx-auto px-5 sm:px-8">
-            <SectionReveal className="text-center mb-12">
-              <p className="section-label mb-3">Trusted by founders</p>
-              <h2 className="section-heading mb-4">Built for teams raising their next round</h2>
-              <p className="section-subheading mx-auto">Founders use PitchNest to sharpen their narrative before the meetings that matter.</p>
-            </SectionReveal>
-
-            <SectionReveal delay={0.05}>
-              <div className="flex flex-wrap items-center justify-center gap-3 mb-12">
-                {startupLogos.map((logo) => (
-                  <span
-                    key={logo}
-                    className="px-4 py-2 text-xs font-semibold text-slate-400 dark:text-zinc-500 bg-slate-50 dark:bg-zinc-900 rounded-lg border border-slate-100 dark:border-zinc-800"
-                  >
-                    {logo}
-                  </span>
-                ))}
-              </div>
-            </SectionReveal>
-
-            <SectionReveal delay={0.1}>
-              <div className="relative overflow-hidden">
-                <div
-                  className="flex transition-transform duration-700 ease-in-out"
-                  style={{ transform: `translateX(-${testimonialIdx * (100 / 3)}%)` }}
-                >
-                  {testimonials.map((t) => (
-                    <div key={t.name} className="w-full sm:w-1/3 shrink-0 px-2">
-                      <div className="card-hover p-6 h-full">
-                        <div className="flex items-center gap-3 mb-4">
-                          <div className="w-10 h-10 rounded-full gradient-brand flex items-center justify-center text-white text-sm font-semibold shrink-0">
-                            {t.initials}
-                          </div>
-                          <div className="min-w-0">
-                            <h4 className="font-semibold text-sm truncate">{t.name}</h4>
-                            <p className="text-xs text-slate-400 dark:text-zinc-500 truncate">{t.company}</p>
-                          </div>
-                        </div>
-                        <div className="flex gap-0.5 mb-3">
-                          {[1, 2, 3, 4, 5].map((i) => (
-                            <Star key={i} className="w-3.5 h-3.5 fill-amber-400 text-amber-400" />
-                          ))}
-                        </div>
-                        <p className="text-sm text-slate-600 dark:text-zinc-300 leading-relaxed mb-4">
-                          &ldquo;{t.quote}&rdquo;
-                        </p>
-                        <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-sky-50 dark:bg-sky-950/30 text-sky-700 dark:text-sky-400 text-xs font-semibold">
-                          <TrendingUp className="w-3 h-3" />
-                          {t.result}
-                        </span>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-                <div className="flex justify-center gap-2 mt-6">
-                  {testimonials.map((_, i) => (
-                    <button
-                      key={i}
-                      type="button"
-                      onClick={() => setTestimonialIdx(i)}
-                      className={cn(
-                        "h-1.5 rounded-full transition-all duration-300",
-                        i === testimonialIdx ? "w-8 gradient-brand" : "w-1.5 bg-slate-300 dark:bg-zinc-700",
-                      )}
-                      aria-label={`Review ${i + 1}`}
-                    />
-                  ))}
-                </div>
-              </div>
-            </SectionReveal>
-          </div>
-        </section>
-
-        {/* ── Features ── */}
-        <section id="features" className="py-[clamp(80px,10vw,128px)] scroll-mt-28">
-          <div className="max-w-6xl mx-auto px-5 sm:px-8">
-            <SectionReveal className="text-center mb-12 sm:mb-16">
-              <p className="section-label mb-3">Platform</p>
-              <h2 className="section-heading mb-4">Everything you need before the real meeting</h2>
-              <p className="section-subheading mx-auto">One platform for practice, feedback, and measurable improvement.</p>
+            <SectionReveal className="text-center mb-12 sm:mb-16 max-w-3xl mx-auto">
+              <p className="section-label mb-3">The problem</p>
+              <h2 className="section-heading mb-4">Most founders find the gaps live — when it's already too late</h2>
+              <p className="section-subheading mx-auto">You walk in under-rehearsed, get caught off guard, and burn a lead you can't get back.</p>
             </SectionReveal>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-5">
-              {visibleFeatures.map((f, i) => (
+              {problems.map((p, i) => (
+                <SectionReveal key={p.title} delay={i * 0.06}>
+                  <div className="card-hover p-6 h-full">
+                    <div className="w-10 h-10 rounded-xl bg-rose-50 dark:bg-rose-950/30 flex items-center justify-center mb-4 text-rose-500 dark:text-rose-400">
+                      <p.icon size={18} />
+                    </div>
+                    <h3 className="font-display text-base font-semibold mb-2">{p.title}</h3>
+                    <p className="text-sm text-slate-500 dark:text-zinc-400 leading-relaxed">{p.desc}</p>
+                  </div>
+                </SectionReveal>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        {/* ── The Solution ── */}
+        <section id="solution" className="py-[clamp(80px,10vw,128px)] scroll-mt-28">
+          <div className="max-w-6xl mx-auto px-5 sm:px-8">
+            <SectionReveal className="text-center mb-12 sm:mb-16 max-w-3xl mx-auto">
+              <p className="section-label mb-3">The solution</p>
+              <h2 className="section-heading mb-4">Get grilled in private, so nothing surprises you in public</h2>
+              <p className="section-subheading mx-auto">Pitch out loud to a panel of AI investors — a lead partner, a financial analyst, and a technical partner. They listen, interrupt with hard questions, and debate your thesis. When you're done, you get a structured readiness report with the specific fixes to make before your next real meeting.</p>
+            </SectionReveal>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-5">
+              {solutionPoints.map((f, i) => (
                 <SectionReveal key={f.title} delay={i * 0.06}>
                   <div className="card-hover p-6 group h-full">
                     <div className="w-10 h-10 rounded-xl bg-slate-100 dark:bg-zinc-800 flex items-center justify-center mb-4 text-slate-600 dark:text-zinc-300 group-hover:gradient-brand group-hover:text-white transition-all duration-300">
@@ -321,12 +278,6 @@ export default function LandingPage() {
                 </SectionReveal>
               ))}
             </div>
-
-            <SectionReveal className="lg:hidden flex justify-center mt-8">
-              <button onClick={() => setShowAllFeatures(!showAllFeatures)} className="btn-ghost text-indigo-600 dark:text-indigo-400">
-                {showAllFeatures ? 'Show less' : 'Show all features'} <ChevronDown size={16} className={cn(showAllFeatures && 'rotate-180', 'transition-transform')} />
-              </button>
-            </SectionReveal>
           </div>
         </section>
 
@@ -334,14 +285,14 @@ export default function LandingPage() {
         <section id="how-it-works" className="py-[clamp(80px,10vw,128px)] bg-slate-50/80 dark:bg-zinc-900/30 scroll-mt-28">
           <div className="max-w-6xl mx-auto px-5 sm:px-8">
             <SectionReveal className="text-center mb-12 sm:mb-16">
-              <p className="section-label mb-3">Process</p>
+              <p className="section-label mb-3">How it works</p>
               <h2 className="section-heading">Three steps to investor-ready</h2>
             </SectionReveal>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-8 md:gap-12">
               {[
-                { step: "01", title: "Set up your session", desc: "Upload your deck, choose your panel difficulty, and configure your pitch parameters." },
-                { step: "02", title: "Present your pitch", desc: "Deliver via voice or video while the panel analyzes your narrative in real time." },
-                { step: "03", title: "Review and improve", desc: "Receive a scored report, session replay, and specific areas to refine." },
+                { step: "01", title: "Set up your session", desc: "Add your startup, pick your investor panel and difficulty, and upload your deck." },
+                { step: "02", title: "Pitch out loud", desc: "Present live while the panel listens and fires back questions in real time." },
+                { step: "03", title: "Review and fix", desc: "Get your scored readiness report and session replay, then run it again until it's tight." },
               ].map((item, i) => (
                 <SectionReveal key={item.step} delay={i * 0.1}>
                   <span className="font-display text-5xl font-bold gradient-text opacity-30 block mb-4">{item.step}</span>
@@ -353,23 +304,97 @@ export default function LandingPage() {
           </div>
         </section>
 
+        {/* ── In the Room ── */}
+        <section id="in-the-room" className="py-[clamp(80px,10vw,128px)] scroll-mt-28">
+          <div className="max-w-6xl mx-auto px-5 sm:px-8">
+            <SectionReveal className="text-center mb-12 sm:mb-16 max-w-3xl mx-auto">
+              <p className="section-label mb-3">In the room</p>
+              <h2 className="section-heading mb-4">A panel that actually makes you sweat</h2>
+              <p className="section-subheading mx-auto">Three distinct AI investors question and debate your pitch in real time.</p>
+            </SectionReveal>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-5">
+              {roomFeatures.map((f, i) => (
+                <SectionReveal key={f.title} delay={i * 0.06}>
+                  <div className="card-hover p-6 group h-full">
+                    <div className="w-10 h-10 rounded-xl bg-slate-100 dark:bg-zinc-800 flex items-center justify-center mb-4 text-slate-600 dark:text-zinc-300 group-hover:gradient-brand group-hover:text-white transition-all duration-300">
+                      <f.icon size={18} />
+                    </div>
+                    <h3 className="font-display text-base font-semibold mb-2">{f.title}</h3>
+                    <p className="text-sm text-slate-500 dark:text-zinc-400 leading-relaxed">{f.desc}</p>
+                  </div>
+                </SectionReveal>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        {/* ── In Your Report ── */}
+        <section id="your-report" className="py-[clamp(80px,10vw,128px)] bg-slate-50/80 dark:bg-zinc-900/30 scroll-mt-28">
+          <div className="max-w-6xl mx-auto px-5 sm:px-8">
+            <SectionReveal className="text-center mb-12 sm:mb-16 max-w-3xl mx-auto">
+              <p className="section-label mb-3">In your report</p>
+              <h2 className="section-heading mb-4">Walk away with a battle plan, not just a score</h2>
+              <p className="section-subheading mx-auto">The second you finish, PitchNest generates a detailed readiness report — the kind of prep a pitch coach would charge for.</p>
+            </SectionReveal>
+
+            <div className="grid lg:grid-cols-5 gap-6 lg:gap-8 items-start">
+              <SectionReveal className="lg:col-span-2">
+                <div className="card p-7 sm:p-8 lg:sticky lg:top-28">
+                  <p className="section-label mb-4 flex items-center gap-2"><TrendingUp size={14} /> If you pitched again today</p>
+                  <div className="flex items-end gap-3 mb-4">
+                    <span className="font-display text-4xl sm:text-5xl font-bold text-slate-400 dark:text-zinc-600 line-through decoration-2">46</span>
+                    <ArrowRight className="mb-2 text-slate-400 dark:text-zinc-500" size={26} />
+                    <span className="font-display text-5xl sm:text-6xl font-bold gradient-text leading-none">78</span>
+                  </div>
+                  <p className="text-sm text-slate-500 dark:text-zinc-400 leading-relaxed">
+                    Every report projects your score once you fix the flagged gaps — so you know exactly what's on the table, and each rep has a number to chase.
+                  </p>
+                  <div className="mt-6 pt-6 border-t border-slate-100 dark:border-zinc-800 flex flex-wrap gap-2">
+                    {reportTags.map((t) => (
+                      <span key={t} className="px-2.5 py-1 rounded-md bg-slate-100 dark:bg-zinc-800 text-xs font-medium text-slate-600 dark:text-zinc-300">
+                        {t}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              </SectionReveal>
+
+              <SectionReveal delay={0.08} className="lg:col-span-3">
+                <div className="card p-7 sm:p-8">
+                  <h3 className="font-display text-lg font-semibold mb-5">What's inside every report</h3>
+                  <ul className="space-y-4">
+                    {reportItems.map((item) => {
+                      const idx = item.indexOf(' — ');
+                      const lead = idx === -1 ? item : item.slice(0, idx);
+                      const rest = idx === -1 ? '' : item.slice(idx + 3);
+                      return (
+                        <li key={item} className="flex gap-3">
+                          <CheckCircle2 size={18} className="shrink-0 mt-0.5 text-indigo-500 dark:text-indigo-400" />
+                          <p className="text-sm text-slate-600 dark:text-zinc-300 leading-relaxed">
+                            <span className="font-semibold text-slate-800 dark:text-zinc-100">{lead}</span>
+                            {rest && <> — {rest}</>}
+                          </p>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                </div>
+              </SectionReveal>
+            </div>
+          </div>
+        </section>
+
         {/* ── Why PitchNest ── */}
         <section id="why-pitchnest" className="py-[clamp(80px,10vw,128px)] scroll-mt-28">
           <div className="max-w-6xl mx-auto px-5 sm:px-8">
-            <SectionReveal className="text-center mb-12 sm:mb-16">
+            <SectionReveal className="text-center mb-12 sm:mb-16 max-w-3xl mx-auto">
               <p className="section-label mb-3">Why PitchNest</p>
-              <h2 className="section-heading mb-4">Preparation is the advantage</h2>
-              <p className="section-subheading mx-auto">Most founders get one shot with each investor. PitchNest makes every session count.</p>
+              <h2 className="section-heading mb-4">Preparation is the one variable you control</h2>
+              <p className="section-subheading mx-auto">Investors get one shot at you. PitchNest makes sure you've already had a hundred.</p>
             </SectionReveal>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
-              {[
-                { icon: Zap, title: "Immediate feedback", desc: "Structured critiques the moment you finish — no waiting, no guesswork." },
-                { icon: Users, title: "Multi-persona panel", desc: "Three investor archetypes that argue, interrupt, and push back like real partners." },
-                { icon: ShieldCheck, title: "Safe to fail", desc: "Stumble on hard questions and recover without burning a real relationship." },
-                { icon: FileText, title: "Deck-aware", desc: "The panel reads your deck and asks slide-specific questions about your business." },
-                { icon: TrendingUp, title: "Track progress", desc: "Every session is scored and saved. Watch your readiness improve over time." },
-                { icon: BarChart3, title: "Shareable reports", desc: "Send readiness reports to co-founders, mentors, or your accelerator." },
-              ].map((item, i) => (
+              {whyItems.map((item, i) => (
                 <SectionReveal key={item.title} delay={i * 0.05}>
                   <div className="card-hover p-6 h-full">
                     <div className="w-10 h-10 rounded-xl bg-slate-100 dark:bg-zinc-800 flex items-center justify-center mb-4 text-slate-600 dark:text-zinc-300">
@@ -384,35 +409,24 @@ export default function LandingPage() {
           </div>
         </section>
 
-        {/* ── Analytics preview ── */}
-        <section id="insights" className="py-[clamp(80px,10vw,128px)] bg-slate-50/80 dark:bg-zinc-900/30 scroll-mt-28">
-          <div className="max-w-6xl mx-auto px-5 sm:px-8">
-            <SectionReveal className="text-center mb-12">
-              <p className="section-label mb-3">Analytics</p>
-              <h2 className="section-heading mb-4">Measure what matters</h2>
-              <p className="section-subheading mx-auto">Clear metrics that show exactly where you stand and what to improve next.</p>
+        {/* ── Early Access (honest — no fabricated testimonials) ── */}
+        <section id="early-access" className="py-[clamp(80px,10vw,128px)] bg-slate-50/80 dark:bg-zinc-900/30 scroll-mt-28">
+          <div className="max-w-4xl mx-auto px-5 sm:px-8">
+            <SectionReveal>
+              <div className="card p-8 sm:p-14 text-center relative overflow-hidden">
+                <div className="relative z-10">
+                  <p className="section-label mb-3">Early access</p>
+                  <h2 className="section-heading mb-4">Be one of the first founders in the Nest</h2>
+                  <p className="section-subheading mx-auto mb-8">
+                    PitchNest is in early access and free while we build. Get in now, run unlimited practice sessions, and help shape the panel that will grill the next generation of founders.
+                  </p>
+                  <Link to={isLoggedIn ? "/dashboard" : "/signup"} className="btn-primary inline-flex px-8 py-3.5 text-base">
+                    Claim your early-access spot <ArrowRight size={18} />
+                  </Link>
+                </div>
+                <div className="absolute -top-24 -right-16 w-56 h-56 gradient-brand opacity-10 rounded-full blur-3xl pointer-events-none" />
+              </div>
             </SectionReveal>
-            <div className="max-w-3xl mx-auto grid grid-cols-1 sm:grid-cols-2 gap-4">
-              {readinessMetrics.map((m, i) => (
-                <SectionReveal key={m.label} delay={i * 0.08}>
-                  <div className="card p-5">
-                    <div className="flex justify-between text-sm mb-3">
-                      <span className="font-medium text-slate-700 dark:text-zinc-300">{m.label}</span>
-                      <span className="font-semibold gradient-text">{m.pct}%</span>
-                    </div>
-                    <div className="h-2 bg-slate-100 dark:bg-zinc-800 rounded-full overflow-hidden">
-                      <motion.div
-                        className="h-full rounded-full gradient-brand"
-                        initial={{ width: 0 }}
-                        whileInView={{ width: `${m.pct}%` }}
-                        viewport={{ once: true, amount: 0.5 }}
-                        transition={{ duration: 1, ease: heroEase }}
-                      />
-                    </div>
-                  </div>
-                </SectionReveal>
-              ))}
-            </div>
           </div>
         </section>
 
@@ -439,9 +453,9 @@ export default function LandingPage() {
             <div className="gradient-brand rounded-3xl p-10 sm:p-14 text-center text-white relative overflow-hidden">
               <div className="relative z-10 max-w-2xl mx-auto">
                 <h2 className="font-display text-2xl sm:text-4xl font-semibold mb-4 leading-tight">Ready for your next pitch?</h2>
-                <p className="text-base text-white/75 mb-8 leading-relaxed">Do not wait for a real board meeting to find the gaps. Iterate faster, raise with confidence.</p>
+                <p className="text-base text-white/75 mb-8 leading-relaxed">Don't find the gaps in a real board meeting. Rehearse, get scored, and walk in with confidence.</p>
                 <Link to={isLoggedIn ? "/dashboard" : "/signup"} className="inline-flex items-center gap-2 px-8 py-3.5 bg-white text-indigo-600 font-semibold rounded-xl hover:bg-white/95 transition-all shadow-xl">
-                  Start pitching now <ArrowRight size={18} />
+                  Start pitching now — free <ArrowRight size={18} />
                 </Link>
               </div>
               <div className="absolute -top-20 -right-20 w-60 h-60 bg-white/10 rounded-full blur-3xl pointer-events-none" />
@@ -458,7 +472,7 @@ export default function LandingPage() {
                 <LogoMark size="xs" />
                 <span className="text-base font-bold">PitchNest</span>
               </div>
-              <p className="text-xs sm:text-sm text-slate-500 dark:text-zinc-400 leading-relaxed mb-4">The AI-powered playground for founders to perfect their pitch.</p>
+              <p className="text-xs sm:text-sm text-slate-500 dark:text-zinc-400 leading-relaxed mb-4">Rehearse your raise with an AI investor panel — and walk in ready.</p>
               <div className="flex items-center gap-3">
                 <a href="https://x.com/PitchNest" target="_blank" rel="noreferrer" className="w-8 h-8 rounded-lg bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 flex items-center justify-center text-slate-500 dark:text-zinc-400 hover:text-sky-500 hover:border-sky-300 dark:hover:border-sky-500 transition-colors" aria-label="X (Twitter)">
                   <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" /></svg>
@@ -481,7 +495,8 @@ export default function LandingPage() {
             <div>
               <h4 className="font-bold mb-3 sm:mb-6 text-sm">Platform</h4>
               <ul className="space-y-2 sm:space-y-3 text-xs sm:text-sm text-slate-500 dark:text-zinc-400">
-                <li><a href="#features" className="hover:text-sky-600 dark:hover:text-sky-400">Features</a></li>
+                <li><a href="#how-it-works" className="hover:text-sky-600 dark:hover:text-sky-400">How it works</a></li>
+                <li><a href="#your-report" className="hover:text-sky-600 dark:hover:text-sky-400">Your report</a></li>
                 <li><a href="#why-pitchnest" className="hover:text-sky-600 dark:hover:text-sky-400">Why PitchNest</a></li>
                 <li><a href="#faq" className="hover:text-sky-600 dark:hover:text-sky-400">FAQ</a></li>
                 <li><Link to="/login" className="hover:text-sky-600 dark:hover:text-sky-400">Login</Link></li>

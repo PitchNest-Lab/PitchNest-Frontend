@@ -5,8 +5,8 @@ import { SectionReveal } from './SectionReveal';
 const stats = [
   { value: 3, suffix: '', label: 'Investor personas', accent: 'text-indigo-600 dark:text-indigo-400' },
   { value: 1, suffix: '', label: 'Session to first feedback', prefix: '<', accent: 'text-sky-600 dark:text-sky-400' },
-  { value: 0, prefix: '$', suffix: '', label: 'Cost during early access', accent: 'text-emerald-600 dark:text-emerald-400' },
-  { value: 100, suffix: '%', label: 'Deck-aware Q&A', accent: 'text-indigo-600 dark:text-indigo-400' },
+  { value: 4, suffix: '', label: 'Scored readiness dimensions', accent: 'text-amber-600 dark:text-amber-400' },
+  { value: 0, prefix: '$', suffix: '', label: 'Free in early access', accent: 'text-emerald-600 dark:text-emerald-400' },
 ];
 
 function CountUp({
