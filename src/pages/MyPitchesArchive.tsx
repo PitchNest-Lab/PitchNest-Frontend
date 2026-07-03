@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { FirstTimeTour } from "../components/FirstTimeTour";
 import {
   Search,
@@ -14,9 +14,17 @@ import {
   Share2,
   AlertCircle,
   Loader2,
+  RotateCcw,
 } from "lucide-react";
 import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
 import { cn } from "../lib/utils";
+import {
+  getSessionMode,
+  MODE_LABELS,
+  MODE_BADGE_CLASSES,
+  type SessionMode,
+} from "../lib/sessionMode";
+import { buildRepitchState } from "../lib/repitch";
 import { useAuth } from "../contexts/AuthContext";
 import { Skeleton } from "../components/Skeleton";
 import { LogoMark } from "../components/Logo";
@@ -28,7 +36,10 @@ const PitchRow = ({
   date,
   duration,
   score,
-  type,
+  mode,
+  attemptNumber,
+  scoreDelta,
+  onPitchAgain,
   onDelete,
   isSelected,
   onSelectToggle,
@@ -39,7 +50,10 @@ const PitchRow = ({
   date: string;
   duration: string;
   score: number;
-  type: string;
+  mode: SessionMode;
+  attemptNumber: number;
+  scoreDelta: number | null;
+  onPitchAgain: () => void;
   onDelete: (id: number) => void;
   isSelected: boolean;
   onSelectToggle: (id: number) => void;
@@ -79,9 +93,21 @@ const PitchRow = ({
           <h3 className="text-sm font-bold text-slate-900 dark:text-zinc-100 truncate">
             {name}
           </h3>
-          <p className="text-[10px] font-bold text-slate-400 dark:text-zinc-500 uppercase tracking-widest">
-            {type}
-          </p>
+          <span className="inline-flex items-center gap-1.5 mt-0.5">
+            <span
+              className={cn(
+                "inline-block px-2 py-0.5 border rounded-full text-[10px] font-bold uppercase tracking-widest",
+                MODE_BADGE_CLASSES[mode],
+              )}
+            >
+              {MODE_LABELS[mode]}
+            </span>
+            {attemptNumber > 1 && (
+              <span className="inline-block px-2 py-0.5 border rounded-full text-[10px] font-bold uppercase tracking-widest bg-slate-500/10 text-slate-500 border-slate-500/20 dark:text-zinc-400">
+                Attempt {attemptNumber}
+              </span>
+            )}
+          </span>
         </div>
 
         {/* Date + duration row on mobile, separate cols on desktop */}
@@ -126,6 +152,18 @@ const PitchRow = ({
           <span className="text-sm font-bold text-slate-900 dark:text-zinc-100 shrink-0">
             {isIncomplete ? "N/A" : score}
           </span>
+          {scoreDelta !== null && !isIncomplete && (
+            <span
+              className={cn(
+                "text-[10px] font-bold px-1.5 py-0.5 rounded-full shrink-0",
+                scoreDelta >= 0
+                  ? "bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400"
+                  : "bg-rose-50 dark:bg-rose-900/20 text-rose-600 dark:text-rose-400",
+              )}
+            >
+              {scoreDelta >= 0 ? `+${scoreDelta}` : scoreDelta}
+            </span>
+          )}
         </div>
       </div>
 
@@ -166,6 +204,12 @@ const PitchRow = ({
                 className="flex items-center gap-2 px-3 py-2 text-xs font-bold text-slate-700 dark:text-zinc-300 hover:bg-slate-50 dark:hover:bg-zinc-800 rounded-lg cursor-pointer outline-none"
               >
                 <Share2 size={14} /> Share Pitch
+              </DropdownMenu.Item>
+              <DropdownMenu.Item
+                onSelect={onPitchAgain}
+                className="flex items-center gap-2 px-3 py-2 text-xs font-bold text-sky-600 dark:text-sky-400 hover:bg-sky-50 dark:hover:bg-sky-900/20 rounded-lg cursor-pointer outline-none"
+              >
+                <RotateCcw size={14} /> Pitch Again
               </DropdownMenu.Item>
               <DropdownMenu.Separator className="h-px bg-slate-100 dark:bg-zinc-800 my-1" />
               <DropdownMenu.Item
@@ -214,11 +258,54 @@ function formatDuration(seconds: number): string {
   return `${m}m ${s}s`;
 }
 
+// Walk parent_session_id links to number the attempts in a re-pitch chain and
+// surface the score change vs the immediately previous attempt. Bounded so a
+// cyclic or very deep chain can never hang the page.
+function computeAttemptInfo(
+  sessions: any[],
+): Map<number, { attemptNumber: number; scoreDelta: number | null }> {
+  const byId = new Map<number, any>(sessions.map((s) => [s.id, s]));
+  const overall = (s: any) => {
+    const sc = s?.evaluation_report?.scores || {};
+    return Math.round(
+      ((Number(sc.delivery) || 0) +
+        (Number(sc.clarity) || 0) +
+        (Number(sc.scalability) || 0) +
+        (Number(sc.readiness) || 0)) /
+        4,
+    );
+  };
+  const info = new Map<number, { attemptNumber: number; scoreDelta: number | null }>();
+  for (const s of sessions) {
+    let attemptNumber = 1;
+    let cursor = s;
+    for (let i = 0; i < 20; i++) {
+      const parentId = cursor?.parent_session_id;
+      if (!parentId || !byId.has(parentId)) break;
+      attemptNumber++;
+      cursor = byId.get(parentId);
+    }
+    let scoreDelta: number | null = null;
+    const parent = s.parent_session_id ? byId.get(s.parent_session_id) : null;
+    if (parent) {
+      scoreDelta = overall(s) - overall(parent);
+    } else if (s.evaluation_report?.previous_attempt?.overallScore !== undefined) {
+      // Parent row was deleted — fall back to the snapshot stored in the report.
+      scoreDelta =
+        overall(s) - (Number(s.evaluation_report.previous_attempt.overallScore) || 0);
+    }
+    info.set(s.id, { attemptNumber, scoreDelta });
+  }
+  return info;
+}
+
 export default function MyPitchesArchive() {
   const { authFetch } = useAuth();
+  const navigate = useNavigate();
   const [sessions, setSessions] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
+  const [modeFilter, setModeFilter] = useState<"all" | SessionMode>("all");
   const [selectedIds, setSelectedIds] = useState<number[]>([]);
   const [isDeleting, setIsDeleting] = useState(false);
 
@@ -264,7 +351,8 @@ export default function MyPitchesArchive() {
 
   const filteredSessions = sessions.filter((session) => {
     const name = session.business_name || "Untitled Pitch";
-    return name.toLowerCase().includes(searchTerm.toLowerCase());
+    if (!name.toLowerCase().includes(searchTerm.toLowerCase())) return false;
+    return modeFilter === "all" || getSessionMode(session) === modeFilter;
   });
 
   const handleSelectAllToggle = () => {
@@ -361,6 +449,31 @@ export default function MyPitchesArchive() {
         </div>
       </div>
 
+      {/* Mode filter tabs */}
+      <div className="flex items-center gap-2 flex-wrap">
+        {(
+          [
+            ["all", "All"],
+            ["panel", MODE_LABELS.panel],
+            ["coach", MODE_LABELS.coach],
+            ["solo", MODE_LABELS.solo],
+          ] as const
+        ).map(([value, label]) => (
+          <button
+            key={value}
+            onClick={() => setModeFilter(value)}
+            className={cn(
+              "px-4 py-2 rounded-xl text-xs font-bold transition-all border",
+              modeFilter === value
+                ? "bg-sky-500 text-white border-sky-500 shadow-md shadow-sky-500/25"
+                : "bg-white dark:bg-zinc-900 text-slate-500 dark:text-zinc-400 border-slate-200 dark:border-zinc-800 hover:border-sky-300 dark:hover:border-sky-500/50",
+            )}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
         <div data-tour="pitches-list" className="lg:col-span-3 space-y-4">
           <div className="hidden sm:flex items-center justify-between px-6 text-[10px] font-bold text-slate-400 dark:text-zinc-500 uppercase tracking-widest">
@@ -407,33 +520,40 @@ export default function MyPitchesArchive() {
                 </Link>
               </div>
             ) : (
-              filteredSessions.map((session) => {
-                const score = getOverallScore(session.evaluation_report);
-                const name = session.business_name || "Untitled Pitch";
-                const date = formatDate(session.created_at);
-                const duration = formatDuration(
-                  session.evaluation_report?.duration,
-                );
-                const type =
-                  session.evaluation_report?.mode === "coach"
-                    ? "Practice Coach"
-                    : "VC Panel";
-                return (
-                  <PitchRow
-                    key={session.id}
-                    id={session.id}
-                    shareId={session.share_id}
-                    name={name}
-                    date={date}
-                    duration={duration}
-                    score={score}
-                    type={type}
-                    onDelete={handleDelete}
-                    isSelected={selectedIds.includes(session.id)}
-                    onSelectToggle={handleSelectToggle}
-                  />
-                );
-              })
+              (() => {
+                const attemptInfo = computeAttemptInfo(sessions);
+                return filteredSessions.map((session) => {
+                  const score = getOverallScore(session.evaluation_report);
+                  const name = session.business_name || "Untitled Pitch";
+                  const date = formatDate(session.created_at);
+                  const duration = formatDuration(
+                    session.evaluation_report?.duration,
+                  );
+                  const chain = attemptInfo.get(session.id);
+                  return (
+                    <PitchRow
+                      key={session.id}
+                      id={session.id}
+                      shareId={session.share_id}
+                      name={name}
+                      date={date}
+                      duration={duration}
+                      score={score}
+                      mode={getSessionMode(session)}
+                      attemptNumber={chain?.attemptNumber ?? 1}
+                      scoreDelta={chain?.scoreDelta ?? null}
+                      onPitchAgain={() =>
+                        navigate("/setup", {
+                          state: { repitch: buildRepitchState(session) },
+                        })
+                      }
+                      onDelete={handleDelete}
+                      isSelected={selectedIds.includes(session.id)}
+                      onSelectToggle={handleSelectToggle}
+                    />
+                  );
+                });
+              })()
             )}
           </div>
         </div>

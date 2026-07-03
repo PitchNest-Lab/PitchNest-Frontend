@@ -18,6 +18,7 @@ import { Skeleton } from "../components/Skeleton";
 import { useAuth } from "../contexts/AuthContext";
 import { LogoMark } from "../components/Logo";
 import { FirstTimeTour } from "../components/FirstTimeTour";
+import { getSessionMode, MODE_LABELS } from "../lib/sessionMode";
 
 const DASHBOARD_TOUR_STEPS = [
   {
@@ -46,6 +47,7 @@ const RecentPitchItem = ({
   id,
   name,
   date,
+  modeLabel,
   score,
   status,
   isSelected,
@@ -54,6 +56,7 @@ const RecentPitchItem = ({
   id: number;
   name: string;
   date: string;
+  modeLabel: string;
   score: number;
   status: string;
   isSelected: boolean;
@@ -85,7 +88,7 @@ const RecentPitchItem = ({
           {name}
         </p>
         <p className="text-[10px] text-slate-400 dark:text-zinc-500 font-medium">
-          {date}
+          {date} · {modeLabel}
         </p>
       </div>
 
@@ -484,6 +487,7 @@ export default function Dashboard() {
                     id={session.id}
                     name={session.business_name || "Untitled Pitch"}
                     date={formatDate(session.created_at)}
+                    modeLabel={MODE_LABELS[getSessionMode(session)]}
                     score={score}
                     status={getStatus(score)}
                     isSelected={selectedIds.includes(session.id)}

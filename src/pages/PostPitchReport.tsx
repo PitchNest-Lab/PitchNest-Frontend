@@ -1,19 +1,22 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Link, useSearchParams, useLocation } from 'react-router-dom';
-import { 
+import { Link, useSearchParams, useLocation, useNavigate } from 'react-router-dom';
+import {
   FileDown, Calendar, Users, Target, Activity,
-  CheckCircle2, AlertTriangle, Play, Zap, Star, TrendingUp, ShieldAlert, Loader2
+  CheckCircle2, AlertTriangle, Play, Zap, Star, TrendingUp, ShieldAlert, Loader2, RotateCcw
 } from 'lucide-react';
 import { Radar, RadarChart, PolarGrid, PolarAngleAxis, ResponsiveContainer } from 'recharts';
 import { cn } from '../lib/utils';
 import { useAuth } from '../contexts/AuthContext';
 import { ChartFrame } from '../components/ChartFrame';
+import { getSessionMode, MODE_LABELS, MODE_BADGE_CLASSES } from '../lib/sessionMode';
+import { buildRepitchState } from '../lib/repitch';
 
 export default function PostPitchReport() {
   const [searchParams] = useSearchParams();
   const sessionId = searchParams.get('session');
   const { authFetch } = useAuth();
   const location = useLocation();
+  const navigate = useNavigate();
   const [session, setSession] = useState<any>(() => location.state?.session || null);
   const [isLoading, setIsLoading] = useState(() => !location.state?.session);
   const [isDownloading, setIsDownloading] = useState(false);
@@ -116,6 +119,12 @@ export default function PostPitchReport() {
   
   const overallScore = isInsufficientData ? 0 : Math.round((scores.delivery + scores.clarity + scores.scalability + scores.readiness) / 4);
 
+  // Re-pitch: previous attempt snapshot written by the server at end_session.
+  const previousAttempt = report.previous_attempt || null;
+  const previousOverall = previousAttempt ? Math.round(Number(previousAttempt.overallScore) || 0) : null;
+  const scoreDelta = previousOverall !== null && !isInsufficientData ? overallScore - previousOverall : null;
+  const isWeakReport = isInsufficientData || overallScore < 60;
+
   const strengths = Array.isArray(report.strengths) ? report.strengths : [];
   const risks = Array.isArray(report.risks) ? report.risks : [];
   const nextSteps = Array.isArray(report.next_steps) ? report.next_steps : [];
@@ -145,8 +154,12 @@ export default function PostPitchReport() {
             <Activity size={14} /> Post-Pitch Report
           </div>
           <h1 className="text-4xl font-extrabold mb-3 tracking-tight">{businessName}</h1>
-          <div className="flex items-center gap-3 text-sm text-slate-500 font-medium">
+          <div className="flex items-center gap-3 text-sm text-slate-500 font-medium flex-wrap">
             <span className="flex items-center gap-1.5"><Calendar size={16} /> Pitch Date: {formattedDate}</span>
+            <span className="w-1.5 h-1.5 bg-slate-300 rounded-full" />
+            <span className={cn("px-3 py-0.5 border rounded-full text-xs font-bold", MODE_BADGE_CLASSES[getSessionMode(session)])}>
+              {MODE_LABELS[getSessionMode(session)]}
+            </span>
             <span className="w-1.5 h-1.5 bg-slate-300 rounded-full" />
             <span className={cn("px-3 py-0.5 rounded-full text-xs font-bold", isInsufficientData ? "bg-slate-100 text-slate-500" : overallScore >= 80 ? "bg-emerald-100 text-emerald-700" : overallScore >= 60 ? "bg-sky-100 text-sky-700" : "bg-rose-100 text-rose-700")}>
               Verdict: {isInsufficientData ? 'Incomplete' : overallScore >= 80 ? 'Strong Buy (Invest)' : overallScore >= 60 ? 'Consideration (Follow Up)' : 'Decline to Invest'}
@@ -161,11 +174,36 @@ export default function PostPitchReport() {
           >
             {isDownloading ? <Loader2 size={16} className="animate-spin" /> : <FileDown size={16} />} {isDownloading ? "Generating..." : "Download Detailed Report"}
           </button>
+          <button
+            onClick={() => navigate('/setup', { state: { repitch: buildRepitchState(session) } })}
+            className="flex-1 sm:flex-none justify-center px-6 py-2.5 bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 font-bold rounded-xl hover:bg-slate-50 dark:hover:bg-zinc-700 transition-all flex items-center gap-2 text-sm shadow-sm"
+          >
+            <RotateCcw size={16} /> Pitch Again
+          </button>
           <Link to="/setup" className="flex-1 sm:flex-none justify-center px-6 py-2.5 bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 font-bold rounded-xl hover:bg-slate-50 transition-all flex items-center gap-2 text-sm shadow-sm">
             <Calendar size={16} /> Start New Session
           </Link>
         </div>
       </div>
+
+      {isWeakReport && (
+        <div className="mb-6 p-6 bg-sky-50 dark:bg-sky-900/10 border border-sky-200 dark:border-sky-900/40 rounded-2xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+          <div>
+            <h3 className="font-extrabold text-slate-900 dark:text-zinc-100 mb-1">
+              {isInsufficientData ? "This one was too short to score — come back and run it again." : "Fix the gaps and come back — the panel will remember this pitch."}
+            </h3>
+            <p className="text-sm text-slate-600 dark:text-zinc-400">
+              When you re-pitch, the panel welcomes you back and checks whether last time's weaknesses were fixed.
+            </p>
+          </div>
+          <button
+            onClick={() => navigate('/setup', { state: { repitch: buildRepitchState(session) } })}
+            className="shrink-0 px-6 py-2.5 bg-sky-500 text-white font-bold rounded-xl hover:bg-sky-600 transition-all flex items-center gap-2 text-sm shadow-lg shadow-sky-500/25"
+          >
+            <RotateCcw size={16} /> Re-Pitch Now
+          </button>
+        </div>
+      )}
 
       <div className="grid lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2 space-y-6">
@@ -182,6 +220,17 @@ export default function PostPitchReport() {
                 </div>
               </div>
               <h2 className="text-xl font-extrabold">Overall Pitch Score</h2>
+              {scoreDelta !== null && (
+                <span className={cn(
+                  "inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold",
+                  scoreDelta >= 0
+                    ? "bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400"
+                    : "bg-rose-50 dark:bg-rose-900/20 text-rose-600 dark:text-rose-400",
+                )}>
+                  <RotateCcw size={12} />
+                  vs last attempt: {previousOverall} → {overallScore} ({scoreDelta >= 0 ? `+${scoreDelta}` : scoreDelta})
+                </span>
+              )}
               <p className="text-slate-600 dark:text-zinc-400 text-sm leading-relaxed max-w-sm">
                 {report.summary || "Pitch was too short. AI could not generate a full report."}
               </p>

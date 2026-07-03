@@ -17,7 +17,8 @@ import {
   MessageSquare,
   AlertCircle,
   Check,
-  Trash2
+  Trash2,
+  FileSearch
 } from 'lucide-react';
 import { Link, useLocation, Outlet, useNavigate } from 'react-router-dom';
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
@@ -147,6 +148,7 @@ export default function AppLayout() {
     { icon: Megaphone, label: "My Pitches", path: "/archive" },
     { icon: Activity, label: "Analytics", path: "/analytics" },
     { icon: Layers, label: "Pitch Decks", path: "/decks" },
+    { icon: FileSearch, label: "Deck Check", path: "/deck-check" },
     { icon: History, label: "Pitch Replays", path: "/replay" },
   ];
 

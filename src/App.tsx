@@ -21,6 +21,7 @@ import LivePitchRoom from "./pages/LivePitchRoom";
 import PostPitchReport from "./pages/PostPitchReport";
 import PrePitchSetup from "./pages/PrePitchSetup";
 import PitchDecksManagement from "./pages/PitchDecksManagement";
+import DeckCheck from "./pages/DeckCheck";
 import PitchReplayScreen from "./pages/PitchReplayScreen";
 import MyPitchesArchive from "./pages/MyPitchesArchive";
 import PrivacyPolicy from "./pages/legal/PrivacyPolicy";
@@ -85,6 +86,14 @@ export default function App() {
               />
               <Route path="/setup" element={<PrePitchSetup />} />
               <Route path="/decks" element={<PitchDecksManagement />} />
+              <Route
+                path="/deck-check"
+                element={
+                  <ErrorBoundary>
+                    <DeckCheck />
+                  </ErrorBoundary>
+                }
+              />
               <Route
                 path="/replay"
                 element={

@@ -127,6 +127,9 @@ export default function PrePitchSetup() {
   const duration = watch('duration') || 15;
 
   const preSelectedDeckName = location.state?.preSelectedDeck;
+  // "Pitch Again": previous session's config + compact previous-attempt context
+  // (built by buildRepitchState). When present, it wins over profile prefill.
+  const repitch = location.state?.repitch;
 
   useEffect(() => {
     const fetchInitialData = async () => {
@@ -135,16 +138,26 @@ export default function PrePitchSetup() {
         if (res.ok) {
           const data = await res.json();
           setAvailableDecks(data);
-          if (preSelectedDeckName) setSelectedDeck(data.find((d: any) => d.name === preSelectedDeckName) || data[0]);
-          else if (data.length > 0) setSelectedDeck(data[0]); 
+          if (repitch?.config?.deckId || repitch?.config?.deckName) {
+            // Re-select the same deck as the previous attempt if it still exists.
+            setSelectedDeck(
+              data.find((d: any) => d.id === repitch.config.deckId) ||
+              data.find((d: any) => d.name === repitch.config.deckName) ||
+              data[0] || null,
+            );
+          }
+          else if (preSelectedDeckName) setSelectedDeck(data.find((d: any) => d.name === preSelectedDeckName) || data[0]);
+          else if (data.length > 0) setSelectedDeck(data[0]);
         }
       } catch (err) {
         console.error("Failed to fetch decks:", err);
       }
 
       try {
-        const profileRes = await authFetch('/api/profile');
-        if (profileRes.ok) {
+        // Skip profile prefill when re-pitching — it would overwrite the
+        // previous session's values applied below.
+        const profileRes = repitch ? null : await authFetch('/api/profile');
+        if (profileRes?.ok) {
           const profile = await profileRes.json();
           if (profile) {
             if (profile.startup_name) {
@@ -163,6 +176,20 @@ export default function PrePitchSetup() {
       } catch (err) {
         console.error("Failed to fetch profile in PrePitchSetup:", err);
       } finally {
+        // Re-pitch prefill — applied last so nothing overwrites it. Old rows
+        // without a pitch_config snapshot prefill only name + mode.
+        const c = repitch?.config;
+        if (c) {
+          if (c.mode === 'panel' || c.mode === 'coach' || c.mode === 'solo') setValue('mode', c.mode);
+          if (c.businessName) setValue('businessName', c.businessName);
+          if (c.description) setValue('description', c.description);
+          if (c.industry) setValue('industry', c.industry);
+          if (c.investorArchetype) setValue('investorArchetype', c.investorArchetype);
+          if (c.fundingStage) setValue('fundingStage', c.fundingStage);
+          if (typeof c.aggressiveness === 'number') setValue('aggressiveness', c.aggressiveness);
+          if (typeof c.riskAppetite === 'number') setValue('riskAppetite', c.riskAppetite);
+          if (typeof c.duration === 'number') setValue('duration', c.duration);
+        }
         setIsLoading(false);
       }
     };
@@ -182,7 +209,18 @@ export default function PrePitchSetup() {
   const onSubmit = async (data: SetupFormValues) => {
     setIsSubmitting(true);
     await new Promise(resolve => setTimeout(resolve, 800));
-    navigate('/room', { state: { pitchConfig: { ...data, selectedDeck } } });
+    navigate('/room', {
+      state: {
+        pitchConfig: {
+          ...data,
+          selectedDeck,
+          // Re-pitch context: lets the server verify the parent session and
+          // give the panel memory of the previous attempt.
+          parentSessionId: repitch?.parentSessionId,
+          previousSession: repitch?.previousSession,
+        },
+      },
+    });
   };
 
   return (
@@ -203,6 +241,14 @@ export default function PrePitchSetup() {
           <Clock size={14} /> {duration} Min Session
         </div>
       </div>
+
+      {repitch && (
+        <div className="shrink-0 mb-6 px-4 py-3 bg-sky-50 dark:bg-sky-900/10 border border-sky-200 dark:border-sky-900/40 rounded-xl text-sm font-medium text-slate-700 dark:text-zinc-300 flex items-center gap-2 flex-wrap">
+          <span className="font-extrabold text-sky-600 dark:text-sky-400">Re-pitching {repitch.config?.businessName || 'your startup'}</span>
+          <span className="text-slate-400">·</span>
+          <span>previous score {repitch.previousSession?.overallScore ?? '—'}/100 — the panel will remember your last attempt.</span>
+        </div>
+      )}
 
       <form onSubmit={handleSubmit(onSubmit)} className="flex-1 flex flex-col lg:grid lg:grid-cols-12 gap-6 min-h-0 pb-16 lg:pb-0">
         
