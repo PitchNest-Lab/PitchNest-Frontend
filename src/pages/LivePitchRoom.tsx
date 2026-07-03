@@ -462,7 +462,7 @@ const TipCard = React.memo(({ tip }: { tip: AnswerTip }) => (
     initial={{ opacity: 0, y: 10 }}
     animate={{ opacity: 1, y: 0 }}
     transition={{ duration: 0.2, ease: "easeOut" }}
-    className="absolute inset-0 z-20 flex flex-col items-center justify-center gap-2 p-3 md:p-5 text-center bg-slate-950/82 backdrop-blur-sm overflow-y-auto custom-scrollbar"
+    className="absolute inset-0 z-20 flex flex-col items-center justify-center gap-2 p-3 pb-20 md:p-5 md:pb-28 text-center bg-slate-950/82 backdrop-blur-sm overflow-y-auto custom-scrollbar"
   >
     <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-sky-500/20 border border-sky-500/40 shrink-0">
       <Lightbulb size={12} className="text-sky-300" />

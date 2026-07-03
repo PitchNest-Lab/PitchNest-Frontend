@@ -31,10 +31,22 @@ function tourStorageKey(tourKey: string, userId?: number | string): string {
 /** Has the user already seen (or skipped) this tour? */
 export function hasSeenTour(tourKey: string, userId?: number | string): boolean {
   try {
-    return localStorage.getItem(tourStorageKey(tourKey, userId)) === "1";
+    return (
+      localStorage.getItem(tourStorageKey(tourKey, userId)) === "1" ||
+      // Legacy completions written before the user became available were
+      // stored under the unscoped key — honour them too.
+      localStorage.getItem(tourStorageKey(tourKey)) === "1"
+    );
   } catch {
     return true; // if storage is unavailable, don't nag
   }
+}
+
+/** Record that the user has seen this tour. */
+export function markTourSeen(tourKey: string, userId?: number | string): void {
+  try {
+    localStorage.setItem(tourStorageKey(tourKey, userId), "1");
+  } catch {}
 }
 
 interface Box {
@@ -69,7 +81,15 @@ export function FirstTimeTour({
   const [cardSize, setCardSize] = useState({ w: CARD_W, h: 200 });
 
   useEffect(() => {
-    if (steps.length > 0 && !hasSeenTour(tourKey, user?.id)) setOpen(true);
+    // Wait for the signed-in user to hydrate before deciding: checking while
+    // `user` is still undefined reads the wrong (unscoped) key, which is what
+    // made the tour reopen on every login.
+    if (!user?.id || steps.length === 0) return;
+    if (hasSeenTour(tourKey, user.id)) return;
+    // Mark seen the moment it opens — seeing a page's tour once is enough; it
+    // must never return, however the user leaves it (skip, ✕, refresh, nav).
+    markTourSeen(tourKey, user.id);
+    setOpen(true);
   }, [tourKey, steps.length, user?.id]);
 
   const step = steps[index];

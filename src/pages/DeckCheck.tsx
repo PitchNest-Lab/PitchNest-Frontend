@@ -7,6 +7,7 @@ import {
 import { cn } from "../lib/utils";
 import { useAuth } from "../contexts/AuthContext";
 import { Skeleton } from "../components/Skeleton";
+import { downloadPdf } from "../lib/downloadFile";
 
 interface DeckAudit {
   id: number | null;
@@ -196,18 +197,11 @@ export default function DeckCheck() {
     if (!activeAudit?.id || isDownloading) return;
     setIsDownloading(true);
     try {
-      const res = await authFetch(`/api/decks/audits/${activeAudit.id}/pdf`);
-      if (!res.ok) throw new Error("Failed to generate PDF");
-      const blob = await res.blob();
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
       const deckName = decks.find((d) => d.id === activeAudit.deck_id)?.name || "Deck";
-      a.href = url;
-      a.download = `PitchNest_DeckCheck_${deckName.replace(/\s+/g, "_")}.pdf`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
+      await downloadPdf(
+        () => authFetch(`/api/decks/audits/${activeAudit.id}/pdf`),
+        `PitchNest_DeckCheck_${deckName.replace(/\s+/g, "_")}.pdf`,
+      );
     } catch (err) {
       console.error("PDF download error:", err);
       alert("Failed to download the report. Please try again.");

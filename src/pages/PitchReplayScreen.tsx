@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import { cn } from "../lib/utils";
 import { useAuth } from "../contexts/AuthContext";
+import { downloadPdf } from "../lib/downloadFile";
 
 const TimelineEvent = ({
   type,
@@ -84,17 +85,10 @@ export default function PitchReplayScreen() {
     if (!session?.id || isDownloading) return;
     setIsDownloading(true);
     try {
-      const res = await authFetch(`/api/sessions/${session.id}/pdf`);
-      if (!res.ok) throw new Error("Failed to generate PDF");
-      const blob = await res.blob();
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `PitchNest_Report_${(session.business_name || "Pitch").replace(/\s+/g, "_")}.pdf`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
+      await downloadPdf(
+        () => authFetch(`/api/sessions/${session.id}/pdf`),
+        `PitchNest_Report_${(session.business_name || "Pitch").replace(/\s+/g, "_")}.pdf`,
+      );
     } catch (err) {
       console.error("PDF download error:", err);
       alert("Failed to download PDF report. Please try again.");
@@ -322,12 +316,15 @@ export default function PitchReplayScreen() {
                 const type =
                   msg.type === "user" ? "FOUNDER PITCH" : "INVESTOR RESPONSE";
                 const time = msg.time || `Step ${i + 1}`;
+                // Older sessions stored an AI summary in `text` and the raw
+                // spoken words in `fullText` — replay the real words.
+                const spoken = msg.fullText || msg.text;
                 return (
                   <TimelineEvent
                     key={i}
                     type={type}
                     time={time}
-                    content={`"${msg.text}"`}
+                    content={`"${spoken}"`}
                     active={i === 0}
                   />
                 );
