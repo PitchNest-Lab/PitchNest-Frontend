@@ -4,6 +4,7 @@ import React, {
   useState,
   useEffect,
   useCallback,
+  useRef,
 } from "react";
 
 export type UserRole = "Founder" | "Investor" | "Advisor";
@@ -30,8 +31,12 @@ function safeParse<T = any>(value: string | null): T | null {
 interface AuthContextType {
   user: User | null;
   token: string | null;
-  login: (email: string, password: string) => Promise<void>;
-  loginWithGoogle: (credential: string) => Promise<any>;
+  login: (
+    email: string,
+    password: string,
+    rememberMe?: boolean,
+  ) => Promise<void>;
+  loginWithGoogle: (credential: string, rememberMe?: boolean) => Promise<any>;
   signup: (
     name: string,
     email: string,
@@ -49,6 +54,59 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [token, setToken] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+
+  // ── Sliding session ──
+  // Tokens expire 24h after issue (30d with "Keep me logged in"). While the
+  // user is actually using the app we swap the token for a fresh one, so the
+  // session only ends after real inactivity — not mid-use.
+  const lastActivityRef = useRef(Date.now());
+  const lastRefreshRef = useRef(0);
+
+  const refreshSession = useCallback(async (currentToken: string) => {
+    try {
+      const res = await fetch("/api/auth/refresh", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${currentToken}` },
+      });
+      // An expired/invalid token is logged out by the /me and 401 paths.
+      if (!res.ok) return;
+      const data = await res.json().catch(() => null);
+      if (data?.token) {
+        lastRefreshRef.current = Date.now();
+        localStorage.setItem("token", data.token);
+        setToken(data.token);
+      }
+    } catch {
+      // Network error — the next interval tick will retry
+    }
+  }, []);
+
+  useEffect(() => {
+    const markActivity = () => {
+      lastActivityRef.current = Date.now();
+    };
+    window.addEventListener("click", markActivity);
+    window.addEventListener("keydown", markActivity);
+    document.addEventListener("visibilitychange", markActivity);
+
+    const interval = setInterval(
+      () => {
+        const currentToken = localStorage.getItem("token");
+        if (!currentToken) return;
+        // Only slide the window if the user did something since last refresh
+        if (lastActivityRef.current <= lastRefreshRef.current) return;
+        refreshSession(currentToken);
+      },
+      30 * 60 * 1000,
+    );
+
+    return () => {
+      window.removeEventListener("click", markActivity);
+      window.removeEventListener("keydown", markActivity);
+      document.removeEventListener("visibilitychange", markActivity);
+      clearInterval(interval);
+    };
+  }, [refreshSession]);
 
   useEffect(() => {
     const storedUser = localStorage.getItem("user");
@@ -76,6 +134,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           setToken(storedToken);
           localStorage.setItem("user", JSON.stringify(merged));
           window.dispatchEvent(new Event("userUpdate"));
+          // Returning user is clearly active — restart their expiry window now
+          refreshSession(storedToken);
         } else {
           // Token expired or invalid — clear everything
           localStorage.removeItem("user");
@@ -91,13 +151,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
       })
       .finally(() => setIsLoading(false));
-  }, []);
+  }, [refreshSession]);
 
-  const login = async (email: string, password: string) => {
+  const login = async (
+    email: string,
+    password: string,
+    rememberMe = false,
+  ) => {
     const res = await fetch("/api/auth/login", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email, password }),
+      body: JSON.stringify({ email, password, rememberMe }),
     });
     const data = await res.json();
     if (!res.ok) throw new Error(data.message || "Login failed");
@@ -129,11 +193,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return data;
   };
 
-  const loginWithGoogle = async (credential: string) => {
+  const loginWithGoogle = async (credential: string, rememberMe = false) => {
     const res = await fetch("/api/auth/google", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ credential }),
+      body: JSON.stringify({ credential, rememberMe }),
     });
     const data = await res.json();
     if (!res.ok)

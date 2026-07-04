@@ -1,10 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import {
-  Mail,
-  Lock,
-  User,
-  ArrowRight,
   ChevronDown,
   Loader2,
   Eye,
@@ -20,6 +16,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { cn } from "../lib/utils";
 import { useAuth } from "../contexts/AuthContext";
+import { GoogleSignInButton } from "../components/GoogleSignInButton";
 
 const signupSchema = z
   .object({
@@ -187,7 +184,7 @@ export default function SignupPage() {
   const [showUnverifiedPopup, setShowUnverifiedPopup] = useState(false);
   const [unverifiedEmail, setUnverifiedEmail] = useState("");
 
-  const { signup } = useAuth();
+  const { signup, loginWithGoogle } = useAuth();
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -281,41 +278,29 @@ export default function SignupPage() {
           <div className="flex-1 p-8 md:p-12">
             <LogoLink showText size="md" className="mb-10" />
 
-            <h2 className="text-3xl font-semibold text-slate-900 dark:text-zinc-100 mb-2 tracking-tight">
-              Create your account
+            <h2 className="text-4xl font-semibold text-slate-900 dark:text-zinc-100 mb-8 tracking-tight">
+              Join PitchNest
             </h2>
-            <p className="text-slate-500 dark:text-zinc-500 mb-8 text-sm">
-              Start practicing with the investor panel.
-            </p>
 
-            <form className="space-y-5" onSubmit={handleSubmit(onSubmit)}>
+            <form className="space-y-4" onSubmit={handleSubmit(onSubmit)}>
               {serverError && (
-                <div className="p-3 bg-rose-50 border border-rose-200 text-rose-600 rounded-xl text-sm font-bold">
+                <div className="p-3 bg-rose-50 border border-rose-200 text-rose-600 rounded-lg text-sm font-bold">
                   {serverError}
                 </div>
               )}
 
               <div className="space-y-1.5">
-                <label className="text-xs font-bold text-slate-700 dark:text-zinc-300">
-                  Full Name
-                </label>
-                <div className="relative">
-                  <User
-                    className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"
-                    size={16}
-                  />
-                  <input
-                    {...register("name")}
-                    type="text"
-                    placeholder="Your full name"
-                    className={cn(
-                      "w-full pl-10 pr-4 py-3 bg-slate-50 dark:bg-zinc-800 border rounded-xl focus:outline-none focus:ring-2 transition-all dark:text-zinc-100 text-sm",
-                      errors.name
-                        ? "border-rose-500 focus:ring-rose-500/20"
-                        : "border-slate-200 dark:border-zinc-700 focus:ring-sky-500/20",
-                    )}
-                  />
-                </div>
+                <input
+                  {...register("name")}
+                  type="text"
+                  placeholder="Name"
+                  className={cn(
+                    "w-full px-4 py-3.5 bg-white dark:bg-zinc-900 border rounded-lg focus:outline-none focus:ring-2 transition-all dark:text-zinc-100 placeholder:text-slate-500 dark:placeholder:text-zinc-500",
+                    errors.name
+                      ? "border-rose-500 focus:ring-rose-500/20"
+                      : "border-slate-400 dark:border-zinc-600 focus:border-sky-500 focus:ring-sky-500/20",
+                  )}
+                />
                 {errors.name && (
                   <p className="text-xs font-bold text-rose-500">
                     {errors.name.message}
@@ -324,26 +309,17 @@ export default function SignupPage() {
               </div>
 
               <div className="space-y-1.5">
-                <label className="text-xs font-bold text-slate-700 dark:text-zinc-300">
-                  Email Address
-                </label>
-                <div className="relative">
-                  <Mail
-                    className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"
-                    size={16}
-                  />
-                  <input
-                    {...register("email")}
-                    type="email"
-                    placeholder="you@startup.com"
-                    className={cn(
-                      "w-full pl-10 pr-4 py-3 bg-slate-50 dark:bg-zinc-800 border rounded-xl focus:outline-none focus:ring-2 transition-all dark:text-zinc-100 text-sm",
-                      errors.email
-                        ? "border-rose-500 focus:ring-rose-500/20"
-                        : "border-slate-200 dark:border-zinc-700 focus:ring-sky-500/20",
-                    )}
-                  />
-                </div>
+                <input
+                  {...register("email")}
+                  type="email"
+                  placeholder="Email"
+                  className={cn(
+                    "w-full px-4 py-3.5 bg-white dark:bg-zinc-900 border rounded-lg focus:outline-none focus:ring-2 transition-all dark:text-zinc-100 placeholder:text-slate-500 dark:placeholder:text-zinc-500",
+                    errors.email
+                      ? "border-rose-500 focus:ring-rose-500/20"
+                      : "border-slate-400 dark:border-zinc-600 focus:border-sky-500 focus:ring-sky-500/20",
+                  )}
+                />
                 {errors.email && (
                   <p className="text-xs font-bold text-rose-500">
                     {errors.email.message}
@@ -351,72 +327,64 @@ export default function SignupPage() {
                 )}
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div className="space-y-1.5">
-                  <label className="text-xs font-bold text-slate-700 dark:text-zinc-300">
-                    Password
-                  </label>
-                  <div className="relative">
-                    <Lock
-                      className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"
-                      size={16}
-                    />
-                    <input
-                      {...register("password")}
-                      type={showPassword ? "text" : "password"}
-                      placeholder="••••••••"
-                      className={cn(
-                        "w-full pl-10 pr-10 py-3 bg-slate-50 dark:bg-zinc-800 border rounded-xl focus:outline-none focus:ring-2 transition-all dark:text-zinc-100 text-sm",
-                        errors.password
-                          ? "border-rose-500 focus:ring-rose-500/20"
-                          : "border-slate-200 dark:border-zinc-700 focus:ring-sky-500/20",
-                      )}
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setShowPassword(!showPassword)}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 outline-none"
-                    >
-                      {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
-                    </button>
-                  </div>
+              <div className="space-y-1.5">
+                <div className="relative">
+                  <input
+                    {...register("password")}
+                    type={showPassword ? "text" : "password"}
+                    placeholder="Create password"
+                    className={cn(
+                      "w-full pl-4 pr-12 py-3.5 bg-white dark:bg-zinc-900 border rounded-lg focus:outline-none focus:ring-2 transition-all dark:text-zinc-100 placeholder:text-slate-500 dark:placeholder:text-zinc-500",
+                      errors.password
+                        ? "border-rose-500 focus:ring-rose-500/20"
+                        : "border-slate-400 dark:border-zinc-600 focus:border-sky-500 focus:ring-sky-500/20",
+                    )}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 outline-none"
+                  >
+                    {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                  </button>
                 </div>
+                {errors.password && (
+                  <p className="text-xs font-bold text-rose-500">
+                    {errors.password.message}
+                  </p>
+                )}
+              </div>
 
-                <div className="space-y-1.5">
-                  <label className="text-xs font-bold text-slate-700 dark:text-zinc-300">
-                    Confirm Password
-                  </label>
-                  <div className="relative">
-                    <Lock
-                      className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"
-                      size={16}
-                    />
-                    <input
-                      {...register("confirmPassword")}
-                      type={showConfirmPassword ? "text" : "password"}
-                      placeholder="••••••••"
-                      className={cn(
-                        "w-full pl-10 pr-10 py-3 bg-slate-50 dark:bg-zinc-800 border rounded-xl focus:outline-none focus:ring-2 transition-all dark:text-zinc-100 text-sm",
-                        errors.confirmPassword
-                          ? "border-rose-500 focus:ring-rose-500/20"
-                          : "border-slate-200 dark:border-zinc-700 focus:ring-sky-500/20",
-                      )}
-                    />
-                    <button
-                      type="button"
-                      onClick={() =>
-                        setShowConfirmPassword(!showConfirmPassword)
-                      }
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 outline-none"
-                    >
-                      {showConfirmPassword ? (
-                        <EyeOff size={16} />
-                      ) : (
-                        <Eye size={16} />
-                      )}
-                    </button>
-                  </div>
+              <div className="space-y-1.5">
+                <div className="relative">
+                  <input
+                    {...register("confirmPassword")}
+                    type={showConfirmPassword ? "text" : "password"}
+                    placeholder="Confirm password"
+                    className={cn(
+                      "w-full pl-4 pr-12 py-3.5 bg-white dark:bg-zinc-900 border rounded-lg focus:outline-none focus:ring-2 transition-all dark:text-zinc-100 placeholder:text-slate-500 dark:placeholder:text-zinc-500",
+                      errors.confirmPassword
+                        ? "border-rose-500 focus:ring-rose-500/20"
+                        : "border-slate-400 dark:border-zinc-600 focus:border-sky-500 focus:ring-sky-500/20",
+                    )}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                    className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 outline-none"
+                  >
+                    {showConfirmPassword ? (
+                      <EyeOff size={18} />
+                    ) : (
+                      <Eye size={18} />
+                    )}
+                  </button>
                 </div>
+                {errors.confirmPassword && (
+                  <p className="text-xs font-bold text-rose-500">
+                    {errors.confirmPassword.message}
+                  </p>
+                )}
               </div>
 
               <div className="space-y-1.5">
@@ -426,7 +394,7 @@ export default function SignupPage() {
                 <div className="relative">
                   <select
                     {...register("role")}
-                    className="w-full pl-4 pr-10 py-3 bg-slate-50 dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-sky-500/20 transition-all appearance-none cursor-pointer dark:text-zinc-100 text-sm"
+                    className="w-full pl-4 pr-10 py-3.5 bg-white dark:bg-zinc-900 border border-slate-400 dark:border-zinc-600 rounded-lg focus:outline-none focus:ring-2 focus:border-sky-500 focus:ring-sky-500/20 transition-all appearance-none cursor-pointer dark:text-zinc-100"
                   >
                     <option value="Founder">Founder</option>
                     <option value="Investor">Investor</option>
@@ -439,50 +407,76 @@ export default function SignupPage() {
                 </div>
               </div>
 
+              <p className="text-xs text-slate-500 dark:text-zinc-500 leading-relaxed pt-2">
+                By clicking Sign up or Sign up with Google, you agree to
+                PitchNest's{" "}
+                <Link
+                  to="/terms"
+                  className="text-sky-600 dark:text-sky-400 font-semibold hover:underline"
+                >
+                  Terms of Service
+                </Link>{" "}
+                and{" "}
+                <Link
+                  to="/privacy"
+                  className="text-sky-600 dark:text-sky-400 font-semibold hover:underline"
+                >
+                  Privacy Policy
+                </Link>
+                .
+              </p>
+
               <button
                 type="submit"
                 disabled={isSubmitting}
-                className="w-full py-3.5 btn-primary text-sm group disabled:opacity-50 disabled:hover:transform-none mt-4"
+                className="w-full py-3.5 rounded-full bg-sky-600 hover:bg-sky-700 text-white text-base font-semibold flex items-center justify-center transition-colors disabled:opacity-50"
               >
                 {isSubmitting ? (
-                  <Loader2 className="animate-spin" size={16} />
+                  <Loader2 className="animate-spin" size={18} />
                 ) : (
-                  <>
-                    Create Account{" "}
-                    <ArrowRight
-                      size={16}
-                      className="group-hover:translate-x-1 transition-transform"
-                    />
-                  </>
+                  "Sign up"
                 )}
               </button>
             </form>
 
-            <p className="text-center mt-4 text-[11px] text-slate-500 dark:text-zinc-500 leading-relaxed px-2">
-              By creating an account, you agree to our{" "}
-              <Link
-                to="/terms"
-                className="text-sky-500 font-bold hover:underline"
-              >
-                Terms of Service
-              </Link>{" "}
-              and{" "}
-              <Link
-                to="/privacy"
-                className="text-sky-500 font-bold hover:underline"
-              >
-                Privacy Policy
-              </Link>
-              .
-            </p>
+            <div className="relative my-6">
+              <div className="absolute inset-0 flex items-center">
+                <div className="w-full border-t border-slate-200 dark:border-zinc-800"></div>
+              </div>
+              <div className="relative flex justify-center text-sm text-slate-500 dark:text-zinc-500">
+                <span className="bg-white dark:bg-zinc-900 px-4">or</span>
+              </div>
+            </div>
 
-            <p className="text-center mt-4 text-xs text-slate-500 dark:text-zinc-500">
-              Already have an account?{" "}
+            <GoogleSignInButton
+              text="signup_with"
+              onCredential={async (credential) => {
+                setServerError("");
+                try {
+                  // Clear only auth-related keys — preserve tour flags
+                  localStorage.removeItem("user");
+                  localStorage.removeItem("token");
+                  localStorage.removeItem("pitchnest_onboarding_complete");
+                  localStorage.removeItem("pitchnest_startup_name");
+                  localStorage.removeItem("pitchnest_funding_stage");
+                  const data = await loginWithGoogle(credential);
+                  // New Google users land on onboarding (server decides via
+                  // redirectTo); returning users go to the dashboard.
+                  navigate(data?.redirectTo || "/dashboard", { replace: true });
+                } catch (error: any) {
+                  setServerError(error.message || "Google sign-up failed.");
+                }
+              }}
+              onError={(message) => setServerError(message)}
+            />
+
+            <p className="text-center mt-6 text-sm text-slate-500 dark:text-zinc-500">
+              Already on PitchNest?{" "}
               <Link
                 to="/login"
-                className="text-sky-500 font-bold hover:text-sky-600"
+                className="text-sky-600 dark:text-sky-400 font-semibold hover:underline"
               >
-                Log in
+                Sign in
               </Link>
             </p>
           </div>

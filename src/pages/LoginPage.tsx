@@ -1,9 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import {
-  Mail,
-  Lock,
-  ArrowRight,
   Loader2,
   Eye,
   EyeOff,
@@ -160,6 +157,7 @@ function EmailNotVerifiedPopup({
 // ─── Login Page ──────────────────────────────────────────────────────────────
 export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
+  const [rememberMe, setRememberMe] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [serverError, setServerError] = useState("");
   const [currentSlide, setCurrentSlide] = useState(0);
@@ -201,7 +199,7 @@ export default function LoginPage() {
       localStorage.removeItem("pitchnest_onboarding_complete");
       localStorage.removeItem("pitchnest_startup_name");
       localStorage.removeItem("pitchnest_funding_stage");
-      await login(data.email, data.password);
+      await login(data.email, data.password, rememberMe);
       navigate(from, { replace: true });
     } catch (error: any) {
       // Check if the error is about email not being verified
@@ -257,41 +255,38 @@ export default function LoginPage() {
           <div className="flex-1 p-8 md:p-16">
             <LogoLink showText size="md" className="mb-12" />
 
-            <h2 className="text-3xl font-semibold text-slate-900 dark:text-zinc-100 mb-2 tracking-tight">
-              Welcome back
+            <h2 className="text-4xl font-semibold text-slate-900 dark:text-zinc-100 mb-1 tracking-tight">
+              Sign in
             </h2>
-            <p className="text-slate-500 dark:text-zinc-500 mb-10">
-              Sign in to continue to your workspace
+            <p className="text-sm text-slate-500 dark:text-zinc-500 mb-8">
+              or{" "}
+              <Link
+                to="/signup"
+                className="text-sky-600 dark:text-sky-400 font-semibold hover:underline"
+              >
+                Join PitchNest
+              </Link>
             </p>
 
-            <form className="space-y-6" onSubmit={handleSubmit(onSubmit)}>
+            <form className="space-y-4" onSubmit={handleSubmit(onSubmit)}>
               {serverError && (
-                <div className="p-4 bg-rose-50 border border-rose-200 text-rose-600 rounded-2xl text-sm font-bold">
+                <div className="p-4 bg-rose-50 border border-rose-200 text-rose-600 rounded-lg text-sm font-bold">
                   {serverError}
                 </div>
               )}
 
-              <div className="space-y-2">
-                <label className="text-sm font-bold text-slate-700 dark:text-zinc-300">
-                  Email Address
-                </label>
-                <div className="relative">
-                  <Mail
-                    className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 dark:text-zinc-500"
-                    size={18}
-                  />
-                  <input
-                    {...register("email")}
-                    type="email"
-                    placeholder="you@startup.com"
-                    className={cn(
-                      "w-full pl-12 pr-4 py-4 bg-slate-50 dark:bg-zinc-800 border rounded-2xl focus:outline-none focus:ring-2 transition-all dark:text-zinc-100",
-                      errors.email
-                        ? "border-rose-500 focus:ring-rose-500/20"
-                        : "border-slate-200 dark:border-zinc-700 focus:ring-sky-500/20",
-                    )}
-                  />
-                </div>
+              <div className="space-y-1.5">
+                <input
+                  {...register("email")}
+                  type="email"
+                  placeholder="Email"
+                  className={cn(
+                    "w-full px-4 py-3.5 bg-white dark:bg-zinc-900 border rounded-lg focus:outline-none focus:ring-2 transition-all dark:text-zinc-100 placeholder:text-slate-500 dark:placeholder:text-zinc-500",
+                    errors.email
+                      ? "border-rose-500 focus:ring-rose-500/20"
+                      : "border-slate-400 dark:border-zinc-600 focus:border-sky-500 focus:ring-sky-500/20",
+                  )}
+                />
                 {errors.email && (
                   <p className="text-xs font-bold text-rose-500">
                     {errors.email.message}
@@ -299,32 +294,17 @@ export default function LoginPage() {
                 )}
               </div>
 
-              <div className="space-y-2">
-                <div className="flex justify-between items-center">
-                  <label className="text-sm font-bold text-slate-700 dark:text-zinc-300">
-                    Password
-                  </label>
-                  <Link
-                    to="/forgot-password"
-                    className="text-xs text-sky-500 hover:underline"
-                  >
-                    Forgot password?
-                  </Link>
-                </div>
+              <div className="space-y-1.5">
                 <div className="relative">
-                  <Lock
-                    className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 dark:text-zinc-500"
-                    size={18}
-                  />
                   <input
                     {...register("password")}
                     type={showPassword ? "text" : "password"}
-                    placeholder="••••••••"
+                    placeholder="Password"
                     className={cn(
-                      "w-full pl-12 pr-12 py-4 bg-slate-50 dark:bg-zinc-800 border rounded-2xl focus:outline-none focus:ring-2 transition-all dark:text-zinc-100",
+                      "w-full pl-4 pr-12 py-3.5 bg-white dark:bg-zinc-900 border rounded-lg focus:outline-none focus:ring-2 transition-all dark:text-zinc-100 placeholder:text-slate-500 dark:placeholder:text-zinc-500",
                       errors.password
                         ? "border-rose-500 focus:ring-rose-500/20"
-                        : "border-slate-200 dark:border-zinc-700 focus:ring-sky-500/20",
+                        : "border-slate-400 dark:border-zinc-600 focus:border-sky-500 focus:ring-sky-500/20",
                     )}
                   />
                   <button
@@ -342,37 +322,48 @@ export default function LoginPage() {
                 )}
               </div>
 
+              <div className="flex items-center justify-between">
+                <label className="flex items-center gap-2 text-sm text-slate-600 dark:text-zinc-400 cursor-pointer select-none">
+                  <input
+                    type="checkbox"
+                    checked={rememberMe}
+                    onChange={(e) => setRememberMe(e.target.checked)}
+                    className="w-4 h-4 accent-sky-600 cursor-pointer"
+                  />
+                  Keep me logged in
+                </label>
+                <Link
+                  to="/forgot-password"
+                  className="text-sm font-bold text-sky-600 dark:text-sky-400 hover:underline"
+                >
+                  Forgot password?
+                </Link>
+              </div>
+
               <button
                 type="submit"
                 disabled={isSubmitting}
-                className="w-full py-4 btn-primary text-base group disabled:opacity-50 disabled:hover:transform-none"
+                className="w-full py-3.5 rounded-full bg-sky-600 hover:bg-sky-700 text-white text-base font-semibold flex items-center justify-center transition-colors disabled:opacity-50"
               >
                 {isSubmitting ? (
                   <Loader2 className="animate-spin" size={18} />
                 ) : (
-                  <>
-                    Login{" "}
-                    <ArrowRight
-                      size={18}
-                      className="group-hover:translate-x-1 transition-transform"
-                    />
-                  </>
+                  "Sign in"
                 )}
               </button>
             </form>
 
-            <div className="relative my-10">
+            <div className="relative my-6">
               <div className="absolute inset-0 flex items-center">
-                <div className="w-full border-t border-slate-100 dark:border-zinc-800"></div>
+                <div className="w-full border-t border-slate-200 dark:border-zinc-800"></div>
               </div>
-              <div className="relative flex justify-center text-xs uppercase tracking-widest font-bold text-slate-400 dark:text-zinc-500">
-                <span className="bg-white dark:bg-zinc-900 px-4">
-                  Or continue with
-                </span>
+              <div className="relative flex justify-center text-sm text-slate-500 dark:text-zinc-500">
+                <span className="bg-white dark:bg-zinc-900 px-4">or</span>
               </div>
             </div>
 
             <GoogleSignInButton
+              text="signin_with"
               onCredential={async (credential) => {
                 setServerError("");
                 try {
@@ -382,7 +373,7 @@ export default function LoginPage() {
                   localStorage.removeItem("pitchnest_onboarding_complete");
                   localStorage.removeItem("pitchnest_startup_name");
                   localStorage.removeItem("pitchnest_funding_stage");
-                  const data = await loginWithGoogle(credential);
+                  const data = await loginWithGoogle(credential, rememberMe);
                   // New Google users land on onboarding (server decides via
                   // redirectTo); returning users go to their intended page.
                   navigate(data?.redirectTo || from, { replace: true });
@@ -393,27 +384,23 @@ export default function LoginPage() {
               onError={(message) => setServerError(message)}
             />
 
-            <p className="text-center mt-10 text-sm text-slate-500 dark:text-zinc-500">
-              Don't have an account?{" "}
+            <p className="text-center mt-6 text-xs text-slate-500 dark:text-zinc-500 leading-relaxed px-2">
+              By clicking Sign in or Sign in with Google, you agree to
+              PitchNest's{" "}
               <Link
-                to="/signup"
-                className="text-indigo-600 dark:text-indigo-400 font-semibold hover:text-indigo-700"
+                to="/terms"
+                className="text-sky-600 dark:text-sky-400 font-semibold hover:underline"
               >
-                Sign up
+                Terms of Service
+              </Link>{" "}
+              and{" "}
+              <Link
+                to="/privacy"
+                className="text-sky-600 dark:text-sky-400 font-semibold hover:underline"
+              >
+                Privacy Policy
               </Link>
-            </p>
-            <p className="text-center mt-4 text-[10px] text-slate-400 dark:text-zinc-600 leading-relaxed">
-              <Link to="/privacy" className="hover:underline">
-                Privacy
-              </Link>
-              {" · "}
-              <Link to="/terms" className="hover:underline">
-                Terms
-              </Link>
-              {" · "}
-              <Link to="/support" className="hover:underline">
-                Support
-              </Link>
+              .
             </p>
           </div>
 

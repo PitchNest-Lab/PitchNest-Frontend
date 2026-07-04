@@ -45,9 +45,11 @@ function loadGsiScript(): Promise<void> {
 export function GoogleSignInButton({
   onCredential,
   onError,
+  text = "continue_with",
 }: {
   onCredential: (credential: string) => void;
   onError?: (message: string) => void;
+  text?: "signin_with" | "signup_with" | "continue_with";
 }) {
   const divRef = useRef<HTMLDivElement>(null);
 
@@ -81,7 +83,7 @@ export function GoogleSignInButton({
           type: "standard",
           theme: "outline",
           size: "large",
-          text: "continue_with",
+          text,
           shape: "pill",
           logo_alignment: "center",
           width,
@@ -94,22 +96,28 @@ export function GoogleSignInButton({
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [text]);
 
   if (!GOOGLE_CLIENT_ID) {
+    const label =
+      text === "signin_with"
+        ? "Sign in with Google"
+        : text === "signup_with"
+          ? "Sign up with Google"
+          : "Continue with Google";
     return (
       <button
         type="button"
         disabled
         title="Google sign-in is not configured"
-        className="w-full py-4 bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 text-slate-400 dark:text-zinc-600 font-bold rounded-2xl flex items-center justify-center gap-3 opacity-60 cursor-not-allowed"
+        className="w-full py-4 bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 text-slate-400 dark:text-zinc-600 font-bold rounded-full flex items-center justify-center gap-3 opacity-60 cursor-not-allowed"
       >
         <img
           src="https://www.google.com/favicon.ico"
           className="w-5 h-5 grayscale"
           alt="Google"
         />
-        Continue with Google
+        {label}
       </button>
     );
   }
