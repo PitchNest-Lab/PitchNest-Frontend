@@ -159,6 +159,7 @@ export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [googleLoading, setGoogleLoading] = useState(false);
   const [serverError, setServerError] = useState("");
   const [currentSlide, setCurrentSlide] = useState(0);
 
@@ -235,6 +236,22 @@ export default function LoginPage() {
   };
   return (
     <>
+      {/* ── Google sign-in loading overlay ── */}
+      <AnimatePresence>
+        {googleLoading && (
+          <motion.div
+            key="google-loading"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[60] flex flex-col items-center justify-center bg-white/80 dark:bg-zinc-950/80 backdrop-blur-sm"
+          >
+            <div className="w-12 h-12 border-4 border-sky-500 border-t-transparent rounded-full animate-spin" />
+            <p className="mt-4 text-sm font-semibold text-slate-600 dark:text-zinc-400">Signing in with Google…</p>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* ── Email not verified popup ── */}
       <AnimatePresence>
         {showUnverifiedPopup && (
@@ -366,6 +383,7 @@ export default function LoginPage() {
               text="signin_with"
               onCredential={async (credential) => {
                 setServerError("");
+                setGoogleLoading(true);
                 try {
                   // Clear only auth-related keys — preserve tour flags
                   localStorage.removeItem("user");
@@ -379,6 +397,8 @@ export default function LoginPage() {
                   navigate(data?.redirectTo || from, { replace: true });
                 } catch (error: any) {
                   setServerError(error.message || "Google sign-in failed.");
+                } finally {
+                  setGoogleLoading(false);
                 }
               }}
               onError={(message) => setServerError(message)}
