@@ -38,7 +38,7 @@ type SignupFormValues = z.infer<typeof signupSchema>;
 const SLIDES = [
   {
     image:
-      "https://images.unsplash.com/photo-1556761175-5973dc0f32d7?auto=format&fit=crop&w=800&q=80",
+      "https://images.unsplash.com/photo-1542744173-8e7e53415bb0?auto=format&fit=crop&w=800&q=80",
     title: "The AI Pitch Deck Evolution",
     desc: "Join 500+ founders using PitchNest to refine their narratives with real-time AI feedback.",
   },

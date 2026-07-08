@@ -15,14 +15,14 @@ import ResetPassword from "./pages/ResetPassword";
 import Onboarding from "./pages/Onboarding";
 import VerifyEmail from "./components/VerifyEmail";
 import Dashboard from "./pages/Dashboard";
-import Analytics from "./pages/Analytics";
+// import Analytics from "./pages/Analytics"; // MVP: coming soon
 import SettingsPage from "./pages/SettingsPage";
 import LivePitchRoom from "./pages/LivePitchRoom";
 import PostPitchReport from "./pages/PostPitchReport";
 import PrePitchSetup from "./pages/PrePitchSetup";
-import PitchDecksManagement from "./pages/PitchDecksManagement";
-import DeckCheck from "./pages/DeckCheck";
-import PitchReplayScreen from "./pages/PitchReplayScreen";
+// import PitchDecksManagement from "./pages/PitchDecksManagement"; // MVP: coming soon
+// import DeckCheck from "./pages/DeckCheck"; // MVP: coming soon
+// import PitchReplayScreen from "./pages/PitchReplayScreen"; // MVP: coming soon
 import MyPitchesArchive from "./pages/MyPitchesArchive";
 import PrivacyPolicy from "./pages/legal/PrivacyPolicy";
 import TermsOfService from "./pages/legal/TermsOfService";
@@ -67,14 +67,8 @@ export default function App() {
                   </ErrorBoundary>
                 }
               />
-              <Route
-                path="/analytics"
-                element={
-                  <ErrorBoundary>
-                    <Analytics />
-                  </ErrorBoundary>
-                }
-              />
+              {/* MVP: coming soon — redirect to dashboard until re-enabled */}
+              <Route path="/analytics" element={<Navigate to="/dashboard" replace />} />
               <Route path="/settings" element={<SettingsPage />} />
               <Route
                 path="/report"
@@ -85,23 +79,10 @@ export default function App() {
                 }
               />
               <Route path="/setup" element={<PrePitchSetup />} />
-              <Route path="/decks" element={<PitchDecksManagement />} />
-              <Route
-                path="/deck-check"
-                element={
-                  <ErrorBoundary>
-                    <DeckCheck />
-                  </ErrorBoundary>
-                }
-              />
-              <Route
-                path="/replay"
-                element={
-                  <ErrorBoundary>
-                    <PitchReplayScreen />
-                  </ErrorBoundary>
-                }
-              />
+              {/* MVP: coming soon — redirect to dashboard until re-enabled */}
+              <Route path="/decks" element={<Navigate to="/dashboard" replace />} />
+              <Route path="/deck-check" element={<Navigate to="/dashboard" replace />} />
+              <Route path="/replay" element={<Navigate to="/dashboard" replace />} />
               <Route path="/archive" element={<MyPitchesArchive />} />
             </Route>
 

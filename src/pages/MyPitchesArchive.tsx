@@ -62,7 +62,8 @@ const PitchRow = ({
 
   const handleShare = () => {
     const targetId = shareId || id;
-    const url = `${window.location.origin}/replay?session=${targetId}`;
+    // MVP: /replay is coming soon, so share links point at the report instead
+    const url = `${window.location.origin}/report?session=${targetId}`;
     navigator.clipboard.writeText(url).then(() => {
       alert("Share link copied to clipboard!");
     });
@@ -191,13 +192,15 @@ const PitchRow = ({
                   <BarChart3 size={14} /> View Report
                 </Link>
               </DropdownMenu.Item>
-              <DropdownMenu.Item asChild className="outline-none">
-                <Link
-                  to={`/replay?session=${id}`}
-                  className="flex items-center gap-2 px-3 py-2 text-xs font-bold text-slate-700 dark:text-zinc-300 hover:bg-slate-50 dark:hover:bg-zinc-800 rounded-lg cursor-pointer"
-                >
-                  <Play size={14} /> View Replay
-                </Link>
+              {/* MVP: replay coming soon — restore Link to /replay when re-enabled */}
+              <DropdownMenu.Item
+                disabled
+                className="flex items-center gap-2 px-3 py-2 text-xs font-bold text-slate-300 dark:text-zinc-600 rounded-lg cursor-default outline-none select-none"
+              >
+                <Play size={14} /> View Replay
+                <span className="ml-auto text-[9px] font-semibold uppercase tracking-wide px-1.5 py-0.5 rounded-md bg-slate-100 dark:bg-zinc-800 text-slate-400 dark:text-zinc-500">
+                  Soon
+                </span>
               </DropdownMenu.Item>
               <DropdownMenu.Item
                 onSelect={handleShare}

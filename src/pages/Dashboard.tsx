@@ -538,19 +538,13 @@ export default function Dashboard() {
               </>
             )}
 
-            <Link
-              to="/analytics"
-              className="w-full py-4 bg-indigo-50 dark:bg-indigo-950/20 text-indigo-600 dark:text-indigo-400 font-semibold rounded-2xl flex items-center justify-between px-6 hover:bg-indigo-100 dark:hover:bg-indigo-950/30 transition-colors group"
-            >
+            {/* MVP: analytics coming soon — restore Link to /analytics when re-enabled */}
+            <div className="w-full py-4 bg-slate-50 dark:bg-zinc-800/30 text-slate-400 dark:text-zinc-500 font-semibold rounded-2xl flex items-center justify-between px-6 select-none cursor-default">
               <span className="flex items-center gap-2">
                 <BarChart3 size={16} />
-                Unlock deep analytics
+                Deep analytics — coming soon
               </span>
-              <ChevronRight
-                size={18}
-                className="group-hover:translate-x-1 transition-transform"
-              />
-            </Link>
+            </div>
           </div>
         </div>
       </div>

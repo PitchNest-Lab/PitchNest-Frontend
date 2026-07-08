@@ -335,9 +335,10 @@ export default function PostPitchReport() {
               <Play size={22} className="text-white/30" />
               <span className="text-white/80 text-xs font-bold">Video replay coming soon</span>
             </div>
-            <Link to={`/replay?session=${session.id}`} className="w-full py-3 bg-slate-50 dark:bg-zinc-800 text-slate-700 dark:text-zinc-300 font-bold rounded-xl text-xs hover:bg-slate-100 dark:hover:bg-zinc-700 transition-all flex items-center justify-center gap-2 shadow-sm border border-slate-100 dark:border-zinc-800">
-               Open Replay Timeline
-            </Link>
+            {/* MVP: replay coming soon — restore Link to /replay when re-enabled */}
+            <div className="w-full py-3 bg-slate-50 dark:bg-zinc-800/50 text-slate-400 dark:text-zinc-500 font-bold rounded-xl text-xs flex items-center justify-center gap-2 border border-slate-100 dark:border-zinc-800 select-none cursor-default">
+               Replay timeline — coming soon
+            </div>
           </div>
 
           <div className="bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 rounded-3xl p-6 shadow-sm">

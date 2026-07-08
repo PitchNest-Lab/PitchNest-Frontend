@@ -28,17 +28,30 @@ import { useAuth } from '../contexts/AuthContext';
 import { LogoLink, LogoMark } from './Logo';
 import { InstallPrompt } from './InstallPrompt';
 
-const SidebarItem = ({ icon: Icon, label, path, active, onClick }: { icon: any, label: string, path: string, active: boolean, onClick?: () => void }) => (
-  <Link to={path} onClick={onClick} className={cn(
-    "flex items-center gap-3 px-4 py-2.5 rounded-xl cursor-pointer transition-all duration-200",
-    active 
-      ? "bg-indigo-50 dark:bg-indigo-950/30 text-indigo-600 dark:text-indigo-400 font-semibold" 
-      : "text-slate-500 dark:text-zinc-400 hover:bg-slate-50 dark:hover:bg-zinc-800/50 hover:text-slate-700 dark:hover:text-zinc-200 font-medium"
-  )}>
-    <Icon size={18} strokeWidth={active ? 2.25 : 2} />
-    <span className="text-sm">{label}</span>
-  </Link>
-);
+const SidebarItem = ({ icon: Icon, label, path, active, onClick, comingSoon }: { icon: any, label: string, path: string, active: boolean, onClick?: () => void, comingSoon?: boolean }) => {
+  if (comingSoon) {
+    return (
+      <div className="flex items-center gap-3 px-4 py-2.5 rounded-xl cursor-default select-none text-slate-300 dark:text-zinc-600 font-medium">
+        <Icon size={18} strokeWidth={2} />
+        <span className="text-sm">{label}</span>
+        <span className="ml-auto text-[10px] font-semibold uppercase tracking-wide px-1.5 py-0.5 rounded-md bg-slate-100 dark:bg-zinc-800 text-slate-400 dark:text-zinc-500">
+          Soon
+        </span>
+      </div>
+    );
+  }
+  return (
+    <Link to={path} onClick={onClick} className={cn(
+      "flex items-center gap-3 px-4 py-2.5 rounded-xl cursor-pointer transition-all duration-200",
+      active
+        ? "bg-indigo-50 dark:bg-indigo-950/30 text-indigo-600 dark:text-indigo-400 font-semibold"
+        : "text-slate-500 dark:text-zinc-400 hover:bg-slate-50 dark:hover:bg-zinc-800/50 hover:text-slate-700 dark:hover:text-zinc-200 font-medium"
+    )}>
+      <Icon size={18} strokeWidth={active ? 2.25 : 2} />
+      <span className="text-sm">{label}</span>
+    </Link>
+  );
+};
 
 export default function AppLayout() {
   const location = useLocation();
@@ -142,14 +155,15 @@ export default function AppLayout() {
     setIsMobileMenuOpen(false);
   }, [location.pathname]);
 
-  const navItems = [
+  const navItems: { icon: any; label: string; path: string; comingSoon?: boolean }[] = [
     { icon: LayoutDashboard, label: "Dashboard", path: "/dashboard" },
     { icon: PlusCircle, label: "Pre-Pitch Room", path: "/setup" },
     { icon: Megaphone, label: "My Pitches", path: "/archive" },
-    { icon: Activity, label: "Analytics", path: "/analytics" },
-    { icon: Layers, label: "Pitch Decks", path: "/decks" },
-    { icon: FileSearch, label: "Deck Check", path: "/deck-check" },
-    { icon: History, label: "Pitch Replays", path: "/replay" },
+    // MVP: coming soon — remove the flag to re-enable
+    { icon: Activity, label: "Analytics", path: "/analytics", comingSoon: true },
+    { icon: Layers, label: "Pitch Decks", path: "/decks", comingSoon: true },
+    { icon: FileSearch, label: "Deck Check", path: "/deck-check", comingSoon: true },
+    { icon: History, label: "Pitch Replays", path: "/replay", comingSoon: true },
   ];
 
   const handleLogout = () => {
@@ -189,13 +203,14 @@ export default function AppLayout() {
 
         <nav className="flex flex-col gap-1 flex-1 overflow-y-auto custom-scrollbar">
           {navItems.map((item) => (
-            <SidebarItem 
+            <SidebarItem
               key={item.path}
               icon={item.icon}
               label={item.label}
               path={item.path}
               active={location.pathname === item.path}
               onClick={() => setIsMobileMenuOpen(false)}
+              comingSoon={item.comingSoon}
             />
           ))}
           <div className="mt-auto">
