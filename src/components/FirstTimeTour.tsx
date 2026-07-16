@@ -49,6 +49,10 @@ export function markTourSeen(tourKey: string, userId?: number | string): void {
   } catch {}
 }
 
+// Tours already pushed to the account this session — avoids re-PATCHing the
+// same key on every page visit while the in-memory user object is stale.
+const syncedTours = new Set<string>();
+
 interface Box {
   top: number;
   left: number;
@@ -73,22 +77,53 @@ export function FirstTimeTour({
   steps: TourStep[];
   eyebrow?: string;
 }) {
-  const { user } = useAuth();
+  const { user, authFetch } = useAuth();
   const [open, setOpen] = useState(false);
   const [index, setIndex] = useState(0);
   const [rect, setRect] = useState<Box | null>(null);
   const cardRef = useRef<HTMLDivElement>(null);
   const [cardSize, setCardSize] = useState({ w: CARD_W, h: 200 });
 
+  // Push a completed tour to the user's account settings so it never replays
+  // on another device. Fire-and-forget; the server unions the array.
+  const persistTourSeen = (key: string, userId: number | string) => {
+    const syncKey = `${userId}_${key}`;
+    if (syncedTours.has(syncKey)) return;
+    syncedTours.add(syncKey);
+    authFetch("/api/auth/settings", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ settings: { toursSeen: [key] } }),
+    }).catch(() => syncedTours.delete(syncKey));
+  };
+
   useEffect(() => {
     // Wait for the signed-in user to hydrate before deciding: checking while
     // `user` is still undefined reads the wrong (unscoped) key, which is what
     // made the tour reopen on every login.
     if (!user?.id || steps.length === 0) return;
-    if (hasSeenTour(tourKey, user.id)) return;
+
+    // Account-level record (cross-device): if this user completed the tour on
+    // ANY device, never show it again — cache locally and stop.
+    const accountSeen =
+      Array.isArray(user.settings?.toursSeen) &&
+      user.settings.toursSeen.includes(tourKey);
+    if (accountSeen) {
+      markTourSeen(tourKey, user.id);
+      return;
+    }
+
+    if (hasSeenTour(tourKey, user.id)) {
+      // Seen on this device before account sync existed — backfill the
+      // account so the user's other devices don't replay it.
+      persistTourSeen(tourKey, user.id);
+      return;
+    }
+
     // Mark seen the moment it opens — seeing a page's tour once is enough; it
     // must never return, however the user leaves it (skip, ✕, refresh, nav).
     markTourSeen(tourKey, user.id);
+    persistTourSeen(tourKey, user.id);
     setOpen(true);
   }, [tourKey, steps.length, user?.id]);
 

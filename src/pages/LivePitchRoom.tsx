@@ -169,55 +169,84 @@ function getPanelistAvatar(name: string): string {
   return `https://i.pravatar.cc/300?u=${normalized}`;
 }
 
+// Panel-mode only: each panelist's live interest in the deal, pushed by the
+// server as the session unfolds (warming | neutral | cooling | out).
+const INTEREST_DOT: Record<string, string> = {
+  warming: "bg-emerald-500",
+  cooling: "bg-amber-500",
+};
+
 const AIPanelist = ({
   name,
   role,
   isActive,
+  interest,
 }: {
   name: string;
   role: string;
   isActive?: boolean;
-}) => (
-  <div
-    className={cn(
-      "w-full shrink-0 relative overflow-hidden bg-white/80 dark:bg-zinc-900/60 backdrop-blur-md rounded-2xl transition-all duration-500 group flex flex-row items-center gap-3 p-2.5 border",
-      isActive
-        ? "border-sky-500 shadow-[0_0_20px_rgba(14,165,233,0.15)] bg-sky-50/50 dark:bg-zinc-800"
-        : "border-slate-200 dark:border-white/5",
-    )}
-  >
-    {isActive && (
-      <div className="absolute inset-0 bg-gradient-to-r from-sky-500/10 to-transparent pointer-events-none" />
-    )}
-
-    <div className="relative w-14 h-14 shrink-0 rounded-xl bg-slate-100 dark:bg-slate-800 overflow-hidden">
-      <img
-        src={getPanelistAvatar(name)}
-        alt={name}
-        className={cn(
-          "w-full h-full object-cover transition-transform duration-700",
-          isActive ? "scale-110" : "scale-100",
-        )}
-      />
-      {isActive && (
-        <span className="absolute top-1 right-1 w-2 h-2 rounded-full bg-rose-500 animate-pulse" />
+  interest?: string;
+}) => {
+  const isOut = interest === "out";
+  return (
+    <div
+      className={cn(
+        "w-full shrink-0 relative overflow-hidden bg-white/80 dark:bg-zinc-900/60 backdrop-blur-md rounded-2xl transition-all duration-500 group flex flex-row items-center gap-3 p-2.5 border",
+        isActive
+          ? "border-sky-500 shadow-[0_0_20px_rgba(14,165,233,0.15)] bg-sky-50/50 dark:bg-zinc-800"
+          : "border-slate-200 dark:border-white/5",
+        isOut && "opacity-60",
       )}
-    </div>
+    >
+      {isActive && (
+        <div className="absolute inset-0 bg-gradient-to-r from-sky-500/10 to-transparent pointer-events-none" />
+      )}
 
-    <div className="flex-1 min-w-0 relative z-10">
-      <p className="text-[11px] font-bold text-slate-800 dark:text-white uppercase tracking-wider truncate">
-        {name}
-      </p>
-      <span className="text-[9px] font-bold text-sky-600 dark:text-sky-400/80 uppercase tracking-widest">
-        {role}
-      </span>
-    </div>
+      <div className="relative w-14 h-14 shrink-0 rounded-xl bg-slate-100 dark:bg-slate-800 overflow-hidden">
+        <img
+          src={getPanelistAvatar(name)}
+          alt={name}
+          className={cn(
+            "w-full h-full object-cover transition-transform duration-700",
+            isActive ? "scale-110" : "scale-100",
+            isOut && "grayscale",
+          )}
+        />
+        {isActive && (
+          <span className="absolute top-1 right-1 w-2 h-2 rounded-full bg-rose-500 animate-pulse" />
+        )}
+      </div>
 
-    <div className="opacity-70 group-hover:opacity-100 transition-opacity shrink-0">
-      <VoiceWaveform isActive={isActive} />
+      <div className="flex-1 min-w-0 relative z-10">
+        <p className="text-[11px] font-bold text-slate-800 dark:text-white uppercase tracking-wider truncate flex items-center gap-1.5">
+          {name}
+          {isOut ? (
+            <span className="text-[8px] font-black px-1.5 py-0.5 rounded bg-slate-200 dark:bg-zinc-700 text-slate-500 dark:text-zinc-400 tracking-widest">
+              OUT
+            </span>
+          ) : (
+            interest && INTEREST_DOT[interest] && (
+              <span
+                className={cn(
+                  "w-1.5 h-1.5 rounded-full shrink-0",
+                  INTEREST_DOT[interest],
+                )}
+                title={interest === "warming" ? "Warming up" : "Cooling off"}
+              />
+            )
+          )}
+        </p>
+        <span className="text-[9px] font-bold text-sky-600 dark:text-sky-400/80 uppercase tracking-widest">
+          {role}
+        </span>
+      </div>
+
+      <div className="opacity-70 group-hover:opacity-100 transition-opacity shrink-0">
+        <VoiceWaveform isActive={isActive} />
+      </div>
     </div>
-  </div>
-);
+  );
+};
 
 const getArchetypeLabel = (archetype: string) => {
   if (archetype?.includes("Angel")) return "Angel investor panel";
@@ -624,6 +653,18 @@ export default function LivePitchRoom() {
     }
     return 15 * 60;
   });
+
+  // Mirror of timeLeft for non-reactive reads (e.g. the client_ready resume
+  // payload) without adding timeLeft to effect deps.
+  const timeLeftRef = useRef(timeLeft);
+  useEffect(() => {
+    timeLeftRef.current = timeLeft;
+  }, [timeLeft]);
+
+  // Live per-panelist interest (panel mode only), pushed by the server.
+  const [panelInterest, setPanelInterest] = useState<Record<string, string>>(
+    {},
+  );
 
   const [mainView, setMainView] = useState<"slide" | "camera">("slide");
   const [chatInput, setChatInput] = useState("");
@@ -1213,7 +1254,11 @@ export default function LivePitchRoom() {
           type: "client_ready",
           config: { ...pitchConfig, userId: user?.id },
           ...(isResumeRef.current
-            ? { resume: true, transcript: messagesRef.current }
+            ? {
+                resume: true,
+                transcript: messagesRef.current,
+                timeLeftSeconds: timeLeftRef.current,
+              }
             : {}),
         }),
       );
@@ -1648,6 +1693,25 @@ export default function LivePitchRoom() {
             setCurrentTip(aiTip);
           } else {
             pendingAiTipRef.current = aiTip;
+          }
+          return;
+        }
+
+        // ── Live panel interest states (panel mode only) ─────────────────
+        if (data.type === "panel_interest" && data.states) {
+          setPanelInterest(data.states);
+          return;
+        }
+
+        // ── Server clock sync — corrects drift from background-tab
+        // throttling. Server clock is authoritative for AI time metadata;
+        // this keeps the visible countdown within a few seconds of it. ──
+        if (data.type === "time_sync") {
+          const serverLeft = Number(data.timeLeftSeconds);
+          if (Number.isFinite(serverLeft) && serverLeft >= 0) {
+            setTimeLeft((prev) =>
+              Math.abs(prev - serverLeft) > 3 ? serverLeft : prev,
+            );
           }
           return;
         }
@@ -2561,6 +2625,11 @@ export default function LivePitchRoom() {
                       .toLowerCase()
                       .includes(persona.name.toLowerCase())
                   }
+                  interest={
+                    pitchConfig.mode === "panel"
+                      ? panelInterest[persona.name]
+                      : undefined
+                  }
                 />
               ))}
             {pitchConfig.mode === "solo" && (
@@ -3227,6 +3296,11 @@ export default function LivePitchRoom() {
                         activeSpeakerName
                           .toLowerCase()
                           .includes(persona.name.toLowerCase())
+                      }
+                      interest={
+                        pitchConfig.mode === "panel"
+                          ? panelInterest[persona.name]
+                          : undefined
                       }
                     />
                   ))}

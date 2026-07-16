@@ -302,6 +302,37 @@ export default function PostPitchReport() {
             </div>
           </div>
 
+          {/* Read-the-room feedback — derived from the live interest timeline;
+              present only when it applies (older reports simply lack it). */}
+          {typeof report.room_read_note === "string" && report.room_read_note && (
+            <div
+              className={cn(
+                "border rounded-2xl p-5 flex items-start gap-3",
+                report.room_read_note.startsWith("Good room-reading")
+                  ? "bg-emerald-50/50 dark:bg-emerald-900/10 border-emerald-100 dark:border-emerald-900/30"
+                  : "bg-amber-50/60 dark:bg-amber-900/10 border-amber-200 dark:border-amber-900/30",
+              )}
+            >
+              <AlertTriangle
+                size={18}
+                className={cn(
+                  "shrink-0 mt-0.5",
+                  report.room_read_note.startsWith("Good room-reading")
+                    ? "text-emerald-500"
+                    : "text-amber-500",
+                )}
+              />
+              <div>
+                <p className="text-sm font-extrabold text-slate-800 dark:text-zinc-100 mb-1">
+                  Reading the Room
+                </p>
+                <p className="text-sm text-slate-600 dark:text-zinc-400 leading-relaxed">
+                  {report.room_read_note}
+                </p>
+              </div>
+            </div>
+          )}
+
           <div className="bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 rounded-3xl p-8 shadow-sm">
             <h3 className="text-lg font-extrabold flex items-center gap-2 mb-6"><CheckCircle2 className="text-sky-500" size={20} /> Actionable Next Steps</h3>
             {isInsufficientData ? (
