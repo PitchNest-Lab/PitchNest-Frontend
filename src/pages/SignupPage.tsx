@@ -504,7 +504,7 @@ export default function SignupPage() {
           {/* Right Side Carousel */}
           <div className="hidden lg:flex flex-1 bg-sky-50 dark:bg-zinc-800 flex-col items-center justify-center p-12 relative overflow-hidden">
             <div className="relative z-10 w-full max-w-sm">
-              <div className="rounded-[32px] overflow-hidden shadow-2xl border-8 border-white dark:border-zinc-900 mb-8 relative aspect-[4/5] bg-slate-100">
+              <div className="rounded-4xl overflow-hidden shadow-2xl border-8 border-white dark:border-zinc-900 mb-8 relative aspect-[4/5] bg-slate-100">
                 <div
                   className="flex w-full h-full transition-transform duration-700 ease-in-out"
                   style={{ transform: `translateX(-${currentSlide * 100}%)` }}

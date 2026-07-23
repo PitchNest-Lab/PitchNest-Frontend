@@ -395,7 +395,7 @@ export default function AppLayout() {
               </DropdownMenu.Root>
               <div className="flex items-center gap-3 pl-6 border-l border-slate-200 dark:border-zinc-800">
                 <div className="text-right hidden sm:block">
-                  <p className="text-sm font-bold text-slate-900 dark:text-zinc-100 truncate max-w-[120px]">{userData.name}</p>
+                  <p className="text-sm font-bold text-slate-900 dark:text-zinc-100 truncate max-w-30">{userData.name}</p>
                   <p className="text-[10px] text-slate-400 dark:text-zinc-500 font-medium">{userData.role || "Founder"}</p>
                 </div>
                 <img 

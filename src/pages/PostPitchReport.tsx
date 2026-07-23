@@ -390,7 +390,7 @@ export default function PostPitchReport() {
             </div>
           </div>
 
-          <div className={cn("bg-gradient-to-br rounded-3xl p-6 text-white shadow-lg relative overflow-hidden", isInsufficientData ? "from-slate-500 to-slate-700" : "from-indigo-500 to-sky-500")}>
+          <div className={cn("bg-linear-to-br rounded-3xl p-6 text-white shadow-lg relative overflow-hidden", isInsufficientData ? "from-slate-500 to-slate-700" : "from-indigo-500 to-sky-500")}>
             <div className="relative z-10">
               <div className="w-10 h-10 bg-white/20 backdrop-blur rounded-full flex items-center justify-center mb-4 absolute right-0 top-0">
                 <Star size={20} fill="currentColor" />

@@ -286,7 +286,7 @@ export default function SettingsPage() {
               )}
             </div>
 
-            <div className="flex flex-col sm:flex-row items-center gap-8 p-8 bg-slate-50 dark:bg-zinc-800/50 rounded-[32px] transition-colors">
+            <div className="flex flex-col sm:flex-row items-center gap-8 p-8 bg-slate-50 dark:bg-zinc-800/50 rounded-4xl transition-colors">
               <div className="shrink-0 flex flex-col items-center">
                 <div className="relative">
                   <img
@@ -310,7 +310,7 @@ export default function SettingsPage() {
                   />
                 </div>
                 {avatarError && (
-                  <p className="mt-2 text-[10px] text-rose-500 text-center max-w-[120px]">{avatarError}</p>
+                  <p className="mt-2 text-[10px] text-rose-500 text-center max-w-30">{avatarError}</p>
                 )}
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-12 gap-y-6 flex-1 w-full">

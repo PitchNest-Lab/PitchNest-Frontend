@@ -261,7 +261,7 @@ export default function PrePitchSetup() {
             <ModeCard title="Solo" icon={User} active={currentMode === 'solo'} onClick={() => setValue('mode', 'solo')} />
           </div>
 
-          <div className="bg-white dark:bg-zinc-900 p-4 sm:p-6 rounded-[24px] border border-slate-200 dark:border-zinc-800 shadow-sm shrink-0">
+          <div className="bg-white dark:bg-zinc-900 p-4 sm:p-6 rounded-3xl border border-slate-200 dark:border-zinc-800 shadow-sm shrink-0">
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div className="space-y-1.5 col-span-1">
                 <div className="flex justify-between">
@@ -298,6 +298,7 @@ export default function PrePitchSetup() {
                     <option value="Family Office">Family Office</option>
                     <option value="Y Combinator Partner">Y Combinator Partner</option>
                     <option value="ESG & Impact Investor">ESG & Impact Investor</option>
+                    <option value="Demo Presentation">Demo Presentation</option>
                   </select>
                 </div>
               </div>
@@ -328,7 +329,7 @@ export default function PrePitchSetup() {
             </div>
           </div>
 
-          <div className="bg-white dark:bg-zinc-900 p-4 sm:p-6 rounded-[24px] border border-slate-200 dark:border-zinc-800 shadow-sm shrink-0 grid grid-cols-1 sm:grid-cols-2 gap-6 sm:gap-8">
+          <div className="bg-white dark:bg-zinc-900 p-4 sm:p-6 rounded-3xl border border-slate-200 dark:border-zinc-800 shadow-sm shrink-0 grid grid-cols-1 sm:grid-cols-2 gap-6 sm:gap-8">
             <div className="space-y-3">
               <div className="flex justify-between text-xs font-bold text-slate-700 dark:text-zinc-300"><span>Aggressiveness</span><span className="text-sky-500">{aggressiveness}%</span></div>
               <input type="range" {...register('aggressiveness', { valueAsNumber: true })} className="w-full h-1.5 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-sky-500" />
@@ -366,11 +367,11 @@ export default function PrePitchSetup() {
         </div>
 
         {/* RIGHT COLUMN: Deck & Submit */}
-        <div className="lg:col-span-4 flex flex-col gap-4 min-h-[300px] lg:min-h-0 min-w-0">
-          <div data-tour="setup-deck" className="flex-1 bg-slate-900 rounded-[32px] p-5 md:p-6 flex flex-col text-white min-h-0 min-w-0 overflow-hidden">
+        <div className="lg:col-span-4 flex flex-col gap-4 min-h-75 lg:min-h-0 min-w-0">
+          <div data-tour="setup-deck" className="flex-1 bg-slate-900 rounded-4xl p-5 md:p-6 flex flex-col text-white min-h-0 min-w-0 overflow-hidden">
             <h3 className="text-sm font-bold uppercase tracking-widest text-white/50 mb-4 shrink-0">Select Deck</h3>
             
-            <div className="flex-1 overflow-y-auto space-y-2 pr-1 custom-scrollbar min-h-[140px] lg:min-h-0 min-w-0">
+            <div className="flex-1 overflow-y-auto space-y-2 pr-1 custom-scrollbar min-h-35 lg:min-h-0 min-w-0">
               {isLoading ? ( <><Skeleton className="h-14 bg-white/10" /><Skeleton className="h-14 bg-white/10" /></> ) : availableDecks.length === 0 ? (
                 <p className="text-xs text-white/40 text-center py-4">No decks found.</p>
               ) : (

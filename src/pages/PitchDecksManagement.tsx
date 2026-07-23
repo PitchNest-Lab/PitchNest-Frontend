@@ -321,7 +321,7 @@ export default function PitchDecksManagement() {
             {...getRootProps()}
             data-tour="decks-upload"
             className={cn(
-              "border-2 border-dashed rounded-[32px] flex flex-col items-center justify-center p-8 transition-all group min-h-[300px]",
+              "border-2 border-dashed rounded-4xl flex flex-col items-center justify-center p-8 transition-all group min-h-75",
               isDragActive
                 ? "border-sky-500 bg-sky-50 dark:bg-sky-900/20"
                 : "border-slate-200 dark:border-zinc-800 bg-slate-50/50 dark:bg-zinc-900/50",
@@ -397,7 +397,7 @@ export default function PitchDecksManagement() {
               </div>
             </>
           ) : decks.length === 0 ? (
-            <div className="md:col-span-1 lg:col-span-2 flex flex-col items-center justify-center p-10 text-slate-400 border-2 border-dashed border-slate-100 dark:border-zinc-800 rounded-[32px]">
+            <div className="md:col-span-1 lg:col-span-2 flex flex-col items-center justify-center p-10 text-slate-400 border-2 border-dashed border-slate-100 dark:border-zinc-800 rounded-4xl">
               <FileText size={48} className="mb-4 opacity-50" />
               <p>No pitch decks uploaded yet.</p>
             </div>

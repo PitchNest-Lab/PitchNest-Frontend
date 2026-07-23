@@ -115,7 +115,7 @@ function resample(
 }
 
 const VoiceWaveform = ({ isActive }: { isActive?: boolean }) => (
-  <div className="flex items-center gap-[3px] h-4 px-1">
+  <div className="flex items-center gap-0.75 h-4 px-1">
     {[...Array(4)].map((_, i) => (
       <motion.div
         key={i}
@@ -199,7 +199,7 @@ const AIPanelist = ({
       )}
     >
       {isActive && (
-        <div className="absolute inset-0 bg-gradient-to-r from-sky-500/10 to-transparent pointer-events-none" />
+        <div className="absolute inset-0 bg-linear-to-r from-sky-500/10 to-transparent pointer-events-none" />
       )}
 
       <div className="relative w-14 h-14 shrink-0 rounded-xl bg-slate-100 dark:bg-slate-800 overflow-hidden">
@@ -253,22 +253,36 @@ const getArchetypeLabel = (archetype: string) => {
   if (archetype?.includes("Y Combinator")) return "YC partner panel";
   if (archetype?.includes("Shark")) return "Shark Tank panel";
   if (archetype?.includes("Private Equity")) return "PE diligence panel";
+  if (archetype?.includes("Corporate")) return "Corporate VC panel";
+  if (archetype?.includes("Family")) return "Family Office panel";
+  if (archetype?.includes("Growth") || archetype?.includes("Series")) return "Growth-stage panel";
+  if (archetype?.includes("Impact") || archetype?.includes("ESG")) return "ESG & Impact panel";
+  if (archetype?.includes("Demo")) return "Demo review panel";
   return archetype || "Seed-stage VC panel";
+};
+
+const PERSONA_ROLE_LABELS: Record<string, { marcus: string; sarah: string; chen: string }> = {
+  "Seed Stage - Venture Capital": { marcus: "Lead Partner", sarah: "Financial Analyst", chen: "Technical Partner" },
+  "Angel Investor Group": { marcus: "Lead Angel", sarah: "Angel Investor", chen: "Angel Investor" },
+  "Growth Stage - Venture Capital": { marcus: "Lead Partner", sarah: "Growth Analyst", chen: "Ops & Scale Partner" },
+  "Shark Tank Judge": { marcus: "Lead Shark", sarah: "Shark", chen: "Shark" },
+  "Private Equity": { marcus: "Managing Partner", sarah: "PE Analyst", chen: "Diligence Partner" },
+  "Strategic Corporate VC": { marcus: "Lead Partner", sarah: "Strategy Lead", chen: "Integration Partner" },
+  "Family Office": { marcus: "Lead Advisor", sarah: "Wealth Advisor", chen: "Values Advisor" },
+  "Y Combinator Partner": { marcus: "Lead Partner", sarah: "Growth Partner", chen: "Product Partner" },
+  "ESG & Impact Investor": { marcus: "Lead Partner", sarah: "Impact Analyst", chen: "Sustainability Partner" },
+  "Demo Presentation": { marcus: "Lead Reviewer", sarah: "UX Reviewer", chen: "Technical Reviewer" },
 };
 
 const getPersonas = (archetype: string, mode: string) => {
   if (mode === "coach") {
     return [{ name: "Riley", role: "Pitch Coach" }];
   }
+  const roles = PERSONA_ROLE_LABELS[archetype] || PERSONA_ROLE_LABELS["Seed Stage - Venture Capital"];
   return [
-    {
-      name: "Marcus",
-      role: getArchetypeLabel(archetype).includes("Angel")
-        ? "Lead Angel"
-        : "Lead Partner",
-    },
-    { name: "Sarah", role: "Financial Analyst" },
-    { name: "Chen", role: "Technical Partner" },
+    { name: "Marcus", role: roles.marcus },
+    { name: "Sarah", role: roles.sarah },
+    { name: "Chen", role: roles.chen },
   ];
 };
 
@@ -295,7 +309,7 @@ const VerdictOverlay = ({
     <motion.div
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
-      className="absolute inset-0 z-[90] bg-slate-950/85 backdrop-blur-md flex flex-col items-center justify-center p-6 text-center"
+      className="absolute inset-0 z-90 bg-slate-950/85 backdrop-blur-md flex flex-col items-center justify-center p-6 text-center"
     >
       <div className="mb-4">
         <div className="inline-flex items-center gap-2 px-4 py-1.5 bg-sky-500/20 border border-sky-500/40 rounded-full mb-4">
@@ -2448,7 +2462,7 @@ export default function LivePitchRoom() {
         {roomState !== "live" && (
           <motion.div
             exit={{ opacity: 0, scale: 1.1 }}
-            className="absolute inset-0 z-[100] bg-slate-900/95 backdrop-blur-xl flex flex-col items-center justify-center"
+            className="absolute inset-0 z-100 bg-slate-900/95 backdrop-blur-xl flex flex-col items-center justify-center"
           >
             {roomState === "waiting" ? (
               <motion.div
@@ -2571,7 +2585,7 @@ export default function LivePitchRoom() {
 
         <div className="flex items-center gap-2 md:gap-3 pl-2 md:pl-6 border-l border-slate-200 dark:border-white/10">
           <div className="text-right hidden md:block">
-            <p className="text-sm font-bold text-slate-800 dark:text-white truncate max-w-[120px]">
+            <p className="text-sm font-bold text-slate-800 dark:text-white truncate max-w-30">
               {userData.name}
             </p>
             <p className="text-[10px] text-slate-400 dark:text-white/40 font-medium">
@@ -2596,7 +2610,7 @@ export default function LivePitchRoom() {
       {/* ============================================================== */}
       <div className="hidden lg:flex flex-1 flex-row p-3.5 gap-4 min-h-0 overflow-hidden bg-slate-100/50 dark:bg-zinc-950 transition-colors">
         {/* LEFT COLUMN: AI Panelists */}
-        <div className="w-72 shrink-0 bg-white/70 dark:bg-zinc-900/40 backdrop-blur-xl rounded-[24px] p-4 flex flex-col border border-slate-200 dark:border-white/5 shadow-xl dark:shadow-2xl min-h-0 transition-colors">
+        <div className="w-72 shrink-0 bg-white/70 dark:bg-zinc-900/40 backdrop-blur-xl rounded-3xl p-4 flex flex-col border border-slate-200 dark:border-white/5 shadow-xl dark:shadow-2xl min-h-0 transition-colors">
           <div className="mb-4 shrink-0">
             <h3 className="text-xs font-bold text-slate-700 dark:text-white flex items-center gap-2 uppercase tracking-widest">
               {pitchConfig.mode === "solo"
@@ -2644,7 +2658,7 @@ export default function LivePitchRoom() {
         {/* CENTER COLUMN */}
         <div className="flex-1 flex flex-col gap-3.5 min-h-0">
           {/* Main Viewing Area */}
-          <div className="flex-1 relative border border-slate-200 dark:border-white/10 shadow-xl dark:shadow-2xl group rounded-[24px] min-h-0 bg-white dark:bg-zinc-900/80 overflow-hidden backdrop-blur-lg transition-colors">
+          <div className="flex-1 relative border border-slate-200 dark:border-white/10 shadow-xl dark:shadow-2xl group rounded-3xl min-h-0 bg-white dark:bg-zinc-900/80 overflow-hidden backdrop-blur-lg transition-colors">
             {/* Verdict phase overlay on desktop */}
             {/* Verdict status indicator (inline, not overlay) */}
             {verdictPhase && (
@@ -2659,9 +2673,9 @@ export default function LivePitchRoom() {
             )}
 
             {mainView === "slide" ? (
-              <div className="w-full h-full relative flex items-center justify-center rounded-[24px] overflow-hidden">
+              <div className="w-full h-full relative flex items-center justify-center rounded-3xl overflow-hidden">
                 <DeckViewer
-                  className="rounded-[24px]"
+                  className="rounded-3xl"
                   isCapturing={isCapturing}
                   screenRef={setScreenRef}
                   selectedDeck={pitchConfig?.selectedDeck}
@@ -2669,7 +2683,7 @@ export default function LivePitchRoom() {
                 />
               </div>
             ) : (
-              <div className="w-full h-full relative flex items-center justify-center rounded-[24px] overflow-hidden">
+              <div className="w-full h-full relative flex items-center justify-center rounded-3xl overflow-hidden">
                 <CameraViewer
                   videoRef={setVideoRef}
                   stream={stream}
@@ -2783,7 +2797,7 @@ export default function LivePitchRoom() {
           </div>
 
           {/* Transcript / Chat Area */}
-          <div className="h-48 shrink-0 bg-white/70 dark:bg-zinc-900/60 backdrop-blur-xl rounded-[24px] p-4 flex flex-col border border-slate-200 dark:border-white/5 shadow-xl dark:shadow-2xl transition-colors">
+          <div className="h-48 shrink-0 bg-white/70 dark:bg-zinc-900/60 backdrop-blur-xl rounded-3xl p-4 flex flex-col border border-slate-200 dark:border-white/5 shadow-xl dark:shadow-2xl transition-colors">
             <div className="flex items-center gap-2 text-slate-500 dark:text-white/50 text-[10px] font-bold uppercase tracking-widest mb-2 shrink-0">
               <MessageSquare size={14} /> Chatbox & Transcript
               {isSpeaking && (
@@ -2872,7 +2886,7 @@ export default function LivePitchRoom() {
         <div className="w-96 shrink-0 flex flex-col gap-3.5 min-h-0 overflow-y-auto custom-scrollbar pr-1">
           {/* Deck/Camera Preview (thumbnail, swaps on click) */}
           <div
-            className="h-36 shrink-0 relative shadow-xl dark:shadow-2xl border-4 border-slate-250 dark:border-white/10 rounded-[24px] overflow-hidden bg-white dark:bg-zinc-900 cursor-pointer group transition-transform hover:scale-[1.02]"
+            className="h-36 shrink-0 relative shadow-xl dark:shadow-2xl border-4 border-slate-250 dark:border-white/10 rounded-3xl overflow-hidden bg-white dark:bg-zinc-900 cursor-pointer group transition-transform hover:scale-[1.02]"
             onClick={() =>
               setMainView((v) => (v === "slide" ? "camera" : "slide"))
             }
@@ -2880,7 +2894,7 @@ export default function LivePitchRoom() {
             {mainView === "camera" ? (
               <div className="w-full h-full pointer-events-none">
                 <DeckViewer
-                  className="rounded-[24px]"
+                  className="rounded-3xl"
                   isCapturing={isCapturing}
                   screenRef={setScreenRef}
                   selectedDeck={pitchConfig?.selectedDeck}
@@ -2909,7 +2923,7 @@ export default function LivePitchRoom() {
           </div>
 
           {/* Live Session Monitor */}
-          <div className="bg-white/70 dark:bg-zinc-900/40 backdrop-blur-xl rounded-[24px] p-4 border border-slate-200 dark:border-white/5 shadow-xl flex flex-col shrink-0 transition-colors">
+          <div className="bg-white/70 dark:bg-zinc-900/40 backdrop-blur-xl rounded-3xl p-4 border border-slate-200 dark:border-white/5 shadow-xl flex flex-col shrink-0 transition-colors">
             <div className="flex items-center gap-2 text-slate-500 dark:text-white/50 text-[10px] font-bold uppercase tracking-widest shrink-0 mb-2.5">
               <Activity size={14} /> Live Session Monitor
             </div>
@@ -2967,7 +2981,7 @@ export default function LivePitchRoom() {
           </div>
 
           {/* Data Chart — live analytics coming soon (placeholder, not fake data) */}
-          <div className="bg-white/70 dark:bg-zinc-900/40 backdrop-blur-xl rounded-[24px] p-4 border border-slate-200 dark:border-white/5 flex flex-col shadow-xl min-h-[125px] transition-colors">
+          <div className="bg-white/70 dark:bg-zinc-900/40 backdrop-blur-xl rounded-3xl p-4 border border-slate-200 dark:border-white/5 flex flex-col shadow-xl min-h-31.25 transition-colors">
             <h4 className="text-[11px] font-bold text-slate-700 dark:text-white/80 uppercase tracking-widest mb-3">
               Data Chart
             </h4>
@@ -3357,7 +3371,7 @@ export default function LivePitchRoom() {
         {/* Tab 4: Vitals */}
         {activeMobileTab === "vitals" && (
           <div className="flex-1 flex flex-col gap-3 overflow-y-auto px-2 pt-2 pb-2 custom-scrollbar min-h-0">
-            <div className="bg-white/70 dark:bg-zinc-900/45 backdrop-blur-xl rounded-[24px] p-4 border border-slate-200 dark:border-zinc-850 shadow-xl flex flex-col shrink-0 transition-colors">
+            <div className="bg-white/70 dark:bg-zinc-900/45 backdrop-blur-xl rounded-3xl p-4 border border-slate-200 dark:border-zinc-850 shadow-xl flex flex-col shrink-0 transition-colors">
               <div className="flex items-center gap-2 text-slate-500 dark:text-white/50 text-[10px] font-bold uppercase tracking-widest shrink-0 mb-3">
                 <Activity size={14} /> Live Session Monitor
               </div>
@@ -3415,7 +3429,7 @@ export default function LivePitchRoom() {
             </div>
 
             {/* Data Chart — live analytics coming soon (placeholder, not fake data) */}
-            <div className="bg-white/70 dark:bg-zinc-900/45 backdrop-blur-xl rounded-[24px] p-4 border border-slate-200 dark:border-zinc-850 flex flex-col shadow-xl shrink-0 transition-colors">
+            <div className="bg-white/70 dark:bg-zinc-900/45 backdrop-blur-xl rounded-3xl p-4 border border-slate-200 dark:border-zinc-850 flex flex-col shadow-xl shrink-0 transition-colors">
               <h4 className="text-[11px] font-bold text-slate-700 dark:text-white/80 uppercase tracking-widest mb-3">
                 Data Chart
               </h4>
@@ -3462,7 +3476,7 @@ export default function LivePitchRoom() {
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
-            className="absolute inset-0 z-[100] bg-gradient-to-b from-slate-950 via-slate-900 to-zinc-950 backdrop-blur-md flex flex-col items-center justify-center p-6 text-center"
+            className="absolute inset-0 z-100 bg-linear-to-b from-slate-950 via-slate-900 to-zinc-950 backdrop-blur-md flex flex-col items-center justify-center p-6 text-center"
           >
             <div className="relative mb-8">
               <Loader2 className="animate-spin text-sky-500" size={64} />
