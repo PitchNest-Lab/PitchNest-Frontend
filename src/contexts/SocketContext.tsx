@@ -36,6 +36,13 @@ export const SocketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       WS_URL = 'wss://pitchnest-live.onrender.com';
     }
 
+    // Append JWT for server-side authentication on the WS connection.
+    const token = localStorage.getItem('token');
+    if (token) {
+      const sep = WS_URL.includes('?') ? '&' : '?';
+      WS_URL += `${sep}token=${encodeURIComponent(token)}`;
+    }
+
     const ws = new WebSocket(WS_URL);
 
     ws.onopen = () => {

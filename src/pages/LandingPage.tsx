@@ -146,10 +146,10 @@ export default function LandingPage() {
           </nav>
         </header>
 
-        <div className="h-[6.75rem]" aria-hidden />
+        <div className="h-27" aria-hidden />
 
         {isMobileMenuOpen && (
-          <div className="md:hidden fixed top-[6.75rem] left-0 right-0 nav-glass z-40 p-5 flex flex-col gap-1 shadow-lg">
+          <div className="md:hidden fixed top-27 left-0 right-0 nav-glass z-40 p-5 flex flex-col gap-1 shadow-lg">
             {navLinks.map(link => (
               <a
                 key={link.href}
