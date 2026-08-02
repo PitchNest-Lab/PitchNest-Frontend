@@ -394,14 +394,12 @@ const DeckViewer = React.memo(
     className = "",
     isCapturing,
     screenRef,
-    selectedDeck,
-    getDeckDisplayUrl,
+    deckUrl,
   }: {
     className?: string;
     isCapturing: boolean;
     screenRef: any;
-    selectedDeck?: { file_url: string } | null;
-    getDeckDisplayUrl: (url: string) => string;
+    deckUrl?: string;
   }) => {
     // Remove the useEffect with console logs - it causes re-mounting issues
 
@@ -416,10 +414,6 @@ const DeckViewer = React.memo(
         />
       );
     }
-
-    const deckUrl = selectedDeck
-      ? getDeckDisplayUrl(selectedDeck.file_url)
-      : "";
 
     if (!deckUrl) {
       return (
@@ -472,15 +466,11 @@ const getDeckUrl = (url: string) => {
 const getDeckDisplayUrl = (url: string) => {
   const deckUrl = getDeckUrl(url);
   if (!deckUrl) return "";
-  const isMobile =
-    /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(
-      navigator.userAgent,
-    );
-  const isLocal =
-    deckUrl.includes("localhost") || deckUrl.includes("127.0.0.1");
-  if (isMobile && !isLocal && deckUrl.toLowerCase().endsWith(".pdf")) {
-    return `https://docs.google.com/viewer?url=${encodeURIComponent(deckUrl)}&embedded=true`;
-  }
+  // Item A: decks are now served via short-lived signed URLs (or legacy public
+  // URLs / local fallbacks). The Google Docs mobile viewer is gone — it both
+  // broke on signed URLs (they expire + include query tokens) and leaked deck
+  // content to a third party. Mobile browsers render PDFs natively in the
+  // iframe, so the signed URL works everywhere as-is.
   return deckUrl;
 };
 
@@ -642,6 +632,50 @@ export default function LivePitchRoom() {
   const { user, authFetch } = useAuth();
   const canScreenShare =
     typeof navigator?.mediaDevices?.getDisplayMedia === "function";
+
+  // ── Deck display URL (Item A: private-bucket access) ────────────────────
+  // The media bucket is private, so the deck's stored file_url (a bare object
+  // path for new uploads, or a legacy public URL) is NOT directly renderable.
+  // Resolve a short-lived signed URL from the server once per selected deck and
+  // feed that to every deck consumer. Falls back to the raw stored URL if the
+  // signed fetch fails so a live pitch never blanks the deck tile.
+  const [deckDisplayUrl, setDeckDisplayUrl] = useState<string>("");
+  const deckId = pitchConfig?.selectedDeck?.id;
+
+  useEffect(() => {
+    let cancelled = false;
+    const selectedDeck = pitchConfig?.selectedDeck;
+    if (!selectedDeck?.file_url) {
+      setDeckDisplayUrl("");
+      return;
+    }
+    // Local-fallback / legacy public URLs render directly — only sign when we
+    // have a deck id (new bare-path rows always do).
+    if (!selectedDeck.id) {
+      setDeckDisplayUrl(getDeckDisplayUrl(selectedDeck.file_url));
+      return;
+    }
+    authFetch(`/api/decks/${selectedDeck.id}/signed-url`)
+      .then(async (res) => {
+        if (cancelled) return;
+        if (!res.ok) throw new Error(`signed-url ${res.status}`);
+        const data = await res.json().catch(() => null);
+        if (!cancelled && data?.url) setDeckDisplayUrl(data.url);
+      })
+      .catch(() => {
+        // Fall back to the raw stored URL (renders for legacy public URLs).
+        if (!cancelled) setDeckDisplayUrl(getDeckDisplayUrl(selectedDeck.file_url));
+      });
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [deckId]);
+
+  // Final URL used by every deck consumer — signed when available, otherwise
+  // the raw stored value (legacy public URL / local fallback / plain path).
+  const resolvedDeckUrl =
+    deckDisplayUrl || (pitchConfig?.selectedDeck?.file_url ? getDeckDisplayUrl(pitchConfig.selectedDeck.file_url) : "");
 
   const [roomState, setRoomState] = useState<
     "waiting" | "countdown" | "live" | "resume"
@@ -2697,8 +2731,7 @@ export default function LivePitchRoom() {
                   className="rounded-3xl"
                   isCapturing={isCapturing}
                   screenRef={setScreenRef}
-                  selectedDeck={pitchConfig?.selectedDeck}
-                  getDeckDisplayUrl={getDeckDisplayUrl}
+                  deckUrl={resolvedDeckUrl}
                 />
               </div>
             ) : (
@@ -2916,8 +2949,7 @@ export default function LivePitchRoom() {
                   className="rounded-3xl"
                   isCapturing={isCapturing}
                   screenRef={setScreenRef}
-                  selectedDeck={pitchConfig?.selectedDeck}
-                  getDeckDisplayUrl={getDeckDisplayUrl}
+                  deckUrl={resolvedDeckUrl}
                 />
               </div>
             ) : (
@@ -3043,8 +3075,7 @@ export default function LivePitchRoom() {
                       className="rounded-xl"
                       isCapturing={isCapturing}
                       screenRef={setScreenRef}
-                      selectedDeck={pitchConfig?.selectedDeck}
-                      getDeckDisplayUrl={getDeckDisplayUrl}
+                      deckUrl={resolvedDeckUrl}
                     />
                     {/* Camera PIP */}
                     <div
@@ -3102,9 +3133,7 @@ export default function LivePitchRoom() {
                         />
                       ) : pitchConfig.selectedDeck ? (
                         <iframe
-                          src={getDeckDisplayUrl(
-                            pitchConfig.selectedDeck.file_url,
-                          )}
+                          src={resolvedDeckUrl}
                           className="w-full h-full border-none pointer-events-none opacity-80"
                           title="Deck Preview"
                         />

@@ -26,14 +26,18 @@ const DeckCard = ({
   status,
   image,
   fileUrl,
+  deckId,
   onRemove,
+  onPreview,
 }: {
   name: string;
   date: string;
   status: string;
   image: string;
   fileUrl?: string;
+  deckId?: string | number;
   onRemove?: () => void;
+  onPreview?: (deckId: string | number, fileUrl?: string) => void;
 }) => (
   <div className="card overflow-hidden group dark:bg-zinc-900 dark:border-zinc-800 flex flex-col shadow-sm hover:shadow-xl transition-shadow relative">
     <div className="aspect-[4/3] relative overflow-hidden bg-slate-100 dark:bg-zinc-800">
@@ -115,10 +119,12 @@ const DeckCard = ({
       </div>
       <div className="space-y-3">
         <div className="grid grid-cols-1 gap-3">
-          <a
-            href={fileUrl || "#"}
-            target="_blank"
-            rel="noreferrer"
+          <button
+            type="button"
+            onClick={() => {
+              if (deckId !== undefined) onPreview?.(deckId, fileUrl);
+            }}
+            disabled={!fileUrl || status !== "READY"}
             className={cn(
               "py-2.5 bg-slate-50 dark:bg-zinc-800 text-slate-700 dark:text-zinc-300 text-xs font-bold rounded-xl hover:bg-slate-100 dark:hover:bg-zinc-700 transition-colors flex items-center justify-center gap-2",
               (!fileUrl || status !== "READY") &&
@@ -126,7 +132,7 @@ const DeckCard = ({
             )}
           >
             <Eye size={14} /> Preview Deck
-          </a>
+          </button>
         </div>
         <Link
           to="/setup"
@@ -182,6 +188,27 @@ export default function PitchDecksManagement() {
 
     fetchDecks();
   }, []);
+
+  // 🖼️ Preview a deck — resolve a short-lived signed URL (private bucket) then
+  // open it. Falls back to the raw stored file_url (legacy public URL / local
+  // path) if the signed fetch fails, so preview never breaks.
+  const onPreview = useCallback(
+    async (deckId: string | number, fileUrl?: string) => {
+      let target = fileUrl;
+      try {
+        const res = await authFetch(`/api/decks/${deckId}/signed-url`);
+        if (res.ok) {
+          const data = await res.json().catch(() => null);
+          if (data?.url) target = data.url;
+        }
+      } catch (e) {
+        // fall through to fileUrl
+      }
+      if (!target) return;
+      window.open(target, "_blank", "noreferrer");
+    },
+    [authFetch],
+  );
 
   // ☁️ Upload File
   const onDrop = useCallback(async (acceptedFiles: File[]) => {
@@ -410,7 +437,9 @@ export default function PitchDecksManagement() {
                 status={deck.status}
                 image={deck.image}
                 fileUrl={deck.file_url}
+                deckId={deck.id}
                 onRemove={() => removeDeck(deck.id)}
+                onPreview={onPreview}
               />
             ))
           )}
