@@ -2005,6 +2005,25 @@ export default function LivePitchRoom() {
           }
         }
 
+        // ── Voice-triggered end of session ───────────────────────────────
+        // The founder asked to end out loud and the lead panelist confirmed;
+        // the panel's closing remark has just finished. Run the EXACT same
+        // conclusion flow as the manual End Session button (triggerConclusion),
+        // so the verdict/report path is reused, never duplicated. Guarded so a
+        // stray/duplicate signal can't double-trigger once we're already
+        // concluding, in the verdict phase, or after the session is locked.
+        if (data.type === "voice_end_session") {
+          if (
+            !isConcluding &&
+            !verdictPhase &&
+            !sessionLockedRef.current &&
+            pitchConfig?.mode !== "solo"
+          ) {
+            triggerConclusion();
+          }
+          return;
+        }
+
         if (data.type === "SCORE_UPDATE" && data.scores) {
           setScores(data.scores);
         }
