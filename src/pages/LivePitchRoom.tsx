@@ -891,6 +891,11 @@ export default function LivePitchRoom() {
   >([]);
   const verdictCountdownRef = useRef<NodeJS.Timeout | null>(null);
   const verdictMaxTimerRef = useRef<NodeJS.Timeout | null>(null);
+  // Time-up safety net: when the clock hits 0 while a panelist is mid-turn we let
+  // that turn finish (no silent cutoff), but if it hasn't ended within a few
+  // seconds we force the close so time-up can never hang. Cleared by the terminal
+  // transitions (triggerVerdictPhase / handleEndSession).
+  const timeUpGraceRef = useRef<NodeJS.Timeout | null>(null);
   const verdictCompleteReceivedRef = useRef(false);
   // ────────────────────────────────────────────────────────────────────────
 
@@ -1153,10 +1158,52 @@ export default function LivePitchRoom() {
     if (!isPitching || isEvaluatingPitch || isConcluding || verdictPhase)
       return;
     if (timeLeft <= 0) {
-      if (pitchConfig?.mode === "panel") {
-        triggerVerdictPhase();
+      // Time's up. Don't slam into the verdict phase on top of a panelist who is
+      // still mid-turn — that overlapped the closing with an in-flight response
+      // (the reported bug). Instead: start the evaluation now, mark the session
+      // as concluding, and let any in-flight turn FINISH cleanly (no silent
+      // cutoff). The `isConcluding && isTurnComplete && !isSpeaking` effect below
+      // then transitions to verdicts/close once the panel stops speaking — the
+      // same clean boundary the manual/voice End paths use. If nothing is
+      // speaking right now, transition immediately.
+      if (socket && socket.readyState === WebSocket.OPEN) {
+        socket.send(
+          JSON.stringify({
+            type: "prepare_evaluation",
+            transcript: messagesRef.current,
+          }),
+        );
+      }
+      setIsConcluding(true);
+      const turnInFlight =
+        isSpeakingRef.current || activeSourcesRef.current.length > 0;
+      if (!turnInFlight) {
+        if (pitchConfig?.mode === "panel") {
+          triggerVerdictPhase();
+        } else {
+          handleEndSession();
+        }
       } else {
-        handleEndSession();
+        // Let the current turn land, but bound the wait so a stalled turn can't
+        // hang the close. If it hasn't finished in time, cut over cleanly.
+        if (timeUpGraceRef.current) clearTimeout(timeUpGraceRef.current);
+        timeUpGraceRef.current = setTimeout(() => {
+          if (
+            isSpeakingRef.current ||
+            activeSourcesRef.current.length > 0
+          ) {
+            bargedInRef.current = true;
+            stopAiAudio();
+            if (socket && socket.readyState === WebSocket.OPEN) {
+              socket.send(JSON.stringify({ type: "interrupt" }));
+            }
+          }
+          if (pitchConfig?.mode === "panel") {
+            triggerVerdictPhase();
+          } else {
+            handleEndSession();
+          }
+        }, 9000);
       }
       return;
     }
@@ -2219,6 +2266,11 @@ export default function LivePitchRoom() {
 
   const triggerVerdictPhase = useCallback(() => {
     if (verdictPhase) return;
+    // A clean transition happened — cancel the time-up safety fallback if armed.
+    if (timeUpGraceRef.current) {
+      clearTimeout(timeUpGraceRef.current);
+      timeUpGraceRef.current = null;
+    }
     setVerdictPhase(true);
     setIsConcluding(false);
     setVerdictMessages([]);
@@ -2326,6 +2378,11 @@ export default function LivePitchRoom() {
   const handleEndSession = async () => {
     if (sessionLockedRef.current) return;
     sessionLockedRef.current = true;
+    // A terminal transition — cancel the time-up safety fallback if armed.
+    if (timeUpGraceRef.current) {
+      clearTimeout(timeUpGraceRef.current);
+      timeUpGraceRef.current = null;
+    }
     // Ending for real (End button / timer / verdict) — drop the resume snapshot
     // so a later reload (e.g. on the report screen) can't resume a finished pitch.
     try {

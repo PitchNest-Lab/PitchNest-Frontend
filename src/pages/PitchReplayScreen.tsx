@@ -13,6 +13,7 @@ import {
   Download,
   Share2,
   Loader2,
+  RotateCcw,
 } from "lucide-react";
 import { cn } from "../lib/utils";
 import { useAuth } from "../contexts/AuthContext";
@@ -157,7 +158,13 @@ export default function PitchReplayScreen() {
   const report = session.evaluation_report || {};
   const rawScores = report.scores || {};
 
+  // Match PostPitchReport + the PDF: the server now authoritatively marks a
+  // too-short/empty pitch with evaluationStatus "insufficient_data" (or "failed").
+  // Fall back to the all-zero-scores heuristic for older rows that predate the flag.
+  const evaluationStatus = report.evaluationStatus as string | undefined;
   const isInsufficientData =
+    evaluationStatus === "insufficient_data" ||
+    evaluationStatus === "failed" ||
     !rawScores ||
     Object.keys(rawScores).length === 0 ||
     Object.values(rawScores).every((v) => v === 0);
@@ -256,6 +263,27 @@ export default function PitchReplayScreen() {
           </Link>
         </div>
       </div>
+
+      {/* Insufficient session — tell the same story as the report + PDF:
+          too short to score, re-pitch to get the full breakdown. */}
+      {isInsufficientData && (
+        <div className="p-5 bg-sky-50 dark:bg-sky-900/10 border border-sky-200 dark:border-sky-900/40 rounded-2xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+          <div>
+            <h3 className="font-extrabold text-slate-900 dark:text-zinc-100 mb-1">
+              This pitch was too short to score
+            </h3>
+            <p className="text-sm text-slate-600 dark:text-zinc-400">
+              There wasn't enough here to grade fairly, so scores and analytics were left out. Re-pitch to get your full report.
+            </p>
+          </div>
+          <Link
+            to="/setup"
+            className="shrink-0 px-6 py-2.5 bg-sky-500 text-white font-bold rounded-xl hover:bg-sky-600 transition-all flex items-center gap-2 text-sm shadow-lg shadow-sky-500/25"
+          >
+            <RotateCcw size={16} /> Re-Pitch Now
+          </Link>
+        </div>
+      )}
 
       <div className="grid lg:grid-cols-3 gap-8">
         <div className="lg:col-span-2 space-y-6">
