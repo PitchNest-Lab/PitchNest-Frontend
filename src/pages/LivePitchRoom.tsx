@@ -1297,6 +1297,22 @@ export default function LivePitchRoom() {
   }, [roomState, countdown]);
 
   const handleAutoStart = async (isResume = false) => {
+    let activeStream = streamRef.current || stream;
+    if (!activeStream) {
+      try {
+        activeStream = await startStream();
+      } catch (e) {
+        console.error("Failed to start microphone stream:", e);
+      }
+    }
+    if (!activeStream) {
+      alert(
+        "Microphone access is required for live pitch. Please allow mic permission and try again.",
+      );
+      setRoomState("waiting");
+      return;
+    }
+
     setIsPitching(true);
     if (!isResume) {
       pitchStartTimeRef.current = Date.now();
@@ -1307,13 +1323,6 @@ export default function LivePitchRoom() {
     if (pitchConfig?.screenShareEnabled && !isCapturing) {
       try {
         startCapture();
-      } catch (e) {}
-    }
-
-    let activeStream = stream;
-    if (!activeStream) {
-      try {
-        activeStream = await startStream();
       } catch (e) {}
     }
 
@@ -1393,14 +1402,17 @@ export default function LivePitchRoom() {
     let cancelled = false;
 
     const startAudioCapture = async () => {
-      const activeStream = streamRef.current; // CHANGE
+      const activeStream = streamRef.current || stream;
       console.log("Stream tracks:", activeStream?.getTracks());
       if (cancelled || !activeStream) return;
+      try {
       const ctx = new AudioContext({
-        sampleRate: 16000,
         latencyHint: "interactive",
       });
       audioStreamContextRef.current = ctx;
+      if (ctx.state === "suspended") {
+        await ctx.resume();
+      }
       await ctx.audioWorklet.addModule("/pcm-processor.js");
       const source = ctx.createMediaStreamSource(activeStream);
       audioStreamSourceRef.current = source;
@@ -1499,6 +1511,12 @@ export default function LivePitchRoom() {
       source.connect(worklet);
       worklet.connect(silentSink);
       silentSink.connect(ctx.destination);
+      console.log(
+        `🎙 Audio capture started (${ctx.sampleRate}Hz → 16kHz PCM for Azure STT)`,
+      );
+      } catch (err) {
+        console.error("Failed to start audio capture pipeline:", err);
+      }
     };
 
     startAudioCapture();
