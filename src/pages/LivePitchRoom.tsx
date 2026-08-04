@@ -725,6 +725,15 @@ export default function LivePitchRoom() {
   // boundary (turn_complete / turn_aborted). While set, any late-arriving AI
   // audio chunks are dropped so the interrupted sentence can't resume.
   const bargedInRef = useRef(false);
+  // True for the WHOLE panelist turn — from the first audio chunk until the
+  // turn's clean boundary (turn_complete / turn_aborted / error). A turn is
+  // spoken as several back-to-back sentences, each its own TTS round-trip, so
+  // `isSpeaking` briefly drops to false in the gaps between sentences. We must
+  // NOT reopen the mic-to-server STT stream during those gaps, or ambient
+  // noise/breathing gets transcribed mid-turn and the server treats it as a
+  // barge-in, cutting the panelist off. This flag holds the echo guard closed
+  // across the gaps; intentional barge-in still works via the RMS/VAD path.
+  const aiTurnActiveRef = useRef(false);
   const [isUserSpeaking, setIsUserSpeaking] = useState(false);
   const pulseTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const lastAiSpeakingEndedTimeRef = useRef(0);
@@ -1460,8 +1469,12 @@ export default function LivePitchRoom() {
             userSpeakingStartRef.current = Date.now();
           }
           const speakingDuration = Date.now() - userSpeakingStartRef.current;
-          if (speakingDuration > VAD_BARGE_IN_MS && isSpeakingRef.current) {
+          if (
+            speakingDuration > VAD_BARGE_IN_MS &&
+            (isSpeakingRef.current || aiTurnActiveRef.current)
+          ) {
             bargedInRef.current = true; // drop any late AI audio until next turn
+            aiTurnActiveRef.current = false; // founder took the floor
             stopAiAudio();
             socket.send(JSON.stringify({ type: "interrupt" }));
           }
@@ -1488,7 +1501,10 @@ export default function LivePitchRoom() {
         // creating a self-talking loop. Barge-in still works via the RMS/VAD
         // interrupt above, which stops the AI audio and reopens the mic.
         const sinceAiSpoke = Date.now() - lastAiSpeakingEndedTimeRef.current;
-        if (isSpeakingRef.current || sinceAiSpoke < 700) return;
+        // aiTurnActiveRef stays true across the silent gaps BETWEEN a turn's
+        // sentences, so the mic never reopens to the server mid-turn.
+        if (aiTurnActiveRef.current || isSpeakingRef.current || sinceAiSpoke < 700)
+          return;
 
         // Send raw binary — no JSON, no base64
         socket.send(pcm); // ArrayBuffer sent as binary frame
@@ -1709,17 +1725,23 @@ export default function LivePitchRoom() {
           // e.g. a noise/echo-triggered STT partial between turns — must NOT
           // latch bargedIn, or it would silently drop the NEXT turn's audio
           // (panel text appears but no voice is heard).
-          if (!isSpeakingRef.current && activeSourcesRef.current.length === 0) {
+          if (
+            !isSpeakingRef.current &&
+            !aiTurnActiveRef.current &&
+            activeSourcesRef.current.length === 0
+          ) {
             return;
           }
           // Server-initiated stop: drop any further audio for this turn too.
           bargedInRef.current = true;
+          aiTurnActiveRef.current = false;
           stopAiAudio();
           return;
         }
         if (data.type === "turn_aborted") {
           // Clean boundary after a barge-in — safe to play the next turn.
           bargedInRef.current = false;
+          aiTurnActiveRef.current = false; // turn over — mic may reopen
           setIsTurnComplete(true);
           turnStartedRef.current = true;
           return;
@@ -1727,6 +1749,7 @@ export default function LivePitchRoom() {
         if (data.type === "turn_complete") {
           bargedInRef.current = false; // new turn boundary — resume accepting audio
           const markTurnComplete = () => {
+            aiTurnActiveRef.current = false; // turn fully spoken — mic may reopen
             setIsTurnComplete(true);
             turnStartedRef.current = true;
             // ── Answer-Tips: the floor is now the founder's. Prefer the
@@ -1914,6 +1937,7 @@ export default function LivePitchRoom() {
             data.code === "AI_FAILED" ||
             data.code === "AI_NOT_CONFIGURED"
           ) {
+            aiTurnActiveRef.current = false; // failed turn — don't strand the mic
             setSpeakingState(false);
             setIsTurnComplete(true);
           }
@@ -1923,6 +1947,10 @@ export default function LivePitchRoom() {
         if (data.type === "audio") {
           // Drop late-arriving chunks from a turn the user already interrupted.
           if (bargedInRef.current) return;
+          // The panel now holds the floor for this turn. Keep it held across
+          // the inter-sentence gaps (see aiTurnActiveRef) so the echo guard
+          // stays closed until the turn's clean boundary.
+          aiTurnActiveRef.current = true;
           if (AUDIO_DEBUG) console.log("received audio", data);
           if (!window.firstAudioReceived) {
             window.firstAudioReceived = performance.now();
