@@ -172,7 +172,7 @@ export default function AppLayout() {
   };
 
   return (
-    <div className="flex min-h-screen bg-[#FAFBFC] dark:bg-[#09090B] font-sans transition-colors duration-300 overflow-x-hidden">
+    <div className="flex min-h-screen bg-bg-main dark:bg-[#09090B] font-sans transition-colors duration-300 overflow-x-hidden">
       
       {/* Mobile Drawer Overlay */}
       <div 
@@ -324,7 +324,7 @@ export default function AppLayout() {
                   <DropdownMenu.Content 
                     align="end" 
                     sideOffset={10} 
-                    className="min-w-[320px] max-w-[360px] bg-white dark:bg-zinc-900 rounded-2xl shadow-xl border border-slate-200 dark:border-zinc-800 p-4 z-50 flex flex-col gap-3 outline-none"
+                    className="min-w-[320px] max-w-90 bg-white dark:bg-zinc-900 rounded-2xl shadow-xl border border-slate-200 dark:border-zinc-800 p-4 z-50 flex flex-col gap-3 outline-none"
                   >
                     <div className="flex items-center justify-between border-b border-slate-100 dark:border-zinc-800 pb-2">
                       <span className="text-xs font-bold text-slate-900 dark:text-zinc-100">Notifications</span>
@@ -338,7 +338,7 @@ export default function AppLayout() {
                       )}
                     </div>
 
-                    <div className="max-h-[280px] overflow-y-auto pr-1 custom-scrollbar flex flex-col gap-2">
+                    <div className="max-h-70 overflow-y-auto pr-1 custom-scrollbar flex flex-col gap-2">
                       {notifications.length === 0 ? (
                         <div className="py-8 text-center text-slate-400 dark:text-zinc-600">
                           <Bell size={24} className="mx-auto mb-2 opacity-40" />

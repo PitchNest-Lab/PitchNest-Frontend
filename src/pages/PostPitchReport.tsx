@@ -160,21 +160,21 @@ export default function PostPitchReport() {
             </span>
           </div>
         </div>
-        <div className="flex gap-3 w-full sm:w-auto">
+        <div className="flex flex-col md:flex-row md:flex-wrap md:justify-end gap-3 w-full md:w-auto">
           <button
             onClick={handleDownloadPDF}
             disabled={isDownloading}
-            className="flex-1 sm:flex-none justify-center px-6 py-2.5 bg-sky-500 text-white font-bold rounded-xl hover:bg-sky-600 transition-all flex items-center gap-2 text-sm shadow-md disabled:opacity-50 disabled:cursor-not-allowed"
+            className="w-full md:w-auto md:flex-none justify-center px-4 md:px-6 py-2.5 bg-sky-500 text-white font-bold rounded-xl hover:bg-sky-600 transition-all flex items-center gap-2 text-sm shadow-md disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {isDownloading ? <Loader2 size={16} className="animate-spin" /> : <FileDown size={16} />} {isDownloading ? "Generating..." : "Download Detailed Report"}
           </button>
           <button
             onClick={() => navigate('/setup', { state: { repitch: buildRepitchState(session) } })}
-            className="flex-1 sm:flex-none justify-center px-6 py-2.5 bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 font-bold rounded-xl hover:bg-slate-50 dark:hover:bg-zinc-700 transition-all flex items-center gap-2 text-sm shadow-sm"
+            className="w-full md:w-auto md:flex-none justify-center px-4 md:px-6 py-2.5 bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 font-bold rounded-xl hover:bg-slate-50 dark:hover:bg-zinc-700 transition-all flex items-center gap-2 text-sm shadow-sm"
           >
             <RotateCcw size={16} /> Pitch Again
           </button>
-          <Link to="/setup" className="flex-1 sm:flex-none justify-center px-6 py-2.5 bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 font-bold rounded-xl hover:bg-slate-50 transition-all flex items-center gap-2 text-sm shadow-sm">
+          <Link to="/setup" className="w-full md:w-auto md:flex-none justify-center px-4 md:px-6 py-2.5 bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 font-bold rounded-xl hover:bg-slate-50 transition-all flex items-center gap-2 text-sm shadow-sm">
             <Calendar size={16} /> Start New Session
           </Link>
         </div>

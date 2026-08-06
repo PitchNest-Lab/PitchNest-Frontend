@@ -38,7 +38,7 @@ const TimelineEvent = ({
   >
     <div
       className={cn(
-        "absolute -left-[9px] top-0 w-4 h-4 rounded-full border-2 bg-white dark:bg-zinc-900 transition-all",
+        "absolute -left-2.25 top-0 w-4 h-4 rounded-full border-2 bg-white dark:bg-zinc-900 transition-all",
         active
           ? "border-sky-500 scale-110"
           : "border-slate-200 dark:border-zinc-700",
@@ -321,7 +321,7 @@ export default function PitchReplayScreen() {
         </div>
 
         {/* Transcript — full width on mobile, sidebar on desktop */}
-        <div data-tour="replay-transcript" className="card flex flex-col h-[400px] lg:h-[500px] overflow-hidden dark:bg-zinc-900 dark:border-zinc-800 shadow-lg border border-slate-100">
+        <div data-tour="replay-transcript" className="card flex flex-col h-100 lg:h-125 overflow-hidden dark:bg-zinc-900 dark:border-zinc-800 shadow-lg border border-slate-100">
           <div className="p-6 sm:p-8 border-b border-slate-100 dark:border-zinc-800 flex items-center justify-between">
             <div className="flex items-center gap-2">
               <FileText className="text-sky-500" size={20} />
