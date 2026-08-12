@@ -28,16 +28,22 @@ import PrivacyPolicy from "./pages/legal/PrivacyPolicy";
 import TermsOfService from "./pages/legal/TermsOfService";
 import DeleteAccount from "./pages/legal/DeleteAccount";
 import Support from "./pages/legal/Support";
+import PricingPage from "./pages/PricingPage";
 import { SocketProvider } from "./contexts/SocketContext";
 import { AuthProvider } from "./contexts/AuthContext";
 import { ProtectedRoute } from "./components/ProtectedRoute";
 import { ThemeProvider } from "./contexts/ThemeContext";
+import { BillingProvider } from "./contexts/BillingContext";
+import { UpgradeProvider } from "./components/ui/UpgradeModal";
+import BillingReturn from "./pages/BillingReturn";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 export default function App() {
   return (
     <Router>
       <AuthProvider>
         <ThemeProvider>
+          <BillingProvider>
+          <UpgradeProvider>
           <VercelAnalytics />
           <Routes>
             {/* Public Routes */}
@@ -50,6 +56,7 @@ export default function App() {
             <Route path="/terms" element={<TermsOfService />} />
             <Route path="/delete-account" element={<DeleteAccount />} />
             <Route path="/support" element={<Support />} />
+            <Route path="/pricing" element={<PricingPage />} />
 
             {/* Protected Routes (Wrapped in AppLayout with Sidebar) */}
             <Route
@@ -96,6 +103,16 @@ export default function App() {
                 </ProtectedRoute>
               }
             />
+            {/* Checkout return. Full-screen (no sidebar) and protected — the
+                page confirms the account's plan, so it needs the session. */}
+            <Route
+              path="/billing/return"
+              element={
+                <ProtectedRoute>
+                  <BillingReturn />
+                </ProtectedRoute>
+              }
+            />
             <Route
               path="/verify"
               element={
@@ -125,6 +142,8 @@ export default function App() {
             {/* Fallback */}
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
+          </UpgradeProvider>
+          </BillingProvider>
         </ThemeProvider>
       </AuthProvider>
     </Router>

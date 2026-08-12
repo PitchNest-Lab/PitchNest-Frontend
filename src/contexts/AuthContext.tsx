@@ -9,7 +9,10 @@ import React, {
 
 export type UserRole = "Founder" | "Investor" | "Advisor";
 
-interface User {
+/** Mirrors the backend entitlement tiers (see entitlementService.ts). */
+export type UserPlan = "free" | "pro";
+
+export interface User {
   id: number;
   name: string;
   email: string;
@@ -17,6 +20,8 @@ interface User {
   bio?: string;
   avatarUrl?: string | null;
   settings?: Record<string, any>;
+  /** Paywall tier. Drives UI affordances only — the server re-checks every gate. */
+  plan?: UserPlan;
 }
 
 function safeParse<T = any>(value: string | null): T | null {
@@ -46,6 +51,8 @@ interface AuthContextType {
   logout: () => void;
   isLoading: boolean;
   authFetch: (url: string, options?: RequestInit) => Promise<Response>;
+  /** Re-reads /api/auth/me. Use after an out-of-band change like a payment. */
+  refreshUser: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -276,9 +283,37 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return () => window.removeEventListener("focus", onFocus);
   }, []);
 
+  /**
+   * Re-reads the user from /api/auth/me on demand.
+   *
+   * Needed because the plan can change without any navigation or focus event —
+   * a checkout return, or a webhook settling seconds after payment. Same
+   * merge semantics as the focus refresh: fresh server fields win over the
+   * stored copy.
+   */
+  const refreshUser = useCallback(async () => {
+    const currentToken = localStorage.getItem("token");
+    if (!currentToken) return;
+    try {
+      const res = await fetch("/api/auth/me", {
+        headers: { Authorization: `Bearer ${currentToken}` },
+      });
+      if (!res.ok) return;
+      const fresh = await res.json().catch(() => null);
+      if (!fresh?.id) return;
+      const stored = safeParse<User>(localStorage.getItem("user"));
+      const merged = { ...(stored || {}), ...fresh } as User;
+      setUser(merged);
+      localStorage.setItem("user", JSON.stringify(merged));
+      window.dispatchEvent(new Event("userUpdate"));
+    } catch {
+      // Network blip — keep the current user rather than logging them out.
+    }
+  }, []);
+
   return (
     <AuthContext.Provider
-      value={{ user, token, login, loginWithGoogle, signup, logout, isLoading, authFetch }}
+      value={{ user, token, login, loginWithGoogle, signup, logout, isLoading, authFetch, refreshUser }}
     >
       {children}
     </AuthContext.Provider>

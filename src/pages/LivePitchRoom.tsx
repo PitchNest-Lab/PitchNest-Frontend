@@ -28,6 +28,7 @@ import { useMediaRecorder } from "../hooks/useMediaRecorder";
 import { useScreenCapture } from "../hooks/useScreenCapture";
 import { useSocketContext } from "../contexts/SocketContext";
 import { useAuth } from "../contexts/AuthContext";
+import { useUpgrade } from "../components/ui/UpgradeModal";
 import { ThemeToggle } from "../components/ThemeToggle";
 import { matchAnswerTip, type AnswerTip } from "../lib/answerTips";
 import { FirstTimeTour } from "../components/FirstTimeTour";
@@ -630,6 +631,7 @@ export default function LivePitchRoom() {
   const { isCapturing, startCapture, stopCapture, screenStream } =
     useScreenCapture(() => {});
   const { user, authFetch } = useAuth();
+  const { showUpgrade } = useUpgrade();
   const canScreenShare =
     typeof navigator?.mediaDevices?.getDisplayMedia === "function";
 
@@ -1940,6 +1942,16 @@ export default function LivePitchRoom() {
 
         if (data.type === "error") {
           console.error("PitchNest server error:", data.message);
+
+          // Paywall rejection. The server closes the socket straight after
+          // this, so a chat bubble in a room that is about to disconnect would
+          // never be read. Leave the room and raise the upgrade prompt instead.
+          if (data.code === "PLAN_QUOTA_EXCEEDED") {
+            navigate("/dashboard", { replace: true });
+            showUpgrade("sessions");
+            return;
+          }
+
           setMessages((prev) => [
             ...prev,
             {

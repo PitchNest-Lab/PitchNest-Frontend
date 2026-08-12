@@ -12,8 +12,17 @@
  * The iOS tab must be opened synchronously (before the first await) so it
  * still counts as the user's tap — otherwise the popup blocker eats it.
  *
- * Throws on failure so callers keep their own error UI.
+ * Throws on failure so callers keep their own error UI. The thrown error
+ * carries the HTTP `status`, so a caller can distinguish a paywall (402) from
+ * a genuine failure and respond with an upgrade prompt rather than an alert.
  */
+export class PdfDownloadError extends Error {
+  constructor(message: string, readonly status: number) {
+    super(message);
+    this.name = "PdfDownloadError";
+  }
+}
+
 export async function downloadPdf(
   fetcher: () => Promise<Response>,
   filename: string,
@@ -27,7 +36,14 @@ export async function downloadPdf(
 
   try {
     const res = await fetcher();
-    if (!res.ok) throw new Error("Failed to generate PDF");
+    if (!res.ok) {
+      // Surface the server's own message when it sent one (the paywall does).
+      const body = await res.json().catch(() => null);
+      throw new PdfDownloadError(
+        body?.message || body?.error || "Failed to generate PDF",
+        res.status,
+      );
+    }
     const blob = await res.blob();
     const url = URL.createObjectURL(blob);
 

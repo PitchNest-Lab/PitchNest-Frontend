@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import {
   PlayCircle, ArrowRight, Users, MessageSquare, ShieldCheck, HelpCircle,
@@ -15,6 +15,8 @@ import { InvestorMarquee } from '../components/landing/InvestorMarquee';
 import heroImage from '../assets/heroImage.jpeg';
 import { StatsBand } from '../components/landing/StatsBand';
 import { LogoLink, LogoMark } from '../components/Logo';
+import { getPlans } from '../lib/plans';
+import { usePublicPrice } from '../hooks/usePublicPrice';
 
 const problems = [
   { icon: Clock, title: "One shot per investor", desc: "Fumble the live Q&A and that lead is gone — you rarely get a second meeting." },
@@ -53,11 +55,11 @@ const reportTags = ["Delivery analytics", "Competitive SWOT", "Action plan", "Pr
 
 const whyItems = [
   { icon: ShieldCheck, title: "Safe to fail", desc: "Stumble on the hard questions here, not in front of a partner. No relationship burned." },
-  { icon: TrendingUp, title: "Reps, not luck", desc: "Investors get one shot at you. You get unlimited shots at getting ready." },
+  { icon: TrendingUp, title: "Reps, not luck", desc: "Investors get one shot at you. Pro gives you unlimited shots at getting ready." },
   { icon: Target, title: "A target to beat", desc: "Each report projects your score after the fixes — so every rep has a number to chase." },
   { icon: Zap, title: "Feedback in minutes", desc: "Structured critique the moment you finish. No waiting, no guesswork." },
   { icon: FileText, title: "Deck-aware, not generic", desc: "It interrogates your business, not pitch clichés." },
-  { icon: Sparkles, title: "Free in early access", desc: "No card required. Get in before your next raise." },
+  { icon: Sparkles, title: "Start free", desc: "Two full pitch sessions a week, no card. Upgrade when you want more." },
 ];
 
 const faqs = [
@@ -66,13 +68,14 @@ const faqs = [
   { q: "Can I upload my pitch deck?", a: "Yes. The panel reads it and asks questions grounded in your slides and numbers." },
   { q: "Does it judge how I look on camera?", a: "Not today. PitchNest analyzes your spoken pitch and your deck. Visual delivery analysis is on our roadmap." },
   { q: "What do I get after a session?", a: "A detailed readiness report — verdict, scorecard, delivery analytics, competitive landscape and SWOT, a prioritized action plan with practice drills, and your projected score if you fix the gaps — plus a replay you can review and share." },
-  { q: "Is it free?", a: "Free during early access — no card required. Your scores are saved so you can track improvement across sessions." },
+  { q: "Is it free?", a: "There's a free plan: 2 pitch sessions a week, 10 minutes each, with your full report on screen. Pro adds unlimited sessions, longer pitch durations, live market research in the panel, and the downloadable PDF report." },
 ];
 
 const navLinks = [
   { href: "#how-it-works", label: "How it works" },
   { href: "#your-report", label: "Your report" },
   { href: "#why-pitchnest", label: "Why PitchNest" },
+  { href: "#pricing", label: "Pricing" },
   { href: "#faq", label: "FAQ" },
 ];
 
@@ -80,6 +83,8 @@ export default function LandingPage() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [navScrolled, setNavScrolled] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const publicPrice = usePublicPrice();
+  const plans = useMemo(() => getPlans(publicPrice), [publicPrice]);
 
   useEffect(() => { if (localStorage.getItem('user')) setIsLoggedIn(true); }, []);
 
@@ -108,7 +113,7 @@ export default function LandingPage() {
 
         {/* ── Navbar ── */}
         <header className={cn('fixed top-0 left-0 right-0 z-50 nav-glass', navScrolled && 'nav-glass-scrolled')}>
-          <nav className="max-w-6xl mx-auto px-5 sm:px-8 h-16 flex justify-between items-center">
+          <nav className="max-w-295 mx-auto px-5 sm:px-7 h-16 flex justify-between items-center">
             <LogoLink showText size="md" />
 
             <div className="hidden md:flex items-center gap-7">
@@ -173,68 +178,114 @@ export default function LandingPage() {
           </div>
         )}
 
-        {/* ── Hero ── */}
-        <section className="relative max-w-6xl mx-auto px-5 sm:px-8 pt-12 sm:pt-20 pb-16 sm:pb-20">
-          <div className="max-w-3xl mx-auto text-center">
-            <motion.div initial="hidden" animate="show" variants={{ hidden: {}, show: { transition: { staggerChildren: 0.08, delayChildren: 0.06 } } }}>
-              <motion.div variants={heroBlock} className="flex justify-center mb-6">
-                <span className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-indigo-50 dark:bg-indigo-950/40 border border-indigo-100 dark:border-indigo-900/60 text-xs font-semibold text-indigo-600 dark:text-indigo-300">
-                  <span className="w-1.5 h-1.5 rounded-full bg-indigo-500" />
-                  For founders raising pre-seed to Series A
-                </span>
+        {/* ── Hero ──
+            Two columns from lg: copy left, product shot right, so the image is
+            above the fold rather than a scroll away. Height is bounded by the
+            content (no min-h-screen) and the padding is deliberately tighter
+            than the old centred layout. */}
+        <section className="relative overflow-hidden border-b border-slate-100 dark:border-zinc-800/60">
+          {/* Background treatment: a soft brand wash plus a faint grid. Both are
+              pointer-events-none and very low contrast — texture, not decoration
+              that competes with the copy. */}
+          <div
+            aria-hidden
+            className="pointer-events-none absolute inset-0 -z-10 bg-[radial-gradient(60%_55%_at_75%_15%,rgba(99,102,241,0.10),transparent_60%),radial-gradient(45%_45%_at_10%_5%,rgba(14,165,233,0.08),transparent_60%)]"
+          />
+          <div
+            aria-hidden
+            className="pointer-events-none absolute inset-0 -z-10 opacity-[0.35] dark:opacity-[0.18] bg-[linear-gradient(to_right,rgba(100,116,139,0.14)_1px,transparent_1px),linear-gradient(to_bottom,rgba(100,116,139,0.14)_1px,transparent_1px)] bg-size-[56px_56px] mask-[radial-gradient(70%_60%_at_50%_0%,black,transparent_75%)]"
+          />
+
+          <div className="max-w-295 mx-auto px-5 sm:px-7 py-12 sm:py-16 lg:py-20">
+            <div className="grid lg:grid-cols-12 gap-10 lg:gap-12 items-center">
+              {/* Copy — left aligned at every breakpoint */}
+              <motion.div
+                initial="hidden"
+                animate="show"
+                variants={{ hidden: {}, show: { transition: { staggerChildren: 0.07, delayChildren: 0.04 } } }}
+                className="lg:col-span-5 text-left"
+              >
+                <motion.div variants={heroBlock} className="flex mb-5">
+                  <span className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-indigo-50 dark:bg-indigo-950/40 border border-indigo-100 dark:border-indigo-900/60 text-[11px] font-semibold text-indigo-600 dark:text-indigo-300">
+                    <span className="w-1.5 h-1.5 rounded-full bg-indigo-500" />
+                    For founders raising pre-seed to Series A
+                  </span>
+                </motion.div>
+
+                <HeroWords />
+
+                <motion.p variants={heroBlock} className="mt-4 mb-7 text-base sm:text-lg leading-relaxed text-slate-600 dark:text-zinc-400 max-w-xl">
+                  A rehearsal room where you pitch to an AI investor panel that listens,
+                  pushes back, and grills your deck — then hands you a scored readiness
+                  report showing exactly what to fix.
+                </motion.p>
+
+                <motion.div variants={heroBlock} className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 mb-3">
+                  <Link to={isLoggedIn ? "/dashboard" : "/signup"} className="btn-primary justify-center px-6 py-3 text-sm sm:text-base">
+                    Start pitching free <ArrowRight size={17} />
+                  </Link>
+                  <a href="#how-it-works" className="btn-secondary justify-center px-6 py-3 text-sm sm:text-base">
+                    <PlayCircle size={17} /> See how it works
+                  </a>
+                </motion.div>
+
+                <motion.p variants={heroBlock} className="text-xs text-slate-400 dark:text-zinc-500">
+                  No credit card · 2 free pitches every week
+                </motion.p>
               </motion.div>
 
-              <HeroWords />
-
-              <motion.p variants={heroBlock} className="section-subheading mx-auto mb-10">
-                A rehearsal room where you pitch to an AI investor panel that listens, pushes back, and grills your deck — then hands you a scored readiness report showing exactly what to fix. Before the meeting that actually matters.
-              </motion.p>
-
-              <motion.div variants={heroBlock} className="flex flex-col sm:flex-row items-center justify-center gap-3 mb-4">
-                <Link to={isLoggedIn ? "/dashboard" : "/signup"} className="btn-primary w-full sm:w-auto px-8 py-3.5 text-base">
-                  Start pitching free <ArrowRight size={18} />
-                </Link>
-                <a href="#how-it-works" className="btn-secondary w-full sm:w-auto px-8 py-3.5 text-base">
-                  <PlayCircle size={18} /> See how it works
-                </a>
-              </motion.div>
-
-              <motion.p variants={heroBlock} className="text-xs text-slate-400 dark:text-zinc-500">
-                No credit card · Free while in early access
-              </motion.p>
-            </motion.div>
-          </div>
-
-          <motion.div
-            initial={{ opacity: 0, y: 24 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.85, delay: 0.45, ease: heroEase }}
-            className="mt-16 sm:mt-20 max-w-4xl mx-auto"
-          >
-            <div className="card p-1 rounded-2xl sm:rounded-3xl shadow-2xl shadow-indigo-500/10">
-              <div className="relative rounded-xl sm:rounded-[22px] overflow-hidden bg-slate-900">
-                <img
-                  src={heroImage}
-                  alt="PitchNest live pitch session with an AI investor panel"
-                  className="w-full h-auto object-cover"
-                  loading="lazy"
+              {/* Product shot — wider than the copy column so it carries the
+                  section, and allowed to bleed slightly past the grid on large
+                  screens so it reads as a window into the app. */}
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.7, delay: 0.2, ease: heroEase }}
+                className="lg:col-span-7 relative lg:-mr-6 xl:-mr-12"
+              >
+                {/* Glow. Two stacked blurred gradients sitting BEHIND the frame:
+                    a wide brand-coloured wash plus a tighter, brighter core.
+                    Purely decorative and pointer-events-none so it can never
+                    intercept a click on the image. */}
+                <div
+                  aria-hidden
+                  className="pointer-events-none absolute -inset-6 sm:-inset-10 -z-10 rounded-[2rem] bg-[radial-gradient(50%_50%_at_50%_50%,rgba(99,102,241,0.35),transparent_70%)] blur-2xl"
                 />
-                <div className="absolute top-4 right-4 flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-black/40 backdrop-blur-sm">
-                  <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-                  <span className="text-xs font-medium text-emerald-300">Live</span>
+                <div
+                  aria-hidden
+                  className="pointer-events-none absolute -inset-2 -z-10 rounded-3xl bg-[conic-gradient(from_180deg_at_50%_50%,rgba(14,165,233,0.25),rgba(99,102,241,0.35),rgba(217,70,239,0.2),rgba(14,165,233,0.25))] blur-xl opacity-70 dark:opacity-90"
+                />
+
+                <div className="card p-1 rounded-2xl shadow-2xl shadow-indigo-500/20 ring-1 ring-white/40 dark:ring-white/10">
+                  <div className="relative rounded-xl overflow-hidden bg-slate-900 aspect-16/10">
+                    <img
+                      src={heroImage}
+                      alt="PitchNest live pitch session with an AI investor panel"
+                      className="w-full h-full object-cover"
+                      /* Above the fold now — eager, and high priority so it does
+                         not lose the race to the JS bundle. */
+                      loading="eager"
+                      fetchPriority="high"
+                      decoding="async"
+                    />
+                    <div className="absolute top-3 right-3 flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-black/40 backdrop-blur-sm">
+                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                      <span className="text-[11px] font-medium text-emerald-300">Live</span>
+                    </div>
+                  </div>
                 </div>
-              </div>
+              </motion.div>
             </div>
-          </motion.div>
+          </div>
         </section>
 
         <InvestorMarquee />
         <StatsBand />
 
         {/* ── The Problem ── */}
-        <section id="problem" className="py-[clamp(44px,5vw,72px)] border-y border-slate-100 dark:border-zinc-800/60 scroll-mt-28">
-          <div className="max-w-6xl mx-auto px-5 sm:px-8">
-            <SectionReveal className="text-center mb-10 sm:mb-12 max-w-3xl mx-auto">
+        <section id="problem" className="py-[clamp(36px,4vw,60px)] border-y border-slate-100 dark:border-zinc-800/60 scroll-mt-28">
+          <div className="max-w-295 mx-auto px-5 sm:px-7">
+            <SectionReveal className="text-center mb-8 sm:mb-10 max-w-3xl mx-auto">
               <p className="section-label mb-3">The problem</p>
               <h2 className="section-heading mb-4">Most founders find the gaps live — when it's already too late</h2>
               <p className="section-subheading mx-auto">You walk in under-rehearsed, get caught off guard, and burn a lead you can't get back.</p>
@@ -257,9 +308,9 @@ export default function LandingPage() {
         </section>
 
         {/* ── The Solution ── */}
-        <section id="solution" className="py-[clamp(44px,5vw,72px)] scroll-mt-28">
-          <div className="max-w-6xl mx-auto px-5 sm:px-8">
-            <SectionReveal className="text-center mb-10 sm:mb-12 max-w-3xl mx-auto">
+        <section id="solution" className="py-[clamp(36px,4vw,60px)] scroll-mt-28">
+          <div className="max-w-295 mx-auto px-5 sm:px-7">
+            <SectionReveal className="text-center mb-8 sm:mb-10 max-w-3xl mx-auto">
               <p className="section-label mb-3">The solution</p>
               <h2 className="section-heading mb-4">Get grilled in private, so nothing surprises you in public</h2>
               <p className="section-subheading mx-auto">Pitch out loud to a panel of AI investors — a lead partner, a financial analyst, and a technical partner. They listen, interrupt with hard questions, and debate your thesis. When you're done, you get a structured readiness report with the specific fixes to make before your next real meeting.</p>
@@ -282,9 +333,9 @@ export default function LandingPage() {
         </section>
 
         {/* ── How it works ── */}
-        <section id="how-it-works" className="py-[clamp(44px,5vw,72px)] bg-slate-50/80 dark:bg-zinc-900/30 scroll-mt-28">
-          <div className="max-w-6xl mx-auto px-5 sm:px-8">
-            <SectionReveal className="text-center mb-10 sm:mb-12">
+        <section id="how-it-works" className="py-[clamp(36px,4vw,60px)] bg-slate-50/80 dark:bg-zinc-900/30 scroll-mt-28">
+          <div className="max-w-295 mx-auto px-5 sm:px-7">
+            <SectionReveal className="text-center mb-8 sm:mb-10">
               <p className="section-label mb-3">How it works</p>
               <h2 className="section-heading">Three steps to investor-ready</h2>
             </SectionReveal>
@@ -305,9 +356,9 @@ export default function LandingPage() {
         </section>
 
         {/* ── In the Room ── */}
-        <section id="in-the-room" className="py-[clamp(44px,5vw,72px)] scroll-mt-28">
-          <div className="max-w-6xl mx-auto px-5 sm:px-8">
-            <SectionReveal className="text-center mb-10 sm:mb-12 max-w-3xl mx-auto">
+        <section id="in-the-room" className="py-[clamp(36px,4vw,60px)] scroll-mt-28">
+          <div className="max-w-295 mx-auto px-5 sm:px-7">
+            <SectionReveal className="text-center mb-8 sm:mb-10 max-w-3xl mx-auto">
               <p className="section-label mb-3">In the room</p>
               <h2 className="section-heading mb-4">A panel that actually makes you sweat</h2>
               <p className="section-subheading mx-auto">Three distinct AI investors question and debate your pitch in real time.</p>
@@ -330,9 +381,9 @@ export default function LandingPage() {
         </section>
 
         {/* ── In Your Report ── */}
-        <section id="your-report" className="py-[clamp(44px,5vw,72px)] bg-slate-50/80 dark:bg-zinc-900/30 scroll-mt-28">
-          <div className="max-w-6xl mx-auto px-5 sm:px-8">
-            <SectionReveal className="text-center mb-10 sm:mb-12 max-w-3xl mx-auto">
+        <section id="your-report" className="py-[clamp(36px,4vw,60px)] bg-slate-50/80 dark:bg-zinc-900/30 scroll-mt-28">
+          <div className="max-w-295 mx-auto px-5 sm:px-7">
+            <SectionReveal className="text-center mb-8 sm:mb-10 max-w-3xl mx-auto">
               <p className="section-label mb-3">In your report</p>
               <h2 className="section-heading mb-4">Walk away with a battle plan, not just a score</h2>
               <p className="section-subheading mx-auto">The second you finish, PitchNest generates a detailed readiness report — the kind of prep a pitch coach would charge for.</p>
@@ -386,9 +437,9 @@ export default function LandingPage() {
         </section>
 
         {/* ── Why PitchNest ── */}
-        <section id="why-pitchnest" className="py-[clamp(44px,5vw,72px)] scroll-mt-28">
-          <div className="max-w-6xl mx-auto px-5 sm:px-8">
-            <SectionReveal className="text-center mb-10 sm:mb-12 max-w-3xl mx-auto">
+        <section id="why-pitchnest" className="py-[clamp(36px,4vw,60px)] scroll-mt-28">
+          <div className="max-w-295 mx-auto px-5 sm:px-7">
+            <SectionReveal className="text-center mb-8 sm:mb-10 max-w-3xl mx-auto">
               <p className="section-label mb-3">Why PitchNest</p>
               <h2 className="section-heading mb-4">Preparation is the one variable you control</h2>
               <p className="section-subheading mx-auto">Investors get one shot at you. PitchNest makes sure you've already had a hundred.</p>
@@ -409,29 +460,89 @@ export default function LandingPage() {
           </div>
         </section>
 
-        {/* ── Early Access (honest — no fabricated testimonials) ── */}
-        <section id="early-access" className="py-[clamp(44px,5vw,72px)] bg-slate-50/80 dark:bg-zinc-900/30 scroll-mt-28">
-          <div className="max-w-4xl mx-auto px-5 sm:px-8">
-            <SectionReveal>
-              <div className="card p-8 sm:p-14 text-center relative overflow-hidden">
-                <div className="relative z-10">
-                  <p className="section-label mb-3">Early access</p>
-                  <h2 className="section-heading mb-4">Be one of the first founders in the Nest</h2>
-                  <p className="section-subheading mx-auto mb-8">
-                    PitchNest is in early access and free while we build. Get in now, run unlimited practice sessions, and help shape the panel that will grill the next generation of founders.
-                  </p>
-                  <Link to={isLoggedIn ? "/dashboard" : "/signup"} className="btn-primary inline-flex px-8 py-3.5 text-base">
-                    Claim your early-access spot <ArrowRight size={18} />
-                  </Link>
-                </div>
-                <div className="absolute -top-24 -right-16 w-56 h-56 gradient-brand opacity-10 rounded-full blur-3xl pointer-events-none" />
-              </div>
+        {/* ── Pricing (condensed) ──
+            Deliberately a summary, not the full matrix: three cards, the headline
+            constraint of each, and one CTA into /pricing for detail. Keeping the
+            landing page to one screen of pricing avoids duplicating a table that
+            then has to be kept in sync in two places. */}
+        <section id="pricing" className="py-[clamp(36px,4vw,56px)] bg-slate-50/80 dark:bg-zinc-900/30 scroll-mt-24">
+          <div className="max-w-5xl mx-auto px-5 sm:px-8">
+            <SectionReveal className="text-center mb-8">
+              <p className="section-label mb-2">Pricing</p>
+              <h2 className="section-heading mb-3">Start free. Upgrade when you're raising.</h2>
+              <p className="text-sm sm:text-base text-slate-600 dark:text-zinc-400 max-w-2xl mx-auto">
+                Every account gets 2 full pitch sessions a week with the complete
+                scorecard on screen.
+              </p>
+            </SectionReveal>
+
+            <div className="grid sm:grid-cols-3 gap-4 mb-7">
+              {plans.map((plan, i) => (
+                <SectionReveal key={plan.name} delay={i * 0.05}>
+                  <div
+                    className={cn(
+                      "h-full rounded-2xl border p-5 flex flex-col bg-white dark:bg-zinc-900",
+                      plan.featured
+                        ? "border-sky-500 ring-1 ring-sky-500/30"
+                        : "border-slate-200 dark:border-zinc-800",
+                    )}
+                  >
+                    <div className="flex items-baseline justify-between mb-1">
+                      <p className="text-sm font-extrabold text-slate-900 dark:text-zinc-100">{plan.name}</p>
+                      {plan.featured && (
+                        <span className="text-[9px] font-bold uppercase tracking-wider text-sky-600 dark:text-sky-400">
+                          Popular
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-xl font-bold text-slate-900 dark:text-zinc-100 mb-0.5">
+                      {plan.price || (plan.id === "enterprise" ? "Custom" : "—")}
+                    </p>
+                    <p className="text-xs text-slate-500 dark:text-zinc-400 mb-4">{plan.tagline}</p>
+                    <ul className="space-y-1.5 text-[13px] text-slate-600 dark:text-zinc-400 mb-5">
+                      {plan.features.map((line) => (
+                        <li key={line} className="flex items-start gap-2">
+                          <CheckCircle2 size={14} className="shrink-0 mt-0.5 text-emerald-500" />
+                          {line}
+                        </li>
+                      ))}
+                    </ul>
+                    {/* Per-card CTA so every tier has a real next step rather
+                        than one shared button under the grid. */}
+                    <div className="mt-auto">
+                      {plan.id === "enterprise" ? (
+                        <span className="block w-full py-2.5 rounded-xl border border-slate-200 dark:border-zinc-700 text-center text-xs font-bold text-slate-400 dark:text-zinc-500 cursor-default">
+                          Coming soon
+                        </span>
+                      ) : (
+                        <Link
+                          to={plan.cta.href}
+                          className={cn(
+                            "block w-full py-2.5 rounded-xl text-center text-xs font-bold transition-colors",
+                            plan.featured
+                              ? "gradient-brand text-white hover:opacity-95"
+                              : "border border-slate-200 dark:border-zinc-700 text-slate-700 dark:text-zinc-300 hover:bg-slate-50 dark:hover:bg-zinc-800",
+                          )}
+                        >
+                          {plan.cta.label}
+                        </Link>
+                      )}
+                    </div>
+                  </div>
+                </SectionReveal>
+              ))}
+            </div>
+
+            <SectionReveal className="text-center">
+              <Link to="/pricing" className="btn-primary inline-flex px-6 py-3 text-sm">
+                Compare plans in full <ArrowRight size={16} />
+              </Link>
             </SectionReveal>
           </div>
         </section>
 
         {/* ── FAQ ── */}
-        <section id="faq" className="py-[clamp(44px,5vw,72px)] border-t border-slate-100 dark:border-zinc-800/60 scroll-mt-28">
+        <section id="faq" className="py-[clamp(36px,4vw,60px)] border-t border-slate-100 dark:border-zinc-800/60 scroll-mt-28">
           <div className="max-w-3xl mx-auto px-5 sm:px-8">
             <SectionReveal className="text-center mb-12">
               <p className="section-label mb-3">FAQ</p>
@@ -448,13 +559,13 @@ export default function LandingPage() {
         </section>
 
         {/* ── Final CTA ── */}
-        <section className="max-w-6xl mx-auto px-5 sm:px-8 py-16 sm:py-20">
+        <section className="max-w-295 mx-auto px-5 sm:px-7 py-10 sm:py-14">
           <SectionReveal>
-            <div className="gradient-brand rounded-3xl p-10 sm:p-14 text-center text-white relative overflow-hidden">
+            <div className="gradient-brand rounded-3xl p-8 sm:p-10 text-center text-white relative overflow-hidden">
               <div className="relative z-10 max-w-2xl mx-auto">
-                <h2 className="font-display text-2xl sm:text-4xl font-semibold mb-4 leading-tight">Ready for your next pitch?</h2>
-                <p className="text-base text-white/75 mb-8 leading-relaxed">Don't find the gaps in a real board meeting. Rehearse, get scored, and walk in with confidence.</p>
-                <Link to={isLoggedIn ? "/dashboard" : "/signup"} className="inline-flex items-center gap-2 px-8 py-3.5 bg-white text-indigo-600 font-semibold rounded-xl hover:bg-white/95 transition-all shadow-xl">
+                <h2 className="font-display text-2xl sm:text-3xl font-semibold mb-3 leading-tight">Ready for your next pitch?</h2>
+                <p className="text-sm sm:text-base text-white/75 mb-6 leading-relaxed">Don't find the gaps in a real board meeting. Rehearse, get scored, and walk in with confidence.</p>
+                <Link to={isLoggedIn ? "/dashboard" : "/signup"} className="inline-flex items-center gap-2 px-7 py-3 bg-white text-indigo-600 font-semibold rounded-xl hover:bg-white/95 transition-all shadow-xl">
                   Start pitching now — free <ArrowRight size={18} />
                 </Link>
               </div>
@@ -495,6 +606,7 @@ export default function LandingPage() {
                 <li><a href="#how-it-works" className="hover:text-sky-600 dark:hover:text-sky-400">How it works</a></li>
                 <li><a href="#your-report" className="hover:text-sky-600 dark:hover:text-sky-400">Your report</a></li>
                 <li><a href="#why-pitchnest" className="hover:text-sky-600 dark:hover:text-sky-400">Why PitchNest</a></li>
+                <li><a href="#pricing" className="hover:text-sky-600 dark:hover:text-sky-400">Pricing</a></li>
                 <li><a href="#faq" className="hover:text-sky-600 dark:hover:text-sky-400">FAQ</a></li>
                 <li><Link to="/login" className="hover:text-sky-600 dark:hover:text-sky-400">Login</Link></li>
                 <li><Link to="/signup" className="hover:text-sky-600 dark:hover:text-sky-400">Sign Up</Link></li>

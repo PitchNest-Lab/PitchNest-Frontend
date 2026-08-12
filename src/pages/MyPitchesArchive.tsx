@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { FirstTimeTour } from "../components/FirstTimeTour";
 import {
   Search,
@@ -61,11 +61,16 @@ const PitchRow = ({
   const isIncomplete = score === 0;
 
   const handleShare = () => {
-    const targetId = shareId || id;
-    // MVP: /replay is coming soon, so share links point at the report instead
-    const url = `${window.location.origin}/report?session=${targetId}`;
+    // Copies a link to YOUR OWN report, not a public share.
+    //
+    // /report sits inside ProtectedRoute, so a recipient without an account is
+    // bounced to login, and a signed-in stranger fails the ownership check and
+    // gets a 404. The previous copy said "Share link copied!", which promised
+    // something the app cannot do. A real public share needs an unauthenticated
+    // route backed by share_id — the backend half already exists in getSession.
+    const url = `${window.location.origin}/report?session=${id}`;
     navigator.clipboard.writeText(url).then(() => {
-      alert("Share link copied to clipboard!");
+      alert("Link copied. Note: only you can open this — public sharing is coming soon.");
     });
   };
 
@@ -307,7 +312,10 @@ export default function MyPitchesArchive() {
   const navigate = useNavigate();
   const [sessions, setSessions] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [searchTerm, setSearchTerm] = useState("");
+  // Seeded from ?q= so the global header search hands off to the one place that
+  // actually filters real session data, instead of a second search surface.
+  const [searchParams] = useSearchParams();
+  const [searchTerm, setSearchTerm] = useState(searchParams.get("q") ?? "");
   const [modeFilter, setModeFilter] = useState<"all" | SessionMode>("all");
   const [selectedIds, setSelectedIds] = useState<number[]>([]);
   const [isDeleting, setIsDeleting] = useState(false);

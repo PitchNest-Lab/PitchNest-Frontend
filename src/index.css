@@ -127,7 +127,7 @@
 
   .section-heading {
     font-family: var(--font-display);
-    @apply text-3xl sm:text-4xl lg:text-5xl font-semibold tracking-tight text-slate-900 dark:text-zinc-50;
+    @apply text-2xl sm:text-3xl lg:text-[2.25rem] font-semibold tracking-tight text-slate-900 dark:text-zinc-50;
   }
 
   .footer-gradient {
@@ -135,7 +135,7 @@
   }
 
   .section-subheading {
-    @apply text-base sm:text-lg text-slate-500 dark:text-zinc-400 leading-relaxed max-w-2xl;
+    @apply text-sm sm:text-base text-slate-500 dark:text-zinc-400 leading-relaxed max-w-2xl;
   }
 
   /* ── Nav ── */
@@ -189,7 +189,7 @@
 
   /* ── App shell ── */
   .app-stat-card {
-    @apply bg-card-bg border border-slate-200/80 rounded-2xl shadow-sm p-6 hover:shadow-md transition-shadow duration-300;
+    @apply bg-card-bg border border-slate-200/80 rounded-2xl shadow-sm p-4 hover:shadow-md transition-shadow duration-300;
   }
 
   .dark .app-stat-card {
@@ -197,7 +197,7 @@
   }
 
   .app-hero-banner {
-    @apply rounded-3xl p-8 sm:p-10 text-white relative overflow-hidden;
+    @apply rounded-2xl p-5 sm:p-6 text-white relative overflow-hidden;
     background: linear-gradient(135deg, #312E81 0%, #4F46E5 40%, #0284C7 100%);
     box-shadow: 0 20px 60px rgba(79, 70, 229, 0.2);
   }

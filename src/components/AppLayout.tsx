@@ -18,7 +18,8 @@ import {
   AlertCircle,
   Check,
   Trash2,
-  FileSearch
+  FileSearch,
+  ShieldCheck
 } from 'lucide-react';
 import { Link, useLocation, Outlet, useNavigate } from 'react-router-dom';
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
@@ -27,6 +28,7 @@ import { ThemeToggle } from './ThemeToggle';
 import { useAuth } from '../contexts/AuthContext';
 import { LogoLink, LogoMark } from './Logo';
 import { InstallPrompt } from './InstallPrompt';
+import { PROFILE_PATH, SUBSCRIPTION_TAB_PATH } from '../lib/routes';
 
 const SidebarItem = ({ icon: Icon, label, path, active, onClick, comingSoon }: { icon: any, label: string, path: string, active: boolean, onClick?: () => void, comingSoon?: boolean }) => {
   if (comingSoon) {
@@ -56,8 +58,12 @@ const SidebarItem = ({ icon: Icon, label, path, active, onClick, comingSoon }: {
 export default function AppLayout() {
   const location = useLocation();
   const navigate = useNavigate();
-  const { logout } = useAuth();
+  const { logout, user } = useAuth();
+  // From context, not the localStorage copy below — a cached user object would
+  // keep showing the upsell to someone who just upgraded.
+  const isPro = user?.plan === 'pro';
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
   const [isInstallable, setIsInstallable] = useState(false);
 
@@ -190,7 +196,7 @@ export default function AppLayout() {
       )}>
         
         {/* Sidebar Header with Close button for mobile */}
-        <div className="flex justify-between items-center mb-10 shrink-0">
+        <div className="flex justify-between items-center mb-6 shrink-0">
           <LogoLink showText size="md" />
 
           <button 
@@ -225,41 +231,52 @@ export default function AppLayout() {
         </nav>
 
         {isInstallable && (
-          <div className="mt-4 p-4 bg-slate-50 dark:bg-zinc-800/30 border border-slate-200 dark:border-zinc-800 rounded-2xl text-center shrink-0">
-            <p className="text-xs font-bold text-slate-800 dark:text-zinc-200 mb-2">Get Desktop App</p>
-            <button 
-              type="button"
-              onClick={handleInstallClick}
-              className="w-full py-2 btn-primary text-xs flex items-center justify-center gap-2 cursor-pointer"
-            >
-              <Download size={14} /> Install App
-            </button>
+          <button
+            type="button"
+            onClick={handleInstallClick}
+            className="mt-3 w-full py-2 btn-primary text-xs flex items-center justify-center gap-2 cursor-pointer shrink-0"
+          >
+            <Download size={14} /> Install App
+          </button>
+        )}
+
+        {/* Upsell — free users only. Showing an "upgrade" card to someone who
+            already pays reads as a billing error. Links straight to the
+            Subscription tab, not the generic settings root. */}
+        {!isPro && (
+          <div className="mt-3 p-3 gradient-brand rounded-xl text-white relative overflow-hidden group shrink-0">
+            <div className="relative z-10">
+              <span className="text-[10px] font-semibold uppercase tracking-widest text-white/70">Free plan</span>
+              <p className="text-[11px] mt-0.5 text-white font-medium">2 pitches a week, 10 min each</p>
+              <Link to={SUBSCRIPTION_TAB_PATH} onClick={() => setIsMobileMenuOpen(false)} className="mt-2.5 block w-full py-1.5 bg-white text-indigo-600 text-center text-xs font-semibold rounded-lg hover:bg-white/95 transition-colors">
+                Upgrade to Pro
+              </Link>
+            </div>
+            <div className="absolute -right-4 -bottom-4 w-24 h-24 bg-white/10 rounded-full blur-2xl group-hover:scale-110 transition-transform" />
           </div>
         )}
 
-        <div className="mt-6 p-4 gradient-brand rounded-2xl text-white relative overflow-hidden group shrink-0">
-          <div className="relative z-10">
-            <span className="text-[10px] font-semibold uppercase tracking-widest text-white/70">Early access</span>
-            <p className="text-xs mt-1 text-white font-medium">Free while in beta</p>
-            <Link to="/settings" onClick={() => setIsMobileMenuOpen(false)} className="mt-4 block w-full py-2 bg-white text-indigo-600 text-center text-xs font-semibold rounded-lg hover:bg-white/95 transition-colors">
-              View plan
-            </Link>
-          </div>
-          <div className="absolute -right-4 -bottom-4 w-24 h-24 bg-white/10 rounded-full blur-2xl group-hover:scale-110 transition-transform" />
-        </div>
-
-        <div className="mt-6 flex items-center gap-3 p-2 bg-slate-50 dark:bg-zinc-800/50 rounded-xl border border-slate-100 dark:border-zinc-800 shrink-0">
-          <img 
-            src={userData.avatarUrl || `https://api.dicebear.com/7.x/avataaars/svg?seed=${userData.name}`} 
-            alt="Avatar" 
-            className="w-10 h-10 rounded-full border-2 border-white dark:border-zinc-700 shadow-sm bg-sky-100 object-cover"
-            referrerPolicy="no-referrer"
-          />
-          <div className="flex-1 min-w-0">
-            <p className="text-xs font-bold text-slate-900 dark:text-zinc-100 truncate">{userData.name}</p>
-            <p className="text-[10px] text-slate-400 dark:text-zinc-500 font-medium truncate">{userData.role || "Founder"}</p>
-          </div>
-          <button type="button" onClick={handleLogout} className="p-2 text-slate-400 dark:text-zinc-500 hover:text-rose-500 transition-colors cursor-pointer" aria-label="Log out">
+        {/* The card itself navigates to the profile; only the logout icon is a
+            separate action. It used to be inert, which read as a broken link. */}
+        <div className="mt-3 flex items-center gap-2.5 p-1.5 bg-slate-50 dark:bg-zinc-800/50 rounded-xl border border-slate-100 dark:border-zinc-800 shrink-0">
+          <Link
+            to={PROFILE_PATH}
+            onClick={() => setIsMobileMenuOpen(false)}
+            className="flex items-center gap-2.5 flex-1 min-w-0 rounded-lg px-1 py-0.5 hover:bg-white dark:hover:bg-zinc-800 transition-colors"
+            aria-label="View your profile"
+          >
+            <img
+              src={userData.avatarUrl || `https://api.dicebear.com/7.x/avataaars/svg?seed=${userData.name}`}
+              alt=""
+              className="w-8 h-8 rounded-full border-2 border-white dark:border-zinc-700 shadow-sm bg-sky-100 object-cover shrink-0"
+              referrerPolicy="no-referrer"
+            />
+            <div className="flex-1 min-w-0">
+              <p className="text-xs font-bold text-slate-900 dark:text-zinc-100 truncate">{userData.name}</p>
+              <p className="text-[10px] text-slate-400 dark:text-zinc-500 font-medium truncate">{userData.role || "Founder"}</p>
+            </div>
+          </Link>
+          <button type="button" onClick={handleLogout} className="p-1.5 text-slate-400 dark:text-zinc-500 hover:text-rose-500 transition-colors cursor-pointer shrink-0" aria-label="Log out">
             <LogOut size={16} />
           </button>
         </div>
@@ -284,27 +301,45 @@ export default function AppLayout() {
               <span className="font-bold text-slate-900 dark:text-zinc-100">PitchNest</span>
             </div>
 
-            {/* User Avatar on mobile top header */}
-            <div className="lg:hidden flex items-center gap-3">
+            {/* Mobile: plan CTA rather than a third avatar. */}
+            <div className="lg:hidden flex items-center gap-2">
               <ThemeToggle />
-              <img 
-                src={userData.avatarUrl || `https://api.dicebear.com/7.x/avataaars/svg?seed=${userData.name}`} 
-                alt="Avatar" 
-                className="w-8 h-8 rounded-full border border-slate-250 dark:border-zinc-800 bg-sky-100 object-cover"
-                referrerPolicy="no-referrer"
-              />
+              <Link
+                to={SUBSCRIPTION_TAB_PATH}
+                className={cn(
+                  "flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[11px] font-semibold",
+                  isPro
+                    ? "bg-slate-100 dark:bg-zinc-800 text-slate-700 dark:text-zinc-200"
+                    : "gradient-brand text-white",
+                )}
+              >
+                {isPro ? <ShieldCheck size={12} /> : <Sparkles size={12} />}
+                {isPro ? "Plan" : "Upgrade"}
+              </Link>
             </div>
           </div>
 
-          {/* Search bar - full-width on mobile, bounded on desktop */}
-          <div className="relative w-full md:w-96">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 dark:text-zinc-500" size={18} />
-            <input 
-              type="text" 
-              placeholder="Search sessions, decks or reports..." 
-              className="input-field pl-10 py-2.5 shadow-sm"
+          {/* Search — submits into the archive, which owns the real filtering.
+              A second search implementation here would only drift from it. */}
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              const q = searchQuery.trim();
+              if (!q) return;
+              navigate(`/archive?q=${encodeURIComponent(q)}`);
+            }}
+            className="relative w-full md:w-80"
+          >
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 dark:text-zinc-500" size={16} />
+            <input
+              type="search"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Search your pitches..."
+              aria-label="Search your pitches"
+              className="input-field pl-9 py-2 text-sm shadow-sm"
             />
-          </div>
+          </form>
 
           {/* Desktop Right Header Tools */}
           <div className="hidden lg:flex items-center gap-4">
@@ -393,18 +428,28 @@ export default function AppLayout() {
                   </DropdownMenu.Content>
                 </DropdownMenu.Portal>
               </DropdownMenu.Root>
-              <div className="flex items-center gap-3 pl-6 border-l border-slate-200 dark:border-zinc-800">
-                <div className="text-right hidden sm:block">
-                  <p className="text-sm font-bold text-slate-900 dark:text-zinc-100 truncate max-w-30">{userData.name}</p>
-                  <p className="text-[10px] text-slate-400 dark:text-zinc-500 font-medium">{userData.role || "Founder"}</p>
-                </div>
-                <img 
-                  src={userData.avatarUrl || `https://api.dicebear.com/7.x/avataaars/svg?seed=${userData.name}`} 
-                  alt="Avatar" 
-                  className="w-10 h-10 rounded-full border-2 border-white dark:border-zinc-700 shadow-sm bg-sky-100 object-cover"
-                  referrerPolicy="no-referrer"
-                />
-              </div>
+              {/* Plan CTA, not a second avatar. The sidebar already shows who
+                  you are; repeating it here spent the most valuable slot in the
+                  header on duplicate information. Copy follows the plan so a
+                  paying user is never asked to buy what they already own. */}
+              <Link
+                to={SUBSCRIPTION_TAB_PATH}
+                className={cn(
+                  "flex items-center gap-2 pl-4 ml-2 border-l border-slate-200 dark:border-zinc-800",
+                )}
+              >
+                <span
+                  className={cn(
+                    "flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-xs font-semibold transition-colors",
+                    isPro
+                      ? "bg-slate-100 dark:bg-zinc-800 text-slate-700 dark:text-zinc-200 hover:bg-slate-200 dark:hover:bg-zinc-700"
+                      : "gradient-brand text-white hover:opacity-95",
+                  )}
+                >
+                  {isPro ? <ShieldCheck size={14} /> : <Sparkles size={14} />}
+                  {isPro ? "View Plan" : "Upgrade"}
+                </span>
+              </Link>
             </div>
           </div>
         </header>

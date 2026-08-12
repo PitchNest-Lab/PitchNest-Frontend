@@ -321,10 +321,10 @@ export default function Dashboard() {
         className="app-hero-banner"
       >
         <div className="relative z-10 max-w-2xl">
-          <h2 className="text-3xl sm:text-4xl font-semibold mb-4 tracking-tight">
+          <h2 className="text-xl sm:text-2xl font-semibold mb-1.5 tracking-tight">
             Welcome back, {userName}
           </h2>
-          <p className="text-white/75 text-base sm:text-lg mb-8 leading-relaxed">
+          <p className="text-white/75 text-sm mb-4 leading-relaxed">
             {totalPitches > 0
               ? `You've completed ${totalPitches} pitch${totalPitches !== 1 ? "es" : ""}. Ready to refine your next big idea with our AI panel?`
               : "Ready to practice your first pitch with our AI investor panel?"}
@@ -332,14 +332,14 @@ export default function Dashboard() {
           <Link
             to="/setup"
             data-tour="dashboard-start"
-            className="inline-flex items-center gap-2 px-8 py-3.5 bg-white text-indigo-600 font-semibold rounded-xl shadow-xl hover:bg-white/95 transition-all"
+            className="inline-flex items-center gap-2 px-5 py-2.5 bg-white text-indigo-600 text-sm font-semibold rounded-xl shadow-lg hover:bg-white/95 transition-all"
           >
-            <LogoMark size="xs" className="w-[18px] h-[18px]" />
+            <LogoMark size="xs" className="w-4 h-4" />
             Start New Pitch
           </Link>
         </div>
-        <div className="absolute right-10 top-1/2 -translate-y-1/2 opacity-20 pointer-events-none">
-          <LogoMark className="w-60 h-60" />
+        <div className="absolute right-8 top-1/2 -translate-y-1/2 opacity-20 pointer-events-none">
+          <LogoMark className="w-32 h-32" />
         </div>
       </motion.div>
 

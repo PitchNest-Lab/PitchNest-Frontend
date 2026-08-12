@@ -2,20 +2,26 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { Link, useSearchParams, useLocation, useNavigate } from 'react-router-dom';
 import {
   FileDown, Calendar, Users, Target, Activity,
-  CheckCircle2, AlertTriangle, Play, Zap, Star, TrendingUp, ShieldAlert, Loader2, RotateCcw
+  CheckCircle2, AlertTriangle, Play, Zap, Star, TrendingUp, ShieldAlert, Loader2, RotateCcw, Lock
 } from 'lucide-react';
 import { Radar, RadarChart, PolarGrid, PolarAngleAxis, ResponsiveContainer } from 'recharts';
 import { cn } from '../lib/utils';
 import { useAuth } from '../contexts/AuthContext';
 import { ChartFrame } from '../components/ChartFrame';
-import { getSessionMode, MODE_LABELS, MODE_BADGE_CLASSES } from '../lib/sessionMode';
+import { getSessionMode, MODE_LABELS, MODE_BADGE_CLASSES, verdictLabel, SENTIMENT_HEADING, SENTIMENT_ROLE_LABEL } from '../lib/sessionMode';
 import { buildRepitchState } from '../lib/repitch';
-import { downloadPdf } from '../lib/downloadFile';
+import { downloadPdf, PdfDownloadError } from '../lib/downloadFile';
+import { useUpgrade } from '../components/ui/UpgradeModal';
 
 export default function PostPitchReport() {
   const [searchParams] = useSearchParams();
   const sessionId = searchParams.get('session');
-  const { authFetch } = useAuth();
+  const { authFetch, user } = useAuth();
+  const { showUpgrade } = useUpgrade();
+  // Entitlement comes from auth context, NOT the session payload: the live
+  // room navigates here with a client-built row, so anything read off the
+  // session object would be trivially forgeable.
+  const isPro = user?.plan === 'pro';
   const location = useLocation();
   const navigate = useNavigate();
   const [session, setSession] = useState<any>(() => location.state?.session || null);
@@ -24,6 +30,9 @@ export default function PostPitchReport() {
 
   const handleDownloadPDF = useCallback(async () => {
     if (!session?.id || isDownloading) return;
+    // Free users never reach the request — but the server enforces this too,
+    // so a bypassed button still gets a 402 rather than a report.
+    if (!isPro) { showUpgrade('pdf'); return; }
     setIsDownloading(true);
     try {
       await downloadPdf(
@@ -32,11 +41,17 @@ export default function PostPitchReport() {
       );
     } catch (err) {
       console.error("PDF download error:", err);
-      alert("Failed to download PDF report. Please try again.");
+      // 402 means the plan changed under us (or the button was bypassed) —
+      // sell rather than showing a scary failure.
+      if (err instanceof PdfDownloadError && err.status === 402) {
+        showUpgrade('pdf');
+      } else {
+        alert("Failed to download PDF report. Please try again.");
+      }
     } finally {
       setIsDownloading(false);
     }
-  }, [session, authFetch, isDownloading]);
+  }, [session, authFetch, isDownloading, isPro, showUpgrade]);
 
 
   useEffect(() => {
@@ -139,6 +154,8 @@ export default function PostPitchReport() {
   const strokeDashoffset = circumference * (1 - overallScore / 100);
   const formattedDate = session?.created_at ? new Date(session.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 'Unknown Date';
   const businessName = session?.business_name || "My Startup";
+  // Panel talks like investors; coach/solo talk like practice. Resolved once here.
+  const sessionMode = getSessionMode(session);
 
   return (
     <div className="max-w-7xl mx-auto pb-20 font-sans text-slate-900 dark:text-zinc-100">
@@ -156,7 +173,7 @@ export default function PostPitchReport() {
             </span>
             <span className="w-1.5 h-1.5 bg-slate-300 rounded-full" />
             <span className={cn("px-3 py-0.5 rounded-full text-xs font-bold", isInsufficientData ? "bg-slate-100 text-slate-500" : overallScore >= 80 ? "bg-emerald-100 text-emerald-700" : overallScore >= 60 ? "bg-sky-100 text-sky-700" : "bg-rose-100 text-rose-700")}>
-              Verdict: {isInsufficientData ? 'Incomplete' : overallScore >= 80 ? 'Strong Buy (Invest)' : overallScore >= 60 ? 'Consideration (Follow Up)' : 'Decline to Invest'}
+              Verdict: {isInsufficientData ? 'Incomplete' : verdictLabel(sessionMode, overallScore)}
             </span>
           </div>
         </div>
@@ -166,7 +183,9 @@ export default function PostPitchReport() {
             disabled={isDownloading}
             className="w-full md:w-auto md:flex-none justify-center px-4 md:px-6 py-2.5 bg-sky-500 text-white font-bold rounded-xl hover:bg-sky-600 transition-all flex items-center gap-2 text-sm shadow-md disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            {isDownloading ? <Loader2 size={16} className="animate-spin" /> : <FileDown size={16} />} {isDownloading ? "Generating..." : "Download Detailed Report"}
+            {isPro
+              ? <>{isDownloading ? <Loader2 size={16} className="animate-spin" /> : <FileDown size={16} />} {isDownloading ? "Generating..." : "Download Detailed Report"}</>
+              : <><Lock size={16} /> Unlock Full Report</>}
           </button>
           <button
             onClick={() => navigate('/setup', { state: { repitch: buildRepitchState(session) } })}
@@ -250,12 +269,12 @@ export default function PostPitchReport() {
           </div>
 
           <div>
-            <h3 className="text-lg font-extrabold flex items-center gap-2 mb-4"><Users className="text-indigo-500" size={20} /> Investor Sentiment</h3>
+            <h3 className="text-lg font-extrabold flex items-center gap-2 mb-4"><Users className="text-indigo-500" size={20} /> {SENTIMENT_HEADING[sessionMode]}</h3>
             {isInsufficientData ? (
                <div className="w-full p-8 border-2 border-dashed border-slate-200 dark:border-zinc-800 rounded-3xl text-center text-slate-500 text-sm font-medium">
                  {evaluationStatus === "failed"
                    ? "Evaluation could not be completed. Your session was saved — try pitching again."
-                   : "Your pitch was too short to generate investor sentiment. Please speak for at least 2 minutes."}
+                   : `Your pitch was too short to generate ${sessionMode === "panel" ? "investor sentiment" : "coaching feedback"}. Please speak for at least 2 minutes.`}
                </div>
             ) : (
               <div className="grid md:grid-cols-3 gap-4">
@@ -265,7 +284,7 @@ export default function PostPitchReport() {
                       <div className="w-8 h-8 bg-indigo-50 text-indigo-600 rounded-lg flex items-center justify-center"><Target size={16} /></div>
                       <div>
                         <p className="text-sm font-bold">{sent.persona}</p>
-                        <p className="text-[10px] text-slate-500">AI Panelist</p>
+                        <p className="text-[10px] text-slate-500">{SENTIMENT_ROLE_LABEL[sessionMode]}</p>
                       </div>
                     </div>
                     <p className="text-xs text-slate-600 dark:text-zinc-400 leading-relaxed italic">"{sent.quote}"</p>
@@ -302,9 +321,18 @@ export default function PostPitchReport() {
             </div>
           </div>
 
-          {/* Read-the-room feedback — derived from the live interest timeline;
-              present only when it applies (older reports simply lack it). */}
-          {typeof report.room_read_note === "string" && report.room_read_note && (
+          {/*
+            PAYWALL BOUNDARY. Everything above stays fully readable on the free
+            plan — the score, the radar, sentiment, strengths and risks. What is
+            locked is the prescriptive half: how you read the room, and what to
+            do next. That is the part worth paying for, and blurring it shows
+            its shape rather than hiding that it exists.
+          */}
+          <div className="relative">
+            <div className={cn(!isPro && "blur-[6px] select-none pointer-events-none")} aria-hidden={!isPro}>
+              {/* Read-the-room feedback — derived from the live interest timeline;
+                  present only when it applies (older reports simply lack it). */}
+              {typeof report.room_read_note === "string" && report.room_read_note && (
             <div
               className={cn(
                 "border rounded-2xl p-5 flex items-start gap-3",
@@ -356,6 +384,35 @@ export default function PostPitchReport() {
               </div>
             )}
           </div>
+            </div>
+
+            {/* Upgrade overlay. Only rendered for free users, and only when the
+                session actually produced content worth unlocking — dangling a
+                paywall over an empty state would be a bait. */}
+            {!isPro && !isInsufficientData && (
+              <div className="absolute inset-0 flex items-center justify-center p-4">
+                <div className="max-w-sm w-full rounded-3xl border border-slate-200 bg-white/90 p-6 text-center shadow-xl backdrop-blur-md dark:border-zinc-700 dark:bg-zinc-900/90">
+                  <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-sky-50 dark:bg-sky-500/10">
+                    <Lock className="text-sky-500" size={22} strokeWidth={1.8} />
+                  </div>
+                  <h3 className="mb-2 text-lg font-extrabold tracking-tight text-slate-900 dark:text-zinc-100">
+                    Your action plan is ready
+                  </h3>
+                  <p className="mb-5 text-sm leading-relaxed text-slate-500 dark:text-zinc-400">
+                    Upgrade to Pro to see how you read the room, your prioritised next
+                    steps, and to download the full PDF report.
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => showUpgrade('pdf')}
+                    className="w-full rounded-xl bg-sky-500 py-3 text-sm font-bold text-white transition-colors hover:bg-sky-600"
+                  >
+                    Upgrade to Pro
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
         </div>
 
         <div className="space-y-6">
@@ -399,7 +456,11 @@ export default function PostPitchReport() {
               <p className="text-xs text-white/90 leading-relaxed mb-6">
                 {isInsufficientData ? "Complete a full 15-minute pitch to unlock premium VC insights." : "Your scores qualify you for PitchNest Prime. Get direct intros to tier-1 VCs."}
               </p>
-              <button disabled={isInsufficientData} className="w-full py-3 bg-white text-indigo-600 font-bold rounded-xl text-sm hover:bg-slate-50 transition-colors shadow-md disabled:opacity-50 disabled:cursor-not-allowed">
+              <button
+                onClick={() => showUpgrade(isPro ? 'generic' : 'pdf')}
+                disabled={isInsufficientData}
+                className="w-full py-3 bg-white text-indigo-600 font-bold rounded-xl text-sm hover:bg-slate-50 transition-colors shadow-md disabled:opacity-50 disabled:cursor-not-allowed"
+              >
                 Unlock Premium Insights
               </button>
             </div>
@@ -411,15 +472,23 @@ export default function PostPitchReport() {
       {/* Prominent bottom-of-report download — full PDF of the report. */}
       <div className="mt-8 pt-6 border-t border-slate-200 dark:border-zinc-800 flex flex-col items-center gap-3 text-center">
         <p className="text-sm text-slate-500 dark:text-zinc-400 max-w-md">
-          Want the full breakdown? Download the complete report as a PDF to keep, print, or share.
+          {isPro
+            ? "Want the full breakdown? Download the complete report as a PDF to keep, print, or share."
+            : "The PDF report — every score, every panel question, and your full transcript — is part of Pro."}
         </p>
         <button
           onClick={handleDownloadPDF}
           disabled={isDownloading}
           className="px-8 py-4 bg-sky-500 text-white font-extrabold rounded-2xl text-base hover:bg-sky-600 transition-all flex items-center gap-3 shadow-lg shadow-sky-500/30 disabled:opacity-50 disabled:cursor-not-allowed"
         >
-          {isDownloading ? <Loader2 size={20} className="animate-spin" /> : <FileDown size={20} />}
-          {isDownloading ? "Generating Report…" : "Download Detailed Report"}
+          {isPro ? (
+            <>
+              {isDownloading ? <Loader2 size={20} className="animate-spin" /> : <FileDown size={20} />}
+              {isDownloading ? "Generating Report…" : "Download Detailed Report"}
+            </>
+          ) : (
+            <><Lock size={20} /> Upgrade to Download</>
+          )}
         </button>
       </div>
     </div>

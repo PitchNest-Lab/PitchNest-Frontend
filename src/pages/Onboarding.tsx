@@ -26,6 +26,10 @@ export default function Onboarding() {
     goal: "",
     fundingStage: "Pre-Seed",
   });
+  // "Other" industry: a free-text escape hatch for founders outside the four
+  // preset categories. When active, formData.industry mirrors the typed value.
+  const [industryIsOther, setIndustryIsOther] = useState(false);
+  const [customIndustry, setCustomIndustry] = useState("");
 
   const handleNext = () => {
     if (step < 4) setStep(step + 1);
@@ -153,21 +157,54 @@ export default function Onboarding() {
                 "Fintech",
                 "Healthtech",
                 "Consumer & E-Commerce",
-              ].map((ind) => (
-                <button
-                  key={ind}
-                  onClick={() => setFormData({ ...formData, industry: ind })}
-                  className={cn(
-                    "p-5 rounded-2xl border-2 text-left transition-all font-bold",
-                    formData.industry === ind
-                      ? "border-sky-500 bg-sky-50 dark:bg-sky-500/10 text-sky-600 dark:text-sky-400"
-                      : "border-slate-100 dark:border-zinc-800 hover:border-slate-300 dark:hover:border-zinc-700 text-slate-600 dark:text-zinc-300",
-                  )}
-                >
-                  {ind}
-                </button>
-              ))}
+                "Other",
+              ].map((ind) => {
+                // "Other" is selected whenever the stored industry isn't one of
+                // the fixed options (including the first time, when it's empty
+                // and the custom box is open).
+                const isOther = ind === "Other";
+                const selected = isOther
+                  ? industryIsOther
+                  : formData.industry === ind;
+                return (
+                  <button
+                    key={ind}
+                    onClick={() => {
+                      if (isOther) {
+                        setIndustryIsOther(true);
+                        setFormData({ ...formData, industry: customIndustry });
+                      } else {
+                        setIndustryIsOther(false);
+                        setFormData({ ...formData, industry: ind });
+                      }
+                    }}
+                    className={cn(
+                      "p-5 rounded-2xl border-2 text-left transition-all font-bold",
+                      selected
+                        ? "border-sky-500 bg-sky-50 dark:bg-sky-500/10 text-sky-600 dark:text-sky-400"
+                        : "border-slate-100 dark:border-zinc-800 hover:border-slate-300 dark:hover:border-zinc-700 text-slate-600 dark:text-zinc-300",
+                    )}
+                  >
+                    {ind}
+                  </button>
+                );
+              })}
             </div>
+
+            {industryIsOther && (
+              <input
+                type="text"
+                autoFocus
+                value={customIndustry}
+                onChange={(e) => {
+                  setCustomIndustry(e.target.value);
+                  setFormData({ ...formData, industry: e.target.value });
+                }}
+                maxLength={80}
+                placeholder="Type your industry (e.g. Climate Tech, EdTech, Logistics)"
+                className="mt-4 w-full px-4 py-3 rounded-2xl border-2 border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-slate-900 dark:text-zinc-100 focus:outline-none focus:border-sky-500 transition-colors"
+              />
+            )}
 
             <div className="mt-8 flex justify-between mt-auto pt-8">
               <button

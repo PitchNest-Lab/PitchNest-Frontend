@@ -1,9 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { FirstTimeTour } from '../components/FirstTimeTour';
-import { 
+import {
   Users, Target, User, Upload, FileText, Camera, Mic, CheckCircle2,
-  PlayCircle, Clock, Loader2, Monitor, Briefcase, AlignLeft, X
+  PlayCircle, Clock, Loader2, Monitor, Briefcase, AlignLeft, X, Lock
 } from 'lucide-react';
 import * as Switch from '@radix-ui/react-switch';
 import { useForm } from 'react-hook-form';
@@ -11,8 +11,17 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { cn } from '../lib/utils';
 import { useAuth } from '../contexts/AuthContext';
+import { useUpgrade } from '../components/ui/UpgradeModal';
 import { Skeleton } from '../components/Skeleton';
 import { useScreenCapture } from '../hooks/useScreenCapture';
+
+/**
+ * Session lengths offered, in minutes. Free is pinned to the first; Pro gets
+ * all four. Mirrors PRO_DURATIONS in backend/src/services/entitlementService.ts
+ * — the server clamps regardless, so this list is presentation only.
+ */
+const DURATION_OPTIONS = [10, 20, 30, 40] as const;
+const FREE_DURATION = 10;
 
 const setupSchema = z.object({
   mode: z.enum(['panel', 'coach', 'solo']),
@@ -48,7 +57,10 @@ const ModeCard = ({ title, icon: Icon, active, onClick }: { title: string, icon:
 export default function PrePitchSetup() {
   const location = useLocation();
   const navigate = useNavigate();
-  const { authFetch } = useAuth();
+  const { authFetch, user } = useAuth();
+  const { showUpgrade } = useUpgrade();
+  const isPro = user?.plan === 'pro';
+  const allowedDurations: number[] = isPro ? [...DURATION_OPTIONS] : [FREE_DURATION];
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [availableDecks, setAvailableDecks] = useState<any[]>([]);
@@ -113,7 +125,9 @@ export default function PrePitchSetup() {
       cameraEnabled: false, // Camera is disabled for now (avoiding heavy video storage)
       micEnabled: true,
       screenShareEnabled: false,
-      duration: 15,
+      // 10 is the free length and a valid Pro length, so it is the safe
+      // default for both tiers. A Pro user picks longer explicitly.
+      duration: FREE_DURATION,
     }
   });
 
@@ -124,7 +138,7 @@ export default function PrePitchSetup() {
   const canScreenShare = typeof navigator?.mediaDevices?.getDisplayMedia === 'function';
   const aggressiveness = watch('aggressiveness');
   const riskAppetite = watch('riskAppetite');
-  const duration = watch('duration') || 15;
+  const duration = watch('duration') || FREE_DURATION;
 
   const preSelectedDeckName = location.state?.preSelectedDeck;
   // "Pitch Again": previous session's config + compact previous-attempt context
@@ -188,13 +202,28 @@ export default function PrePitchSetup() {
           if (c.fundingStage) setValue('fundingStage', c.fundingStage);
           if (typeof c.aggressiveness === 'number') setValue('aggressiveness', c.aggressiveness);
           if (typeof c.riskAppetite === 'number') setValue('riskAppetite', c.riskAppetite);
-          if (typeof c.duration === 'number') setValue('duration', c.duration);
+          // Only restore a duration this user may actually run. A saved config
+          // from a Pro session (or from before the tiers existed) would
+          // otherwise prefill a locked value and get silently clamped anyway.
+          if (typeof c.duration === 'number' && allowedDurations.includes(c.duration)) {
+            setValue('duration', c.duration);
+          }
         }
         setIsLoading(false);
       }
     };
     fetchInitialData();
   }, [preSelectedDeckName]);
+
+  // The plan arrives asynchronously (/me resolves on mount and on window
+  // focus), and a downgrade can land while this form is open. If the selected
+  // duration is no longer permitted, snap it back so the user is never shown a
+  // length the server will silently clamp.
+  useEffect(() => {
+    if (!allowedDurations.includes(duration)) {
+      setValue('duration', allowedDurations[0]);
+    }
+  }, [duration, isPro, setValue]);
 
   const toggleScreenShare = async (checked: boolean) => {
     if (checked) {
@@ -311,11 +340,37 @@ export default function PrePitchSetup() {
                     <option value="Seed">Seed</option>
                     <option value="Series A+">Series A+</option>
                   </select>
-                  <select {...register('duration', { valueAsNumber: true })} className="w-full sm:flex-1 px-3 py-2 text-sm bg-slate-50 dark:bg-zinc-800 border rounded-xl dark:border-zinc-700 text-slate-700 dark:text-zinc-300 focus:outline-none focus:ring-2 focus:ring-sky-500/20">
-                    <option value="10">10 Min</option>
-                    <option value="15">15 Min</option>
-                    <option value="20">20 Min</option>
-                    <option value="30">30 Min</option>
+                  {/*
+                    A <select> to match every other field in this section. The
+                    paywall still holds: onChange intercepts a locked duration,
+                    reverts to the highest the plan allows, and raises the
+                    upgrade prompt — a native select CAN gate on change even
+                    though an <option> can't intercept a raw click. Locked
+                    options stay VISIBLE (labelled "· Pro") to advertise Pro.
+                  */}
+                  <select
+                    aria-label="Session duration"
+                    value={duration}
+                    onChange={(e) => {
+                      const mins = Number(e.target.value);
+                      if (!allowedDurations.includes(mins)) {
+                        showUpgrade('duration');
+                        // Revert to the best length this plan can actually run.
+                        setValue('duration', allowedDurations[allowedDurations.length - 1], { shouldValidate: true });
+                        return;
+                      }
+                      setValue('duration', mins, { shouldValidate: true });
+                    }}
+                    className="w-full sm:flex-1 px-3 py-2 text-sm bg-slate-50 dark:bg-zinc-800 border rounded-xl dark:border-zinc-700 text-slate-700 dark:text-zinc-300 focus:outline-none focus:ring-2 focus:ring-sky-500/20"
+                  >
+                    {DURATION_OPTIONS.map((mins) => {
+                      const locked = !allowedDurations.includes(mins);
+                      return (
+                        <option key={mins} value={mins}>
+                          {mins} min{locked ? ' · Pro' : ''}
+                        </option>
+                      );
+                    })}
                   </select>
                 </div>
               </div>

@@ -1,26 +1,27 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+﻿import React, { useState, useEffect, useRef } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { 
   User, 
   Shield, 
-  CreditCard, 
-  Sparkles,
+  CreditCard,
   Bell,
   Lock,
-  Globe,
   Edit3,
-  Users,
   LogOut,
   Trash2,
   AlertTriangle,
   Loader2,
-  ExternalLink
+  ExternalLink,
+  CheckCircle2
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import * as Switch from '@radix-ui/react-switch';
 import * as Tabs from '@radix-ui/react-tabs';
 import { cn } from '../lib/utils';
 import { useAuth } from '../contexts/AuthContext';
+import { useUpgrade } from '../components/ui/UpgradeModal';
+import { useBilling } from '../contexts/BillingContext';
+import { formatPrice } from '../lib/plans';
 
 // --- Subcomponents ---
 const SettingSection = ({ title, children }: { title: string, children: React.ReactNode }) => (
@@ -43,16 +44,48 @@ const SettingItem = ({ label, description, children }: { label: string, descript
 // --- Main Component ---
 export default function SettingsPage() {
   const navigate = useNavigate();
-  const { logout, authFetch } = useAuth();
+  const { logout, authFetch, user } = useAuth();
+
+  /**
+   * Which tab is open, deep-linkable as ?tab=subscription so an "Upgrade" CTA
+   * anywhere in the app can land the user on the right panel. Unknown values
+   * fall back to profile rather than rendering an empty page.
+   */
+  const TAB_IDS = ["profile", "account", "subscription", "notifications"] as const;
+  const [searchParams, setSearchParams] = useSearchParams();
+  const requestedTab = searchParams.get("tab") ?? "";
+  const [activeTab, setActiveTabState] = useState<string>(
+    (TAB_IDS as readonly string[]).includes(requestedTab) ? requestedTab : "profile",
+  );
+
+  // Follow the query string when it changes under us (e.g. the sidebar CTA
+  // pressed while Settings is already open).
+  useEffect(() => {
+    if ((TAB_IDS as readonly string[]).includes(requestedTab) && requestedTab !== activeTab) {
+      setActiveTabState(requestedTab);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [requestedTab]);
+
+  const setActiveTab = (next: string) => {
+    setActiveTabState(next);
+    // Keep the URL shareable/back-button-correct without stacking history.
+    setSearchParams(next === "profile" ? {} : { tab: next }, { replace: true });
+  };
+  const { showUpgrade } = useUpgrade();
+  const { info: billing } = useBilling();
+  const isPro = user?.plan === 'pro';
+  // The real Pro price, from the server (config-driven). Never hardcode it —
+  // that is exactly what produced the "$0/mo" bug.
+  const proPriceLabel = billing.price
+    ? formatPrice(billing.price.amount, billing.price.currency, billing.price.days)
+    : 'See pricing';
   const [notifications, setNotifications] = useState({
     pitchAlerts: true,
     weeklyReport: false,
     investorInquiries: true
   });
   
-  const [aiToughness, setAiToughness] = useState(85);
-  const [activeSector, setActiveSector] = useState("Venture Capital");
-
   const ROLE_OPTIONS = ["Founder", "Investor", "Advisor"] as const;
   type Role = (typeof ROLE_OPTIONS)[number];
 
@@ -95,8 +128,6 @@ export default function SettingsPage() {
           if (s.notifications && typeof s.notifications === "object") {
             setNotifications(prev => ({ ...prev, ...s.notifications }));
           }
-          if (typeof s.aiToughness === "number") setAiToughness(s.aiToughness);
-          if (typeof s.activeSector === "string") setActiveSector(s.activeSector);
         }
       } catch (e) {}
     }
@@ -246,16 +277,18 @@ export default function SettingsPage() {
     <div className="max-w-5xl mx-auto pb-20">
       <div className="mb-10">
         <h1 className="text-3xl font-semibold text-slate-900 dark:text-zinc-100 mb-2 tracking-tight">Settings</h1>
-        <p className="text-slate-500 dark:text-zinc-500">Manage your account, billing, and AI customization.</p>
+        <p className="text-slate-500 dark:text-zinc-500">Manage your account, plan, and AI customization.</p>
       </div>
 
-      <Tabs.Root defaultValue="profile" className="flex flex-col md:flex-row gap-12">
+      {/* Controlled, not defaultValue: an Upgrade CTA pressed while already on
+          this page changes only the query string — React Router does not
+          remount, so an uncontrolled tab would ignore the deep link. */}
+      <Tabs.Root value={activeTab} onValueChange={setActiveTab} className="flex flex-col md:flex-row gap-8">
         <Tabs.List className="flex flex-row md:flex-col gap-1 w-full md:w-64 shrink-0 overflow-x-auto pb-4 md:pb-0 custom-scrollbar">
           {[
             { id: "profile", label: "Profile", icon: User },
             { id: "account", label: "Account", icon: Shield },
             { id: "subscription", label: "Subscription", icon: CreditCard },
-            { id: "ai", label: "AI Preferences", icon: Sparkles },
             { id: "notifications", label: "Notifications", icon: Bell },
           ].map((tab) => (
             <Tabs.Trigger 
@@ -429,7 +462,7 @@ export default function SettingsPage() {
                     </div>
                     <div>
                       <p className="text-sm font-bold text-slate-900 dark:text-zinc-100">Password</p>
-                      <p className="text-xs text-slate-500 dark:text-zinc-500">Last changed 3 months ago</p>
+                      <p className="text-xs text-slate-500 dark:text-zinc-500">Reset it by email</p>
                     </div>
                   </div>
                   <Link
@@ -510,94 +543,60 @@ export default function SettingsPage() {
           <Tabs.Content value="subscription" className="space-y-10 outline-none">
             <h2 className="text-xl font-bold text-slate-900 dark:text-zinc-100">Subscription</h2>
 
-            <div className="app-hero-banner p-8 sm:p-10">
-              <div className="relative z-10 flex flex-col sm:flex-row justify-between items-start sm:items-end gap-6">
+            <div className="app-hero-banner p-4 sm:p-5">
+              <div className="relative z-10 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
                 <div>
                   <span className="text-[10px] font-bold uppercase tracking-widest text-white/70">Current Plan</span>
-                  <h3 className="text-4xl font-bold mt-2 mb-1">Early Access</h3>
-                  <p className="text-white/80 text-sm">Free while PitchNest is in beta</p>
+                  <h3 className="text-xl font-bold mt-0.5 mb-0.5">{isPro ? 'Pro' : 'Free'}</h3>
+                  <p className="text-white/80 text-xs">
+                    {isPro
+                      ? 'Unlimited sessions, longer durations, full PDF reports'
+                      : '2 sessions per week, 10-minute sessions'}
+                  </p>
                 </div>
                 <div className="sm:text-right">
-                  <p className="text-4xl font-bold">$0<span className="text-lg font-medium">/mo</span></p>
-                  <p className="text-white/70 text-xs mt-1">No card required</p>
+                  {isPro
+                    ? <p className="text-lg font-bold">Active</p>
+                    : <p className="text-2xl font-bold">{proPriceLabel}<span className="text-sm font-medium text-white/70"> for Pro</span></p>}
                 </div>
               </div>
-              <div className="absolute -right-20 -top-20 w-64 h-64 bg-white/10 rounded-full blur-3xl pointer-events-none" />
+              <div className="absolute -right-20 -top-20 w-56 h-56 bg-white/10 rounded-full blur-3xl pointer-events-none" />
             </div>
 
-            <div className="p-5 border border-slate-200 dark:border-zinc-800 rounded-2xl bg-slate-50/50 dark:bg-zinc-800/30">
-              <p className="text-sm text-slate-600 dark:text-zinc-400 leading-relaxed">
-                You have full access to every feature during early access. Paid plans and billing
-                aren't available yet — we'll let you know here before anything changes.
-              </p>
-            </div>
-          </Tabs.Content>
-
-          {/* AI PREFERENCES TAB */}
-          <Tabs.Content value="ai" className="space-y-10 outline-none">
-            <div className="flex justify-between items-center">
-              <h2 className="text-xl font-bold text-slate-900 dark:text-zinc-100">AI Preferences</h2>
-              <span className="px-2 py-1 bg-sky-50 dark:bg-sky-900/20 text-sky-600 dark:text-sky-400 text-[10px] font-bold uppercase rounded">Beta</span>
-            </div>
-
-            <SettingSection title="Global Investor Persona 'Toughness'">
-              <div className="space-y-6">
-                <div className="flex justify-between items-center">
-                  <p className="text-sm text-slate-600 dark:text-zinc-400">How critical should the AI feedback be by default?</p>
-                  <span className="text-sm font-bold text-sky-500">
-                    {aiToughness < 33 ? 'Supportive' : aiToughness < 66 ? 'Balanced' : 'Aggressive'}
-                  </span>
-                </div>
-                
-                <div className="relative h-2 bg-slate-100 dark:bg-zinc-800 rounded-full">
-                  <div className="absolute top-0 left-0 h-full bg-sky-500 rounded-full transition-all" style={{ width: `${aiToughness}%` }} />
-                  <input
-                    type="range"
-                    min="0"
-                    max="100"
-                    value={aiToughness}
-                    onChange={(e) => setAiToughness(parseInt(e.target.value))}
-                    onPointerUp={() => persistSettings({ aiToughness })}
-                    onKeyUp={() => persistSettings({ aiToughness })}
-                    className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-                  />
-                  <div 
-                    className="absolute top-1/2 -translate-y-1/2 w-4 h-4 bg-white dark:bg-zinc-100 border-2 border-sky-500 rounded-full shadow-md pointer-events-none" 
-                    style={{ left: `calc(${aiToughness}% - 8px)` }} 
-                  />
-                </div>
-                
-                <div className="flex justify-between text-[10px] font-bold text-slate-400 dark:text-zinc-500 uppercase tracking-widest">
-                  <span>Supportive</span>
-                  <span>Balanced</span>
-                  <span>Aggressive</span>
-                </div>
+            {isPro ? (
+              <div className="p-4 border border-slate-200 dark:border-zinc-800 rounded-2xl bg-slate-50/50 dark:bg-zinc-800/30">
+                <p className="text-sm text-slate-600 dark:text-zinc-400 leading-relaxed">
+                  You're on Pro: unlimited pitch sessions, longer pitch durations,
+                  live market research in your panel, and the full downloadable report.
+                </p>
               </div>
-            </SettingSection>
-
-            <SettingSection title="Default Sector Expertise Profile">
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                {[
-                  { label: "Venture Capital", icon: CreditCard },
-                  { label: "Angel Investor", icon: Users },
-                  { label: "Strategic Corporate", icon: Globe }
-                ].map((item, i) => (
-                  <button
-                    key={i}
-                    onClick={() => { setActiveSector(item.label); persistSettings({ activeSector: item.label }); }}
-                    className={cn(
-                      "p-6 rounded-2xl border-2 transition-all flex flex-col items-center gap-3 text-center",
-                      activeSector === item.label 
-                        ? "border-sky-500 bg-sky-50/50 dark:bg-sky-500/10 text-sky-600 dark:text-sky-400" 
-                        : "border-slate-100 dark:border-zinc-800 hover:border-slate-200 dark:hover:border-zinc-700 text-slate-500 dark:text-zinc-500"
-                    )}
-                  >
-                    <item.icon size={24} />
-                    <span className="text-xs font-bold">{item.label}</span>
-                  </button>
-                ))}
+            ) : (
+              <div className="space-y-4">
+                <div className="p-4 border border-slate-200 dark:border-zinc-800 rounded-2xl bg-slate-50/50 dark:bg-zinc-800/30">
+                  <p className="text-sm font-bold text-slate-800 dark:text-zinc-200 mb-3">Pro includes</p>
+                  <ul className="space-y-2">
+                    {[
+                      'Unlimited pitch sessions',
+                      'Longer pitch durations',
+                      'Full downloadable PDF report',
+                      'Live market research in your panel',
+                    ].map((b) => (
+                      <li key={b} className="flex items-center gap-2.5 text-sm text-slate-600 dark:text-zinc-400">
+                        <CheckCircle2 size={15} className="text-emerald-500 shrink-0" />
+                        {b}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => showUpgrade('generic')}
+                  className="w-full sm:w-auto px-6 py-3 bg-sky-500 hover:bg-sky-600 text-white rounded-xl text-sm font-bold transition-colors"
+                >
+                  Upgrade to Pro
+                </button>
               </div>
-            </SettingSection>
+            )}
           </Tabs.Content>
 
           {/* NOTIFICATIONS TAB */}
