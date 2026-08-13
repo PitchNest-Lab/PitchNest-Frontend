@@ -63,28 +63,11 @@ export const UpgradeProvider: React.FC<{ children: React.ReactNode }> = ({ child
   const [open, setOpen] = useState(false);
   const [reason, setReason] = useState<UpgradeReason>("generic");
   const [starting, setStarting] = useState(false);
-  const { info, upgrade, refresh } = useBilling();
-  const [selectedCurrency, setSelectedCurrency] = useState<string>("");
+  const { info, upgrade } = useBilling();
 
-  const activeCurrency = selectedCurrency || info.price?.currency || "USD";
-
-  const handleCurrencyChange = (curr: string) => {
-    setSelectedCurrency(curr);
-    refresh(curr);
-  };
-
-  const formatPrice = () => {
-    if (!info.price) return null;
-    const symbol =
-      info.price.currency === "USD" ? "$" :
-      info.price.currency === "NGN" ? "₦" :
-      info.price.currency === "GHS" ? "₵" :
-      info.price.currency === "KES" ? "KSh " :
-      `${info.price.currency} `;
-    return `${symbol}${info.price.amount.toLocaleString()}/30 days`;
-  };
-
-  const priceLabel = formatPrice();
+  const priceLabel = info.price
+    ? `$${info.price.amount}/mo`
+    : "$9.99/mo";
 
   const showUpgrade = useCallback((r: UpgradeReason = "generic") => {
     setReason(r);
@@ -106,22 +89,8 @@ export const UpgradeProvider: React.FC<{ children: React.ReactNode }> = ({ child
             className="fixed left-1/2 top-1/2 z-50 w-[calc(100%-2rem)] max-w-md -translate-x-1/2 -translate-y-1/2 rounded-2xl border border-slate-200 bg-white p-6 shadow-2xl focus:outline-none dark:border-zinc-800 dark:bg-zinc-900"
             aria-describedby="upgrade-lead"
           >
-            <div className="mb-4 flex items-center justify-between">
-              <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-sky-50 dark:bg-sky-500/10">
-                <Sparkles className="text-sky-500" size={24} strokeWidth={1.8} />
-              </div>
-
-              {/* Currency Selector */}
-              {info.billingEnabled && (
-                <select
-                  value={activeCurrency}
-                  onChange={(e) => handleCurrencyChange(e.target.value)}
-                  className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs font-bold text-slate-700 outline-none transition-colors hover:bg-slate-100 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-200"
-                >
-                  <option value="NGN">🇳🇬 Nigeria — ₦9,999</option>
-                  <option value="USD">🌎 International — $14.99</option>
-                </select>
-              )}
+            <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-sky-50 dark:bg-sky-500/10">
+              <Sparkles className="text-sky-500" size={24} strokeWidth={1.8} />
             </div>
 
             <Dialog.Title className="mb-2 text-xl font-bold tracking-tight text-slate-900 dark:text-zinc-100">
@@ -160,7 +129,7 @@ export const UpgradeProvider: React.FC<{ children: React.ReactNode }> = ({ child
                   disabled={starting}
                   onClick={async () => {
                     setStarting(true);
-                    const ok = await upgrade(activeCurrency);
+                    const ok = await upgrade();
                     if (!ok) setStarting(false);
                   }}
                   className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-sky-500 py-3 text-sm font-bold text-white transition-colors hover:bg-sky-600 disabled:opacity-60"
