@@ -45,11 +45,10 @@ interface BillingContextValue {
   /** True once the plan endpoint has answered (so we never flash "free"). */
   loaded: boolean;
   /**
-   * Starts the Pro purchase. Returns false if it couldn't, having already told
-   * the user why. When true the caller should redirect to window.location.
+   * Starts the Pro purchase. Accepts an optional target currency override (e.g. "NGN", "USD").
    */
-  upgrade: () => Promise<boolean>;
-  refresh: () => Promise<void>;
+  upgrade: (currency?: string) => Promise<boolean>;
+  refresh: (currency?: string) => Promise<void>;
 }
 
 const BillingContext = createContext<BillingContextValue>({
@@ -68,9 +67,12 @@ export const BillingProvider: React.FC<{ children: React.ReactNode }> = ({ child
   const [info, setInfo] = useState<BillingInfo>(DEFAULT_INFO);
   const [loaded, setLoaded] = useState(false);
 
-  const refresh = useCallback(async () => {
+  const refresh = useCallback(async (currency?: string) => {
     try {
-      const res = await authFetch("/api/billing/plan");
+      const url = currency
+        ? `/api/billing/plan?currency=${encodeURIComponent(currency)}`
+        : "/api/billing/plan";
+      const res = await authFetch(url);
       if (!res.ok) {
         console.warn("billing/plan failed with", res.status);
         setInfo(DEFAULT_INFO);
@@ -97,9 +99,14 @@ export const BillingProvider: React.FC<{ children: React.ReactNode }> = ({ child
     refresh();
   }, [user?.id, user?.plan, refresh]);
 
-  const upgrade = useCallback(async (): Promise<boolean> => {
+  const upgrade = useCallback(async (currency?: string): Promise<boolean> => {
     try {
-      const res = await authFetch("/api/billing/checkout", { method: "POST" });
+      const bodyPayload = currency ? { currency } : undefined;
+      const res = await authFetch("/api/billing/checkout", {
+        method: "POST",
+        headers: bodyPayload ? { "Content-Type": "application/json" } : undefined,
+        body: bodyPayload ? JSON.stringify(bodyPayload) : undefined,
+      });
       const body = await res.json().catch(() => ({}));
 
       if (!res.ok) {
@@ -117,11 +124,6 @@ export const BillingProvider: React.FC<{ children: React.ReactNode }> = ({ child
         return false;
       }
 
-      // Deliberately NO optimistic upgrade here. Nothing has been paid yet —
-      // the user is about to be sent to a hosted page they may well abandon.
-      // Pro is granted only by the verified webhook, and the return page picks
-      // that up. Flipping the UI early would show paid features to someone who
-      // never paid and then snatch them back.
       window.location.href = body.paymentLink;
       return true;
     } catch (err) {

@@ -63,14 +63,28 @@ export const UpgradeProvider: React.FC<{ children: React.ReactNode }> = ({ child
   const [open, setOpen] = useState(false);
   const [reason, setReason] = useState<UpgradeReason>("generic");
   const [starting, setStarting] = useState(false);
-  const { info, upgrade } = useBilling();
+  const { info, upgrade, refresh } = useBilling();
+  const [selectedCurrency, setSelectedCurrency] = useState<string>("");
 
-  // Price comes from the server so a change is an env var, not a deploy of the
-  // frontend. Falls back to no label rather than hardcoding a figure that could
-  // contradict what the user is actually charged.
-  const priceLabel = info.price
-    ? `${info.price.currency === "USD" ? "$" : `${info.price.currency} `}${info.price.amount}/mo`
-    : null;
+  const activeCurrency = selectedCurrency || info.price?.currency || "USD";
+
+  const handleCurrencyChange = (curr: string) => {
+    setSelectedCurrency(curr);
+    refresh(curr);
+  };
+
+  const formatPrice = () => {
+    if (!info.price) return null;
+    const symbol =
+      info.price.currency === "USD" ? "$" :
+      info.price.currency === "NGN" ? "₦" :
+      info.price.currency === "GHS" ? "₵" :
+      info.price.currency === "KES" ? "KSh " :
+      `${info.price.currency} `;
+    return `${symbol}${info.price.amount.toLocaleString()}/30 days`;
+  };
+
+  const priceLabel = formatPrice();
 
   const showUpgrade = useCallback((r: UpgradeReason = "generic") => {
     setReason(r);
@@ -92,8 +106,25 @@ export const UpgradeProvider: React.FC<{ children: React.ReactNode }> = ({ child
             className="fixed left-1/2 top-1/2 z-50 w-[calc(100%-2rem)] max-w-md -translate-x-1/2 -translate-y-1/2 rounded-2xl border border-slate-200 bg-white p-6 shadow-2xl focus:outline-none dark:border-zinc-800 dark:bg-zinc-900"
             aria-describedby="upgrade-lead"
           >
-            <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-sky-50 dark:bg-sky-500/10">
-              <Sparkles className="text-sky-500" size={24} strokeWidth={1.8} />
+            <div className="mb-4 flex items-center justify-between">
+              <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-sky-50 dark:bg-sky-500/10">
+                <Sparkles className="text-sky-500" size={24} strokeWidth={1.8} />
+              </div>
+
+              {/* Currency Selector */}
+              {info.billingEnabled && (
+                <select
+                  value={activeCurrency}
+                  onChange={(e) => handleCurrencyChange(e.target.value)}
+                  className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs font-bold text-slate-700 outline-none transition-colors hover:bg-slate-100 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-200"
+                >
+                  <option value="NGN">🇳🇬 NGN (₦)</option>
+                  <option value="USD">🇺🇸 USD ($)</option>
+                  <option value="GHS">🇬🇭 GHS (₵)</option>
+                  <option value="KES">🇰🇪 KES (KSh)</option>
+                  <option value="ZAR">🇿🇦 ZAR (R)</option>
+                </select>
+              )}
             </div>
 
             <Dialog.Title className="mb-2 text-xl font-bold tracking-tight text-slate-900 dark:text-zinc-100">
@@ -132,10 +163,7 @@ export const UpgradeProvider: React.FC<{ children: React.ReactNode }> = ({ child
                   disabled={starting}
                   onClick={async () => {
                     setStarting(true);
-                    // On success the browser navigates away to the hosted
-                    // checkout, so this component unmounts and the spinner
-                    // never needs clearing. Only reset on failure.
-                    const ok = await upgrade();
+                    const ok = await upgrade(activeCurrency);
                     if (!ok) setStarting(false);
                   }}
                   className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-sky-500 py-3 text-sm font-bold text-white transition-colors hover:bg-sky-600 disabled:opacity-60"
