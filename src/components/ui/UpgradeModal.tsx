@@ -118,11 +118,8 @@ export const UpgradeProvider: React.FC<{ children: React.ReactNode }> = ({ child
                   onChange={(e) => handleCurrencyChange(e.target.value)}
                   className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs font-bold text-slate-700 outline-none transition-colors hover:bg-slate-100 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-200"
                 >
-                  <option value="NGN">🇳🇬 NGN (₦)</option>
-                  <option value="USD">🇺🇸 USD ($)</option>
-                  <option value="GHS">🇬🇭 GHS (₵)</option>
-                  <option value="KES">🇰🇪 KES (KSh)</option>
-                  <option value="ZAR">🇿🇦 ZAR (R)</option>
+                  <option value="NGN">🇳🇬 Nigeria — ₦9,999</option>
+                  <option value="USD">🌎 International — $14.99</option>
                 </select>
               )}
             </div>
