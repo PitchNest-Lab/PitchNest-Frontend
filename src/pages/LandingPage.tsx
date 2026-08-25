@@ -476,7 +476,7 @@ export default function LandingPage() {
               </p>
             </SectionReveal>
 
-            <div className="grid sm:grid-cols-3 gap-4 mb-7">
+            <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-7">
               {plans.map((plan, i) => (
                 <SectionReveal key={plan.name} delay={i * 0.05}>
                   <div
@@ -500,7 +500,7 @@ export default function LandingPage() {
                     </p>
                     <p className="text-xs text-slate-500 dark:text-zinc-400 mb-4">{plan.tagline}</p>
                     <ul className="space-y-1.5 text-[13px] text-slate-600 dark:text-zinc-400 mb-5">
-                      {plan.features.map((line) => (
+                      {plan.features.slice(0, 4).map((line) => (
                         <li key={line} className="flex items-start gap-2">
                           <CheckCircle2 size={14} className="shrink-0 mt-0.5 text-emerald-500" />
                           {line}
@@ -510,9 +510,9 @@ export default function LandingPage() {
                     {/* Per-card CTA so every tier has a real next step rather
                         than one shared button under the grid. */}
                     <div className="mt-auto">
-                      {plan.id === "enterprise" ? (
+                      {!plan.available ? (
                         <span className="block w-full py-2.5 rounded-xl border border-slate-200 dark:border-zinc-700 text-center text-xs font-bold text-slate-400 dark:text-zinc-500 cursor-default">
-                          Coming soon
+                          {plan.cta.label}
                         </span>
                       ) : (
                         <Link

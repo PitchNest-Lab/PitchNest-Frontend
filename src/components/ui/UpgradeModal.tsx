@@ -53,10 +53,10 @@ const COPY: Record<UpgradeReason, { title: string; lead: string }> = {
 };
 
 const BENEFITS = [
-  "Unlimited pitch sessions",
-  "Longer pitch durations",
-  "Full downloadable PDF report",
-  "Live market research in your panel",
+  "150 min practice / mo (Founder) or Unlimited (Pro)",
+  "All 6 AI investor personas + Multi-VC panel",
+  "Full downloadable PDF report & shareable links",
+  "Grilling sessions & live market research in panel",
 ];
 
 export const UpgradeProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -67,7 +67,7 @@ export const UpgradeProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
   const priceLabel = info.price
     ? `$${info.price.amount}/mo`
-    : "$9.99/mo";
+    : "$15/mo";
 
   const showUpgrade = useCallback((r: UpgradeReason = "generic") => {
     setReason(r);
@@ -129,7 +129,9 @@ export const UpgradeProvider: React.FC<{ children: React.ReactNode }> = ({ child
                   disabled={starting}
                   onClick={async () => {
                     setStarting(true);
-                    const ok = await upgrade();
+                    // This prompt sells Pro specifically (it fires on Pro-gated
+                    // walls); Prep is chosen from the Settings selector instead.
+                    const ok = await upgrade({ plan: "pro", term: "monthly" });
                     if (!ok) setStarting(false);
                   }}
                   className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-sky-500 py-3 text-sm font-bold text-white transition-colors hover:bg-sky-600 disabled:opacity-60"

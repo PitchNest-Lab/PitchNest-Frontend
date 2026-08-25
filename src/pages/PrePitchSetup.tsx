@@ -10,6 +10,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { cn } from '../lib/utils';
+import { planDurations } from '../lib/entitlements';
 import { useAuth } from '../contexts/AuthContext';
 import { useUpgrade } from '../components/ui/UpgradeModal';
 import { Skeleton } from '../components/Skeleton';
@@ -59,8 +60,8 @@ export default function PrePitchSetup() {
   const navigate = useNavigate();
   const { authFetch, user } = useAuth();
   const { showUpgrade } = useUpgrade();
-  const isPro = user?.plan === 'pro';
-  const allowedDurations: number[] = isPro ? [...DURATION_OPTIONS] : [FREE_DURATION];
+  const isTrial = (user as any)?.isTrial ?? true;
+  const allowedDurations: number[] = planDurations(user?.plan, isTrial);
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [availableDecks, setAvailableDecks] = useState<any[]>([]);
@@ -223,7 +224,7 @@ export default function PrePitchSetup() {
     if (!allowedDurations.includes(duration)) {
       setValue('duration', allowedDurations[0]);
     }
-  }, [duration, isPro, setValue]);
+  }, [duration, user?.plan, setValue]);
 
   const toggleScreenShare = async (checked: boolean) => {
     if (checked) {

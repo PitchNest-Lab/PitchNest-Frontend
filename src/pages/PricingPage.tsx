@@ -19,25 +19,30 @@ import { usePublicPrice } from "../hooks/usePublicPrice";
  */
 
 /** Rows are explicit rather than derived so the matrix reads like a spec. */
-const MATRIX: { label: string; free: string | boolean; pro: string | boolean; enterprise: string | boolean }[] = [
-  { label: "Pitch sessions", free: "2 per week", pro: "Unlimited", enterprise: "Unlimited" },
-  { label: "Session length", free: "10 minutes", pro: "Longer pitch durations", enterprise: "Longer pitch durations" },
-  { label: "AI investor panel", free: true, pro: true, enterprise: true },
-  { label: "On-screen scorecard", free: true, pro: true, enterprise: true },
-  { label: "Deck-aware questioning", free: true, pro: true, enterprise: true },
-  { label: "Downloadable PDF report", free: false, pro: true, enterprise: true },
-  { label: "Live market research in panel", free: false, pro: true, enterprise: true },
-  { label: "Pitch history and replays", free: true, pro: true, enterprise: true },
-  { label: "Cohort dashboard", free: false, pro: false, enterprise: true },
-  { label: "Team seats", free: false, pro: false, enterprise: true },
-  { label: "Shared branding", free: false, pro: false, enterprise: true },
-  { label: "Priority support", free: false, pro: true, enterprise: true },
+type Cellv = string | boolean;
+const MATRIX: { label: string; free: Cellv; founder: Cellv; pro: Cellv; enterprise: Cellv }[] = [
+  { label: "Practice pitch time", free: "10 min / session", founder: "150 min / mo", pro: "Unlimited", enterprise: "Unlimited" },
+  { label: "AI investor personas", free: "1 Persona", founder: "6 Personas", pro: "All Personas + Multi-VC", enterprise: "All Personas" },
+  { label: "Grilling Session / Rapid Q&A", free: false, founder: true, pro: true, enterprise: true },
+  { label: "Multi-VC panel simulation", free: false, founder: false, pro: true, enterprise: true },
+  { label: "Multilingual AI VCs", free: false, founder: false, pro: true, enterprise: true },
+  { label: "Readiness score & actionable fixes", free: "Basic", founder: "Detailed", pro: "Detailed + Analytics", enterprise: "Cohort Analytics" },
+  { label: "Deck-aware questioning", free: true, founder: true, pro: true, enterprise: true },
+  { label: "Downloadable PDF report & share link", free: "Unlocked in Trial", founder: true, pro: true, enterprise: true },
+  { label: "Live market research in panel", free: false, founder: false, pro: true, enterprise: true },
+  { label: "AI Script generation", free: "Basic (Soon)", founder: "Unlimited (Soon)", pro: "Unlimited (Soon)", enterprise: "Unlimited (Soon)" },
+  { label: "AI Virtual Co-Founder", free: false, founder: false, pro: "Coming Soon", enterprise: "Coming Soon" },
+  { label: "AI-generated pitch decks", free: false, founder: false, pro: "10 Decks (Soon)", enterprise: "Unlimited (Soon)" },
+  { label: "Cohort dashboard & seats", free: false, founder: false, pro: false, enterprise: true },
+  { label: "Branded PDF reports", free: false, founder: false, pro: false, enterprise: true },
+  { label: "Direct VC intro pathway", free: false, founder: false, pro: false, enterprise: "Coming Soon" },
+  { label: "Investment programs access", free: "Coming Soon", founder: "Priority (Soon)", pro: "Priority (Soon)", enterprise: "Partner Pathway" },
 ];
 
 function Cell({ value }: { value: string | boolean }) {
   if (value === true) return <Check size={16} className="mx-auto text-emerald-500" aria-label="Included" />;
   if (value === false) return <Minus size={16} className="mx-auto text-slate-300 dark:text-zinc-700" aria-label="Not included" />;
-  return <span className="text-xs text-slate-600 dark:text-zinc-400">{value}</span>;
+  return <span className="text-xs font-medium text-slate-600 dark:text-zinc-400">{value}</span>;
 }
 
 export default function PricingPage() {
@@ -73,68 +78,109 @@ export default function PricingPage() {
           <ArrowLeft size={14} /> Back to home
         </Link>
 
-        <div className="text-center mb-9">
-          <p className="section-label mb-2">Pricing</p>
-          <h1 className="section-heading mb-3">Plans that scale with your raise</h1>
+        <div className="text-center mb-10">
+          <p className="text-xs sm:text-sm font-bold uppercase tracking-wider text-amber-600 dark:text-amber-500 mb-2">BUSINESS MODEL</p>
+          <h1 className="text-2xl sm:text-4xl font-extrabold text-slate-900 dark:text-zinc-100 mb-3 tracking-tight">
+            A freemium ladder that scales from solo founder to full cohort.
+          </h1>
           <p className="text-sm sm:text-base text-slate-600 dark:text-zinc-400 max-w-2xl mx-auto">
-            Start free and upgrade when you're actively raising. No contract, and
-            you can stop at any time.
+            Everything is unlocked for free during our 30-day testing access. Choose the plan that fits your fundraising stage.
           </p>
         </div>
 
         {/* Plan cards */}
-        <div className="grid md:grid-cols-3 gap-4 mb-12">
-          {plans.map((plan) => (
-            <div
-              key={plan.id}
-              className={cn(
-                "rounded-2xl border p-6 flex flex-col bg-white dark:bg-zinc-900",
-                plan.featured
-                  ? "border-sky-500 ring-1 ring-sky-500/30 shadow-lg shadow-sky-500/5"
-                  : "border-slate-200 dark:border-zinc-800",
-              )}
-            >
-              <div className="flex items-baseline justify-between mb-1">
-                <h2 className="text-base font-extrabold text-slate-900 dark:text-zinc-100">{plan.name}</h2>
-                {plan.featured && (
-                  <span className="text-[9px] font-bold uppercase tracking-wider text-sky-600 dark:text-sky-400">
-                    Popular
-                  </span>
+        <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-5 mb-14 items-stretch">
+          {plans.map((plan) => {
+            const isPro = plan.id === "pro";
+            return (
+              <div
+                key={plan.id}
+                className={cn(
+                  "rounded-2xl p-6 flex flex-col transition-all",
+                  isPro
+                    ? "bg-[#131B38] text-white border-2 border-amber-500/70 shadow-2xl shadow-amber-500/10 sm:-translate-y-2"
+                    : "bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 shadow-sm",
                 )}
-              </div>
-              <p className="text-2xl font-bold text-slate-900 dark:text-zinc-100 mb-1">{plan.price}</p>
-              <p className="text-xs text-slate-500 dark:text-zinc-400 mb-5">{plan.tagline}</p>
-
-              <ul className="space-y-2 text-sm text-slate-600 dark:text-zinc-400 mb-6">
-                {plan.features.map((f) => (
-                  <li key={f} className="flex items-start gap-2">
-                    <Check size={15} className="shrink-0 mt-0.5 text-emerald-500" />
-                    {f}
-                  </li>
-                ))}
-              </ul>
-
-              <div className="mt-auto">
-                {plan.id === "enterprise" ? (
-                  <span className="block w-full py-2.5 rounded-xl border border-slate-200 dark:border-zinc-700 text-center text-xs font-bold text-slate-400 dark:text-zinc-500 cursor-default">
-                    Coming soon
-                  </span>
-                ) : (
-                  <Link
-                    to={plan.cta.href}
-                    className={cn(
-                      "flex items-center justify-center gap-1.5 w-full py-2.5 rounded-xl text-xs font-bold transition-colors",
-                      plan.featured
-                        ? "gradient-brand text-white hover:opacity-95"
-                        : "border border-slate-200 dark:border-zinc-700 text-slate-700 dark:text-zinc-300 hover:bg-slate-50 dark:hover:bg-zinc-800",
-                    )}
-                  >
-                    {plan.cta.label} <ArrowRight size={14} />
-                  </Link>
+              >
+                {isPro && (
+                  <div className="w-full text-center -mt-2 mb-2">
+                    <span className="inline-block bg-[#E89234] text-slate-950 font-black tracking-widest text-[9px] uppercase py-1 px-3.5 rounded-full shadow-sm">
+                      MOST POPULAR
+                    </span>
+                  </div>
                 )}
+                
+                <h2 className={cn("text-base font-extrabold mb-1", isPro ? "text-white" : "text-slate-900 dark:text-zinc-100")}>
+                  {plan.name}
+                </h2>
+
+                <div className="mb-4 flex items-baseline gap-1">
+                  {plan.id === "free" ? (
+                    <>
+                      <span className="text-3xl font-extrabold text-amber-600 dark:text-amber-500">$0</span>
+                      <span className={cn("text-xs font-medium", isPro ? "text-slate-300" : "text-slate-500 dark:text-zinc-400")}>/mo</span>
+                    </>
+                  ) : plan.id === "founder" ? (
+                    <>
+                      <span className="text-3xl font-extrabold text-amber-600 dark:text-amber-500">$8</span>
+                      <span className={cn("text-xs font-medium", isPro ? "text-slate-300" : "text-slate-500 dark:text-zinc-400")}>/mo</span>
+                    </>
+                  ) : plan.id === "pro" ? (
+                    <>
+                      <span className="text-3xl font-extrabold text-[#F59E0B]">$15</span>
+                      <span className="text-xs font-medium text-slate-300">/mo</span>
+                    </>
+                  ) : (
+                    <>
+                      <span className="text-2xl font-extrabold text-amber-600 dark:text-amber-500">Custom</span>
+                      <span className="text-xs font-medium text-slate-500 dark:text-zinc-400">per seat</span>
+                    </>
+                  )}
+                </div>
+
+                <ul className={cn("space-y-2.5 text-xs sm:text-sm mb-6 flex-1", isPro ? "text-slate-200" : "text-slate-600 dark:text-zinc-400")}>
+                  {plan.features.map((f) => (
+                    <li key={f} className="flex items-start gap-2">
+                      <Check size={15} className={cn("shrink-0 mt-0.5", isPro ? "text-[#F59E0B]" : "text-amber-500")} />
+                      <span>{f}</span>
+                    </li>
+                  ))}
+                </ul>
+
+                <div className="mb-4">
+                  {!plan.available ? (
+                    <span className={cn(
+                      "block w-full py-2.5 rounded-xl border text-center text-xs font-bold cursor-default",
+                      isPro ? "border-slate-700 text-slate-400" : "border-slate-200 dark:border-zinc-700 text-slate-400 dark:text-zinc-500"
+                    )}>
+                      {plan.cta.label}
+                    </span>
+                  ) : (
+                    <Link
+                      to={plan.cta.href}
+                      className={cn(
+                        "flex items-center justify-center gap-1.5 w-full py-2.5 rounded-xl text-xs font-bold transition-all",
+                        isPro
+                          ? "bg-amber-500 text-slate-950 hover:bg-amber-400 font-black shadow-md shadow-amber-500/20"
+                          : "border border-slate-200 dark:border-zinc-700 text-slate-700 dark:text-zinc-300 hover:bg-slate-50 dark:hover:bg-zinc-800",
+                      )}
+                    >
+                      {plan.cta.label} <ArrowRight size={14} />
+                    </Link>
+                  )}
+                </div>
+
+                <p className={cn(
+                  "text-[11px] italic text-center pt-3 border-t",
+                  isPro
+                    ? "text-amber-400/90 border-white/10"
+                    : "text-amber-700/80 dark:text-amber-400/80 border-slate-100 dark:border-zinc-800"
+                )}>
+                  {plan.tagline}
+                </p>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
 
         {/* Full comparison */}
@@ -144,9 +190,10 @@ export default function PricingPage() {
             <thead>
               <tr className="bg-slate-50 dark:bg-zinc-900/60 border-b border-slate-200 dark:border-zinc-800">
                 <th scope="col" className="text-left font-bold text-xs uppercase tracking-wider text-slate-500 dark:text-zinc-400 px-4 py-3">Feature</th>
-                <th scope="col" className="font-bold text-xs uppercase tracking-wider text-slate-500 dark:text-zinc-400 px-4 py-3 w-32">Free</th>
-                <th scope="col" className="font-bold text-xs uppercase tracking-wider text-sky-600 dark:text-sky-400 px-4 py-3 w-40">Pro</th>
-                <th scope="col" className="font-bold text-xs uppercase tracking-wider text-slate-500 dark:text-zinc-400 px-4 py-3 w-40">Enterprise</th>
+                <th scope="col" className="font-bold text-xs uppercase tracking-wider text-slate-500 dark:text-zinc-400 px-4 py-3 w-28">Free ($0)</th>
+                <th scope="col" className="font-bold text-xs uppercase tracking-wider text-slate-500 dark:text-zinc-400 px-4 py-3 w-28">Founder ($8)</th>
+                <th scope="col" className="font-bold text-xs uppercase tracking-wider text-amber-600 dark:text-amber-400 px-4 py-3 w-32">Pro Founder ($15)</th>
+                <th scope="col" className="font-bold text-xs uppercase tracking-wider text-slate-500 dark:text-zinc-400 px-4 py-3 w-32">Hubs & Accelerators</th>
               </tr>
             </thead>
             <tbody>
@@ -160,7 +207,8 @@ export default function PricingPage() {
                 >
                   <th scope="row" className="text-left font-medium text-slate-700 dark:text-zinc-300 px-4 py-3">{row.label}</th>
                   <td className="text-center px-4 py-3"><Cell value={row.free} /></td>
-                  <td className="text-center px-4 py-3 bg-sky-50/40 dark:bg-sky-500/5"><Cell value={row.pro} /></td>
+                  <td className="text-center px-4 py-3"><Cell value={row.founder} /></td>
+                  <td className="text-center px-4 py-3 bg-amber-50/40 dark:bg-amber-500/5"><Cell value={row.pro} /></td>
                   <td className="text-center px-4 py-3"><Cell value={row.enterprise} /></td>
                 </tr>
               ))}
@@ -169,8 +217,7 @@ export default function PricingPage() {
         </div>
 
         <p className="text-xs text-slate-400 dark:text-zinc-500 mt-4">
-          Enterprise / Organization accounts are in development. Pricing will be
-          announced when cohort features ship.
+          All features and PDF reports are currently unlocked for testing under the 30-Day Free Access period. Hubs & Accelerators is priced custom per seat or cohort. Features marked (Soon) are actively rolling out.
         </p>
 
         <div className="mt-12 rounded-2xl gradient-brand p-8 text-center text-white relative overflow-hidden">

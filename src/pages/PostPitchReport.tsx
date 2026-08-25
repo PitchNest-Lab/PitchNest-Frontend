@@ -12,6 +12,7 @@ import { getSessionMode, MODE_LABELS, MODE_BADGE_CLASSES, verdictLabel, SENTIMEN
 import { buildRepitchState } from '../lib/repitch';
 import { downloadPdf, PdfDownloadError } from '../lib/downloadFile';
 import { useUpgrade } from '../components/ui/UpgradeModal';
+import { planCanPdf, planCanResearch, isPaidPlan } from '../lib/entitlements';
 
 export default function PostPitchReport() {
   const [searchParams] = useSearchParams();
@@ -20,8 +21,14 @@ export default function PostPitchReport() {
   const { showUpgrade } = useUpgrade();
   // Entitlement comes from auth context, NOT the session payload: the live
   // room navigates here with a client-built row, so anything read off the
-  // session object would be trivially forgeable.
-  const isPro = user?.plan === 'pro';
+  // session object would be trivially forgeable. The server re-checks every
+  // gate; these flags only shape what the UI offers.
+  //   canPdf      — full PDF report (Prep and Pro)
+  //   canResearch — live market research / room-read section (Pro only)
+  const isTrial = (user as any)?.isTrial ?? true;
+  const canPdf = planCanPdf(user?.plan, isTrial);
+  const canResearch = planCanResearch(user?.plan, isTrial);
+  const isPaid = isPaidPlan(user?.plan, isTrial);
   const location = useLocation();
   const navigate = useNavigate();
   const [session, setSession] = useState<any>(() => location.state?.session || null);
@@ -32,7 +39,7 @@ export default function PostPitchReport() {
     if (!session?.id || isDownloading) return;
     // Free users never reach the request — but the server enforces this too,
     // so a bypassed button still gets a 402 rather than a report.
-    if (!isPro) { showUpgrade('pdf'); return; }
+    if (!canPdf) { showUpgrade('pdf'); return; }
     setIsDownloading(true);
     try {
       await downloadPdf(
@@ -51,7 +58,7 @@ export default function PostPitchReport() {
     } finally {
       setIsDownloading(false);
     }
-  }, [session, authFetch, isDownloading, isPro, showUpgrade]);
+  }, [session, authFetch, isDownloading, canPdf, showUpgrade]);
 
 
   useEffect(() => {
@@ -183,7 +190,7 @@ export default function PostPitchReport() {
             disabled={isDownloading}
             className="w-full md:w-auto md:flex-none justify-center px-4 md:px-6 py-2.5 bg-sky-500 text-white font-bold rounded-xl hover:bg-sky-600 transition-all flex items-center gap-2 text-sm shadow-md disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            {isPro
+            {canPdf
               ? <>{isDownloading ? <Loader2 size={16} className="animate-spin" /> : <FileDown size={16} />} {isDownloading ? "Generating..." : "Download Detailed Report"}</>
               : <><Lock size={16} /> Unlock Full Report</>}
           </button>
@@ -329,7 +336,7 @@ export default function PostPitchReport() {
             its shape rather than hiding that it exists.
           */}
           <div className="relative">
-            <div className={cn(!isPro && "blur-[6px] select-none pointer-events-none")} aria-hidden={!isPro}>
+            <div className={cn(!canResearch && "blur-[6px] select-none pointer-events-none")} aria-hidden={!canResearch}>
               {/* Read-the-room feedback — derived from the live interest timeline;
                   present only when it applies (older reports simply lack it). */}
               {typeof report.room_read_note === "string" && report.room_read_note && (
@@ -389,7 +396,7 @@ export default function PostPitchReport() {
             {/* Upgrade overlay. Only rendered for free users, and only when the
                 session actually produced content worth unlocking — dangling a
                 paywall over an empty state would be a bait. */}
-            {!isPro && !isInsufficientData && (
+            {!canResearch && !isInsufficientData && (
               <div className="absolute inset-0 flex items-center justify-center p-4">
                 <div className="max-w-sm w-full rounded-3xl border border-slate-200 bg-white/90 p-6 text-center shadow-xl backdrop-blur-md dark:border-zinc-700 dark:bg-zinc-900/90">
                   <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-sky-50 dark:bg-sky-500/10">
@@ -457,7 +464,7 @@ export default function PostPitchReport() {
                 {isInsufficientData ? "Complete a full 15-minute pitch to unlock premium VC insights." : "Your scores qualify you for PitchNest Prime. Get direct intros to tier-1 VCs."}
               </p>
               <button
-                onClick={() => showUpgrade(isPro ? 'generic' : 'pdf')}
+                onClick={() => showUpgrade(isPaid ? 'generic' : 'pdf')}
                 disabled={isInsufficientData}
                 className="w-full py-3 bg-white text-indigo-600 font-bold rounded-xl text-sm hover:bg-slate-50 transition-colors shadow-md disabled:opacity-50 disabled:cursor-not-allowed"
               >
@@ -472,7 +479,7 @@ export default function PostPitchReport() {
       {/* Prominent bottom-of-report download — full PDF of the report. */}
       <div className="mt-8 pt-6 border-t border-slate-200 dark:border-zinc-800 flex flex-col items-center gap-3 text-center">
         <p className="text-sm text-slate-500 dark:text-zinc-400 max-w-md">
-          {isPro
+          {canPdf
             ? "Want the full breakdown? Download the complete report as a PDF to keep, print, or share."
             : "The PDF report — every score, every panel question, and your full transcript — is part of Pro."}
         </p>
@@ -481,7 +488,7 @@ export default function PostPitchReport() {
           disabled={isDownloading}
           className="px-8 py-4 bg-sky-500 text-white font-extrabold rounded-2xl text-base hover:bg-sky-600 transition-all flex items-center gap-3 shadow-lg shadow-sky-500/30 disabled:opacity-50 disabled:cursor-not-allowed"
         >
-          {isPro ? (
+          {canPdf ? (
             <>
               {isDownloading ? <Loader2 size={20} className="animate-spin" /> : <FileDown size={20} />}
               {isDownloading ? "Generating Report…" : "Download Detailed Report"}

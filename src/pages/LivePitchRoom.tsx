@@ -456,12 +456,20 @@ const DeckViewer = React.memo(
 const getDeckUrl = (url: string) => {
   if (!url) return "";
   if (url.startsWith("http://") || url.startsWith("https://")) return url;
-  const apiBase =
-    window.location.hostname === "localhost" ||
-    window.location.hostname === "127.0.0.1"
-      ? "http://localhost:3000"
-      : "https://pitchnest-live.onrender.com";
-  return `${apiBase}${url.startsWith("/") ? url : `/${url}`}`;
+  const hostname = window.location.hostname;
+  const isLocal =
+    hostname === "localhost" ||
+    hostname === "127.0.0.1" ||
+    hostname === "0.0.0.0" ||
+    hostname.startsWith("192.168.") ||
+    hostname.startsWith("10.") ||
+    /^172\.(1[6-9]|2\d|3[01])\./.test(hostname) ||
+    hostname.endsWith(".local");
+
+  if (isLocal) {
+    return url.startsWith("/") ? url : `/${url}`;
+  }
+  return `https://pitchnest-live.onrender.com${url.startsWith("/") ? url : `/${url}`}`;
 };
 
 const getDeckDisplayUrl = (url: string) => {

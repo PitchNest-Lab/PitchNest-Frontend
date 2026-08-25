@@ -19,9 +19,9 @@ import * as Switch from '@radix-ui/react-switch';
 import * as Tabs from '@radix-ui/react-tabs';
 import { cn } from '../lib/utils';
 import { useAuth } from '../contexts/AuthContext';
-import { useUpgrade } from '../components/ui/UpgradeModal';
 import { useBilling } from '../contexts/BillingContext';
 import { formatPrice } from '../lib/plans';
+import { planLabel } from '../lib/entitlements';
 
 // --- Subcomponents ---
 const SettingSection = ({ title, children }: { title: string, children: React.ReactNode }) => (
@@ -72,14 +72,31 @@ export default function SettingsPage() {
     // Keep the URL shareable/back-button-correct without stacking history.
     setSearchParams(next === "profile" ? {} : { tab: next }, { replace: true });
   };
-  const { showUpgrade } = useUpgrade();
-  const { info: billing } = useBilling();
-  const isPro = user?.plan === 'pro';
+  const { info: billing, upgrade } = useBilling();
+  const currentPlan = billing.plan; // server-authoritative: free | prep | pro
+  const isPaid = currentPlan === "pro" || currentPlan === "prep";
+  // Purchase selector state (only meaningful for a non-paid user).
+  const [selPlan, setSelPlan] = useState<"prep" | "pro">("pro");
+  const [selTerm, setSelTerm] = useState<"monthly" | "annual">("monthly");
+  const [startingCheckout, setStartingCheckout] = useState(false);
   // The real Pro price, from the server (config-driven). Never hardcode it —
   // that is exactly what produced the "$0/mo" bug.
   const proPriceLabel = billing.price
     ? formatPrice(billing.price.amount, billing.price.currency, billing.price.days)
     : 'See pricing';
+  // Price for the SKU the user is currently choosing, from the server catalog.
+  const selectedSku =
+    billing.catalog.find((c) => c.plan === selPlan && c.term === selTerm) || null;
+  const selectedPriceLabel = selectedSku
+    ? formatPrice(selectedSku.amount, selectedSku.currency, selectedSku.days)
+    : 'See pricing';
+  const handleUpgrade = async () => {
+    setStartingCheckout(true);
+    // On success the browser is redirected to the hosted page, so we only clear
+    // the spinner on failure.
+    const ok = await upgrade({ plan: selPlan, term: selTerm });
+    if (!ok) setStartingCheckout(false);
+  };
   const [notifications, setNotifications] = useState({
     pitchAlerts: true,
     weeklyReport: false,
@@ -547,15 +564,22 @@ export default function SettingsPage() {
               <div className="relative z-10 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
                 <div>
                   <span className="text-[10px] font-bold uppercase tracking-widest text-white/70">Current Plan</span>
-                  <h3 className="text-xl font-bold mt-0.5 mb-0.5">{isPro ? 'Pro' : 'Free'}</h3>
+                  <h3 className="text-xl font-bold mt-0.5 mb-0.5">{planLabel(currentPlan)}</h3>
                   <p className="text-white/80 text-xs">
-                    {isPro
+                    {currentPlan === 'pro'
                       ? 'Unlimited sessions, longer durations, full PDF reports'
-                      : '2 sessions per week, 10-minute sessions'}
+                      : currentPlan === 'prep'
+                        ? '5 sessions per week, 20-minute sessions, full PDF reports'
+                        : '2 sessions per week, 10-minute sessions'}
                   </p>
+                  {isPaid && billing.expiresAt && (
+                    <p className="text-white/70 text-[11px] mt-1">
+                      Renews / ends {new Date(billing.expiresAt).toLocaleDateString()}
+                    </p>
+                  )}
                 </div>
                 <div className="sm:text-right">
-                  {isPro
+                  {isPaid
                     ? <p className="text-lg font-bold">Active</p>
                     : <p className="text-2xl font-bold">{proPriceLabel}<span className="text-sm font-medium text-white/70"> for Pro</span></p>}
                 </div>
@@ -563,7 +587,7 @@ export default function SettingsPage() {
               <div className="absolute -right-20 -top-20 w-56 h-56 bg-white/10 rounded-full blur-3xl pointer-events-none" />
             </div>
 
-            {isPro ? (
+            {currentPlan === 'pro' ? (
               <div className="p-4 border border-slate-200 dark:border-zinc-800 rounded-2xl bg-slate-50/50 dark:bg-zinc-800/30">
                 <p className="text-sm text-slate-600 dark:text-zinc-400 leading-relaxed">
                   You're on Pro: unlimited pitch sessions, longer pitch durations,
@@ -571,16 +595,84 @@ export default function SettingsPage() {
                 </p>
               </div>
             ) : (
-              <div className="space-y-4">
+              <div className="space-y-5">
+                {currentPlan === 'prep' && (
+                  <p className="text-sm text-slate-600 dark:text-zinc-400">
+                    You're on Prep. Renew below, or move up to Pro for unlimited
+                    sessions and live market research.
+                  </p>
+                )}
+
+                {/* Plan choice */}
+                <div className="grid grid-cols-2 gap-3">
+                  {(['prep', 'pro'] as const).map((p) => {
+                    const selected = selPlan === p;
+                    return (
+                      <button
+                        key={p}
+                        type="button"
+                        onClick={() => setSelPlan(p)}
+                        aria-pressed={selected}
+                        className={`rounded-2xl border p-4 text-left transition-colors ${
+                          selected
+                            ? 'border-sky-500 ring-1 ring-sky-500/30 bg-sky-50/50 dark:bg-sky-500/10'
+                            : 'border-slate-200 dark:border-zinc-800 hover:bg-slate-50 dark:hover:bg-zinc-800/40'
+                        }`}
+                      >
+                        <span className="block text-sm font-extrabold text-slate-900 dark:text-zinc-100">
+                          {p === 'pro' ? 'Pro' : 'Prep'}
+                        </span>
+                        <span className="block text-xs text-slate-500 dark:text-zinc-400 mt-0.5">
+                          {p === 'pro' ? 'For an active raise' : 'Sharpen up first'}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+
+                {/* Term choice */}
+                <div className="inline-flex rounded-xl border border-slate-200 dark:border-zinc-800 p-1 bg-slate-50 dark:bg-zinc-800/40">
+                  {(['monthly', 'annual'] as const).map((t) => {
+                    const selected = selTerm === t;
+                    return (
+                      <button
+                        key={t}
+                        type="button"
+                        onClick={() => setSelTerm(t)}
+                        aria-pressed={selected}
+                        className={`px-4 py-2 rounded-lg text-xs font-bold transition-colors ${
+                          selected
+                            ? 'bg-white dark:bg-zinc-900 text-slate-900 dark:text-zinc-100 shadow-sm'
+                            : 'text-slate-500 dark:text-zinc-400'
+                        }`}
+                      >
+                        {t === 'annual' ? 'Annual · 2 months free' : 'Monthly'}
+                      </button>
+                    );
+                  })}
+                </div>
+
+                {/* What the chosen plan includes */}
                 <div className="p-4 border border-slate-200 dark:border-zinc-800 rounded-2xl bg-slate-50/50 dark:bg-zinc-800/30">
-                  <p className="text-sm font-bold text-slate-800 dark:text-zinc-200 mb-3">Pro includes</p>
+                  <p className="text-sm font-bold text-slate-800 dark:text-zinc-200 mb-3">
+                    {selPlan === 'pro' ? 'Pro' : 'Prep'} includes
+                  </p>
                   <ul className="space-y-2">
-                    {[
-                      'Unlimited pitch sessions',
-                      'Longer pitch durations',
-                      'Full downloadable PDF report',
-                      'Live market research in your panel',
-                    ].map((b) => (
+                    {(selPlan === 'pro'
+                      ? [
+                          'Unlimited pitch sessions',
+                          'Longer sessions, up to 40 minutes',
+                          'Full downloadable PDF report',
+                          'Live market research in your panel',
+                          'Unlimited Deck Check audits',
+                        ]
+                      : [
+                          '5 pitch sessions per week',
+                          '20-minute sessions',
+                          'Full downloadable PDF report',
+                          '5 Deck Check audits per month',
+                        ]
+                    ).map((b) => (
                       <li key={b} className="flex items-center gap-2.5 text-sm text-slate-600 dark:text-zinc-400">
                         <CheckCircle2 size={15} className="text-emerald-500 shrink-0" />
                         {b}
@@ -588,13 +680,28 @@ export default function SettingsPage() {
                     ))}
                   </ul>
                 </div>
-                <button
-                  type="button"
-                  onClick={() => showUpgrade('generic')}
-                  className="w-full sm:w-auto px-6 py-3 bg-sky-500 hover:bg-sky-600 text-white rounded-xl text-sm font-bold transition-colors"
-                >
-                  Upgrade to Pro
-                </button>
+
+                {billing.billingEnabled ? (
+                  <button
+                    type="button"
+                    onClick={handleUpgrade}
+                    disabled={startingCheckout}
+                    className="w-full sm:w-auto px-6 py-3 bg-sky-500 hover:bg-sky-600 text-white rounded-xl text-sm font-bold transition-colors disabled:opacity-60"
+                  >
+                    {startingCheckout
+                      ? 'Starting…'
+                      : `${currentPlan === 'prep' && selPlan === 'prep' ? 'Renew' : 'Upgrade to'} ${selPlan === 'pro' ? 'Pro' : 'Prep'} — ${selectedPriceLabel}`}
+                  </button>
+                ) : (
+                  /* Billing keys aren't configured — a mail link is honest, a dead
+                     button is not. Mirrors the UpgradeModal fallback. */
+                  <a
+                    href="mailto:support@pitchnest.app?subject=Upgrade%20my%20PitchNest%20plan"
+                    className="inline-flex w-full sm:w-auto items-center justify-center px-6 py-3 bg-sky-500 hover:bg-sky-600 text-white rounded-xl text-sm font-bold transition-colors"
+                  >
+                    Contact us to upgrade
+                  </a>
+                )}
               </div>
             )}
           </Tabs.Content>

@@ -19,17 +19,29 @@ export const SocketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   useEffect(() => {
     console.log("🔌 Connecting to PitchNest Brain...");
     
-    // ✅ DYNAMIC URL FIX: Works seamlessly for both Localhost and Google Cloud!
+    // ✅ DYNAMIC URL FIX: Works seamlessly for Localhost, LAN IPs, and Cloud Deployments
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+    const hostname = window.location.hostname;
+    const isLocal =
+      hostname === 'localhost' ||
+      hostname === '127.0.0.1' ||
+      hostname === '0.0.0.0' ||
+      hostname.startsWith('192.168.') ||
+      hostname.startsWith('10.') ||
+      /^172\.(1[6-9]|2\d|3[01])\./.test(hostname) ||
+      hostname.endsWith('.local');
     const explicitWs = import.meta.env.VITE_WS_BACKEND_URL as string | undefined;
-    const onRender = window.location.hostname.includes('onrender.com');
+    const onRender = hostname.includes('onrender.com');
 
     let WS_URL: string;
-    if (isLocal) {
-      WS_URL = `ws://${window.location.hostname}:3000`;
-    } else if (explicitWs) {
+    if (explicitWs) {
       WS_URL = explicitWs;
+    } else if (isLocal) {
+      // In dev with Vite dev server (e.g. port 5174), route through the proxied /ws endpoint.
+      // If frontend is served directly by Express backend (e.g. port 3000), connect to host directly.
+      WS_URL = window.location.port === '3000'
+        ? `${protocol}//${window.location.host}`
+        : `${protocol}//${window.location.host}/ws`;
     } else if (onRender) {
       WS_URL = `${protocol}//${window.location.host}`;
     } else {

@@ -24,6 +24,7 @@ import {
 import { Link, useLocation, Outlet, useNavigate } from 'react-router-dom';
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
 import { cn } from '../lib/utils';
+import { isPaidPlan } from '../lib/entitlements';
 import { ThemeToggle } from './ThemeToggle';
 import { useAuth } from '../contexts/AuthContext';
 import { LogoLink, LogoMark } from './Logo';
@@ -61,7 +62,7 @@ export default function AppLayout() {
   const { logout, user } = useAuth();
   // From context, not the localStorage copy below — a cached user object would
   // keep showing the upsell to someone who just upgraded.
-  const isPro = user?.plan === 'pro';
+  const isPaid = isPaidPlan(user?.plan);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
@@ -243,7 +244,7 @@ export default function AppLayout() {
         {/* Upsell — free users only. Showing an "upgrade" card to someone who
             already pays reads as a billing error. Links straight to the
             Subscription tab, not the generic settings root. */}
-        {!isPro && (
+        {!isPaid && (
           <div className="mt-3 p-3 gradient-brand rounded-xl text-white relative overflow-hidden group shrink-0">
             <div className="relative z-10">
               <span className="text-[10px] font-semibold uppercase tracking-widest text-white/70">Free plan</span>
@@ -308,13 +309,13 @@ export default function AppLayout() {
                 to={SUBSCRIPTION_TAB_PATH}
                 className={cn(
                   "flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[11px] font-semibold",
-                  isPro
+                  isPaid
                     ? "bg-slate-100 dark:bg-zinc-800 text-slate-700 dark:text-zinc-200"
                     : "gradient-brand text-white",
                 )}
               >
-                {isPro ? <ShieldCheck size={12} /> : <Sparkles size={12} />}
-                {isPro ? "Plan" : "Upgrade"}
+                {isPaid ? <ShieldCheck size={12} /> : <Sparkles size={12} />}
+                {isPaid ? "Plan" : "Upgrade"}
               </Link>
             </div>
           </div>
@@ -441,13 +442,13 @@ export default function AppLayout() {
                 <span
                   className={cn(
                     "flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-xs font-semibold transition-colors",
-                    isPro
+                    isPaid
                       ? "bg-slate-100 dark:bg-zinc-800 text-slate-700 dark:text-zinc-200 hover:bg-slate-200 dark:hover:bg-zinc-700"
                       : "gradient-brand text-white hover:opacity-95",
                   )}
                 >
-                  {isPro ? <ShieldCheck size={14} /> : <Sparkles size={14} />}
-                  {isPro ? "View Plan" : "Upgrade"}
+                  {isPaid ? <ShieldCheck size={14} /> : <Sparkles size={14} />}
+                  {isPaid ? "View Plan" : "Upgrade"}
                 </span>
               </Link>
             </div>
