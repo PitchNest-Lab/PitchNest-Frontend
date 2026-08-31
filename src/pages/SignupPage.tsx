@@ -105,7 +105,7 @@ function EmailNotVerifiedPopup({
         animate={{ opacity: 1, scale: 1, y: 0 }}
         exit={{ opacity: 0, scale: 0.95, y: 12 }}
         transition={{ type: "spring", stiffness: 300, damping: 25 }}
-        className="w-full max-w-[420px] card rounded-3xl shadow-2xl shadow-slate-200/50 dark:shadow-black/40 p-8 text-center"
+        className="w-full max-w-105 card rounded-3xl shadow-2xl shadow-slate-200/50 dark:shadow-black/40 p-8 text-center"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Icon */}
@@ -216,18 +216,14 @@ export default function SignupPage() {
       localStorage.removeItem("pitchnest_startup_name");
       localStorage.removeItem("pitchnest_funding_stage");
 
-      const res = (await signup(
-        data.name,
-        data.email,
-        data.password,
-        data.role,
-      )) as { token?: string } | null | undefined;
+      await signup(data.name, data.email, data.password, data.role);
 
-      if (res?.token) {
-        navigate("/verify", { state: { email: data.email } });
-      } else {
-        navigate("/signup");
-      }
+      // Persist the email (like the login flow does) so the /verify OTP path
+      // still knows which account to check even after a hard refresh — the
+      // scoped verify-email-otp endpoint needs it. Then route to the verify
+      // screen so the founder can enter the code / click the email link.
+      sessionStorage.setItem("verifyEmail", data.email);
+      navigate("/verify", { state: { email: data.email } });
     } catch (error: any) {
       console.log(error.message);
       // Already registered but email not verified → show popup
@@ -267,7 +263,7 @@ export default function SignupPage() {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[60] flex flex-col items-center justify-center bg-white/80 dark:bg-zinc-950/80 backdrop-blur-sm"
+            className="fixed inset-0 z-60 flex flex-col items-center justify-center bg-white/80 dark:bg-zinc-950/80 backdrop-blur-sm"
           >
             <div className="w-12 h-12 border-4 border-sky-500 border-t-transparent rounded-full animate-spin" />
             <p className="mt-4 text-sm font-semibold text-slate-600 dark:text-zinc-400">Signing up with Google…</p>
@@ -286,11 +282,11 @@ export default function SignupPage() {
         )}
       </AnimatePresence>
 
-      <div className="min-h-screen bg-[#FAFBFC] dark:bg-[#09090B] flex items-center justify-center p-6 font-sans transition-colors duration-300">
+      <div className="min-h-screen bg-bg-main dark:bg-[#09090B] flex items-center justify-center p-6 font-sans transition-colors duration-300">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="w-full max-w-[1000px] card rounded-3xl shadow-2xl shadow-slate-200/50 dark:shadow-black/20 overflow-hidden flex flex-col lg:flex-row transition-colors"
+          className="w-full max-w-250 card rounded-3xl shadow-2xl shadow-slate-200/50 dark:shadow-black/20 overflow-hidden flex flex-col lg:flex-row transition-colors"
         >
           <div className="flex-1 p-8 md:p-12">
             <LogoLink showText size="md" className="mb-10" />
@@ -504,7 +500,7 @@ export default function SignupPage() {
           {/* Right Side Carousel */}
           <div className="hidden lg:flex flex-1 bg-sky-50 dark:bg-zinc-800 flex-col items-center justify-center p-12 relative overflow-hidden">
             <div className="relative z-10 w-full max-w-sm">
-              <div className="rounded-4xl overflow-hidden shadow-2xl border-8 border-white dark:border-zinc-900 mb-8 relative aspect-[4/5] bg-slate-100">
+              <div className="rounded-4xl overflow-hidden shadow-2xl border-8 border-white dark:border-zinc-900 mb-8 relative aspect-4/5 bg-slate-100">
                 <div
                   className="flex w-full h-full transition-transform duration-700 ease-in-out"
                   style={{ transform: `translateX(-${currentSlide * 100}%)` }}

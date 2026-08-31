@@ -37,7 +37,10 @@ const PitchRow = ({
   duration,
   score,
   mode,
-  attemptNumber,
+  attemptsUsed,
+  maxAttempts,
+  attemptsExhausted,
+  canPitchAgain,
   scoreDelta,
   onPitchAgain,
   onDelete,
@@ -51,12 +54,18 @@ const PitchRow = ({
   duration: string;
   score: number;
   mode: SessionMode;
-  attemptNumber: number;
+  /** Attempt state comes from the server (session.attempts) — the same numbers
+   *  the session-start gate enforces. The frontend never counts attempts. */
+  attemptsUsed: number;
+  maxAttempts: number;
+  attemptsExhausted: boolean;
+  canPitchAgain: boolean;
   scoreDelta: number | null;
   onPitchAgain: () => void;
   onDelete: (id: number) => void;
   isSelected: boolean;
   onSelectToggle: (id: number) => void;
+  key?: React.Key;
 }) => {
   const isIncomplete = score === 0;
 
@@ -108,11 +117,21 @@ const PitchRow = ({
             >
               {MODE_LABELS[mode]}
             </span>
-            {attemptNumber > 1 && (
-              <span className="inline-block px-2 py-0.5 border rounded-full text-[10px] font-bold uppercase tracking-widest bg-slate-500/10 text-slate-500 border-slate-500/20 dark:text-zinc-400">
-                Attempt {attemptNumber}
-              </span>
-            )}
+            {/*
+              Req 16: the attempt status is visible BEFORE clicking in. The
+              exhausted state is unmistakable — and a pitch that has used all its
+              attempts stays readable/replayable, never deletable-by-limit.
+            */}
+            <span
+              className={cn(
+                "inline-block px-2 py-0.5 border rounded-full text-[10px] font-bold uppercase tracking-widest tabular-nums",
+                attemptsExhausted
+                  ? "bg-rose-500/10 text-rose-600 border-rose-500/25 dark:text-rose-400 dark:border-rose-500/30"
+                  : "bg-slate-500/10 text-slate-500 border-slate-500/20 dark:text-zinc-400",
+              )}
+            >
+              {attemptsUsed} of {maxAttempts} attempts used
+            </span>
           </span>
         </div>
 
@@ -188,7 +207,7 @@ const PitchRow = ({
             </button>
           </DropdownMenu.Trigger>
           <DropdownMenu.Portal>
-            <DropdownMenu.Content className="min-w-[160px] bg-white dark:bg-zinc-900 rounded-xl shadow-xl border border-slate-100 dark:border-zinc-800 p-2 z-50">
+            <DropdownMenu.Content className="min-w-40 bg-white dark:bg-zinc-900 rounded-xl shadow-xl border border-slate-100 dark:border-zinc-800 p-2 z-50">
               <DropdownMenu.Item asChild className="outline-none">
                 <Link
                   to={`/report?session=${id}`}
@@ -197,15 +216,14 @@ const PitchRow = ({
                   <BarChart3 size={14} /> View Report
                 </Link>
               </DropdownMenu.Item>
-              {/* MVP: replay coming soon — restore Link to /replay when re-enabled */}
-              <DropdownMenu.Item
-                disabled
-                className="flex items-center gap-2 px-3 py-2 text-xs font-bold text-slate-300 dark:text-zinc-600 rounded-lg cursor-default outline-none select-none"
-              >
-                <Play size={14} /> View Replay
-                <span className="ml-auto text-[9px] font-semibold uppercase tracking-wide px-1.5 py-0.5 rounded-md bg-slate-100 dark:bg-zinc-800 text-slate-400 dark:text-zinc-500">
-                  Soon
-                </span>
+              {/* Req 4: replay is live — audio + transcript. */}
+              <DropdownMenu.Item asChild className="outline-none">
+                <Link
+                  to={`/replay?session=${id}`}
+                  className="flex items-center gap-2 px-3 py-2 text-xs font-bold text-slate-700 dark:text-zinc-300 hover:bg-slate-50 dark:hover:bg-zinc-800 rounded-lg cursor-pointer"
+                >
+                  <Play size={14} /> View Replay
+                </Link>
               </DropdownMenu.Item>
               <DropdownMenu.Item
                 onSelect={handleShare}
@@ -213,11 +231,22 @@ const PitchRow = ({
               >
                 <Share2 size={14} /> Share Pitch
               </DropdownMenu.Item>
+              {/* Req 14: after the 5th attempt (or past the practice window) the
+                  pitch is read/replay/report-only. The server's
+                  `canStartNewAttempt` is authoritative; a disabled item is
+                  honest UI that keeps the limit visible. */}
               <DropdownMenu.Item
-                onSelect={onPitchAgain}
-                className="flex items-center gap-2 px-3 py-2 text-xs font-bold text-sky-600 dark:text-sky-400 hover:bg-sky-50 dark:hover:bg-sky-900/20 rounded-lg cursor-pointer outline-none"
+                disabled={!canPitchAgain}
+                onSelect={canPitchAgain ? onPitchAgain : undefined}
+                className={cn(
+                  "flex items-center gap-2 px-3 py-2 text-xs font-bold text-sky-600 dark:text-sky-400 rounded-lg outline-none select-none",
+                  canPitchAgain
+                    ? "hover:bg-sky-50 dark:hover:bg-sky-900/20 cursor-pointer"
+                    : "opacity-40 cursor-default",
+                )}
               >
-                <RotateCcw size={14} /> Pitch Again
+                <RotateCcw size={14} />{" "}
+                {canPitchAgain ? "Pitch Again" : "No attempts left"}
               </DropdownMenu.Item>
               <DropdownMenu.Separator className="h-px bg-slate-100 dark:bg-zinc-800 my-1" />
               <DropdownMenu.Item
@@ -454,7 +483,7 @@ export default function MyPitchesArchive() {
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               placeholder="Search pitches..."
-              className="pl-10 pr-4 py-3 bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-sky-500/20 dark:text-zinc-100 min-w-full sm:min-w-[300px]"
+              className="pl-10 pr-4 py-3 bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-sky-500/20 dark:text-zinc-100 min-w-full sm:min-w-75"
             />
           </div>
         </div>
@@ -506,7 +535,7 @@ export default function MyPitchesArchive() {
                 <span>Score</span>
               </div>
             </div>
-            <div className="w-[120px]" />
+            <div className="w-30" />
           </div>
 
           <div className="space-y-4">
@@ -541,6 +570,16 @@ export default function MyPitchesArchive() {
                     session.evaluation_report?.duration,
                   );
                   const chain = attemptInfo.get(session.id);
+                  // Server-authoritative attempt state (req 17). The fallback
+                  // keeps an old cached row from crashing the render; the
+                  // session-start gate never consults any of this.
+                  const att = session.attempts || {
+                    attemptsUsed: chain?.attemptNumber ?? 1,
+                    attemptsRemaining: 4,
+                    maxAttempts: 5,
+                    canStartNewAttempt: true,
+                    attemptsExhausted: false,
+                  };
                   return (
                     <PitchRow
                       key={session.id}
@@ -551,7 +590,10 @@ export default function MyPitchesArchive() {
                       duration={duration}
                       score={score}
                       mode={getSessionMode(session)}
-                      attemptNumber={chain?.attemptNumber ?? 1}
+                      attemptsUsed={Number(att.attemptsUsed) || 1}
+                      maxAttempts={Number(att.maxAttempts) || 5}
+                      attemptsExhausted={!!att.attemptsExhausted}
+                      canPitchAgain={!!att.canStartNewAttempt}
                       scoreDelta={chain?.scoreDelta ?? null}
                       onPitchAgain={() =>
                         navigate("/setup", {

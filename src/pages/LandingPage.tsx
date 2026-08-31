@@ -249,7 +249,7 @@ export default function LandingPage() {
                     intercept a click on the image. */}
                 <div
                   aria-hidden
-                  className="pointer-events-none absolute -inset-6 sm:-inset-10 -z-10 rounded-[2rem] bg-[radial-gradient(50%_50%_at_50%_50%,rgba(99,102,241,0.35),transparent_70%)] blur-2xl"
+                  className="pointer-events-none absolute -inset-6 sm:-inset-10 -z-10 rounded-4xl bg-[radial-gradient(50%_50%_at_50%_50%,rgba(99,102,241,0.35),transparent_70%)] blur-2xl"
                 />
                 <div
                   aria-hidden

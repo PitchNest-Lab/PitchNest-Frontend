@@ -12,12 +12,13 @@ import { Sparkles, Rocket, Crown, Building2 } from "lucide-react";
  * that could lie.
  *
  * TIER AVAILABILITY. `available` gates whether a tier can be transacted TODAY.
- * The billing backend currently grants a single paid level ("pro", flat period),
- * so only Free and Pro have a live checkout. Prep (a cheaper entry tier) and
- * Organizations (seat-based, Stage O on the roadmap) are shown as "coming soon"
- * — a real, purchasable Prep tier and annual billing need the money-granting
- * path extended first, and this codebase does not ship a button that can't
- * honour what it promises.
+ * The billing backend now grants two paid levels (Founder/"prep" and Pro/"pro"),
+ * each sold monthly or annual, so Founder and Pro both have a live checkout
+ * (settings → subscription); Free is signup and Hubs & Accelerators is a
+ * "contact us" pathway. Per-tier PRICES come from the server catalog at runtime
+ * (getPlans + usePublicPrice → /api/billing/price), so a displayed number can
+ * never drift from what checkout actually charges. Features that are not yet
+ * implemented are labelled "(Coming Soon)" rather than advertised as live.
  */
 
 export interface Plan {
@@ -38,8 +39,8 @@ const base: Omit<Plan, "price">[] = [
     name: "Free",
     tagline: "Try the panel — no card required.",
     features: [
-      "1 AI investor persona",
-      "10-min practice session",
+      "2 AI investor personas",
+      "2 live practice sessions / week (10 min each)",
       "Basic readiness score",
       "Basic script generation",
       "Investment programs access",
@@ -54,8 +55,8 @@ const base: Omit<Plan, "price">[] = [
     name: "Founder",
     tagline: "Where founders get serious.",
     features: [
-      "150 min live practice / mo",
-      "6 AI investor personas",
+      "Unlimited live practice / mo",
+      "3 AI investor personas",
       "Grilling Session (rapid Q&A)",
       "Detailed score + fixes",
       "Unlimited script generation",
@@ -71,10 +72,10 @@ const base: Omit<Plan, "price">[] = [
     tagline: "Deep prep for active fundraising.",
     features: [
       "Everything in Founder",
-      "Multilingual AI VCs",
-      "Multi-VC panel (Shark Tank style)",
-      "AI Virtual Co-Founder",
-      "10 AI-generated pitch decks",
+      "Multi-VC panel",
+      "Multilingual AI VCs (Coming Soon)",
+      "AI Virtual Co-Founder (Coming Soon)",
+      "10 AI-generated pitch decks (Coming Soon)",
     ],
     featured: true,
     available: true,
@@ -113,16 +114,31 @@ export function formatPrice(
 }
 
 /**
- * The plan catalogue, matching the PitchNest pricing deck.
+ * The plan catalogue, matching the PitchNest pricing deck. Per-tier prices come
+ * from the SERVER catalog (usePublicPrice → /api/billing/price) so the displayed
+ * number is exactly what checkout charges; fixed fallbacks are used only until
+ * the price loads (or if billing is unconfigured).
  */
 export function getPlans(price: {
   amount: number | null;
   currency: string | null;
   days: number | null;
+  catalog?: { plan: string; term: string; amount: number; currency: string }[];
 }): Plan[] {
+  const cat = price?.catalog ?? [];
+  const sku = (plan: string, term: string) =>
+    cat.find((c) => c.plan === plan && c.term === term);
+
+  const proMo = sku("pro", "monthly");
+  const founderMo = sku("prep", "monthly");
+  const currency = proMo?.currency ?? price?.currency ?? "USD";
+  const proAmount = proMo?.amount ?? price?.amount ?? 15; // Pro Founder
+  const founderAmount = founderMo?.amount ?? 9.99; // Founder (prep)
+
   return base.map((p) => {
-    if (p.id === "pro") return { ...p, price: "$15 /mo" };
-    if (p.id === "founder") return { ...p, price: "$8 /mo" };
+    if (p.id === "pro") return { ...p, price: formatPrice(proAmount, currency, null) };
+    if (p.id === "founder")
+      return { ...p, price: formatPrice(founderAmount, founderMo?.currency ?? currency, null) };
     if (p.id === "enterprise") return { ...p, price: "Custom per seat" };
     return { ...p, price: "$0 /mo" };
   });

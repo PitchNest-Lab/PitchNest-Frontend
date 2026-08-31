@@ -67,6 +67,13 @@ export default function PrePitchSetup() {
   const [availableDecks, setAvailableDecks] = useState<any[]>([]);
   const [selectedDeck, setSelectedDeck] = useState<any>(null);
   const deckFileInputRef = useRef<HTMLInputElement>(null);
+  /** Server-authoritative attempt state for a re-pitch (req 17). null while
+   *  loading or when this is a first pitch, where the gate does not apply. */
+  const [attemptState, setAttemptState] = useState<{
+    canStartNewAttempt: boolean;
+    attemptsUsed: number;
+    maxAttempts: number;
+  } | null>(null);
 
   const handleUploadDeck = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -236,7 +243,44 @@ export default function PrePitchSetup() {
     }
   };
 
+  // Re-pitch attempt gate (reqs 13/14/17). Ask the server whether another live
+  // session may start for this pitch. This is a convenience for the UI only —
+  // the authoritative gate runs at session start in restSocket, so refreshing,
+  // a second tab, re-login or edited client state can never buy a 6th attempt.
+  useEffect(() => {
+    const parentId = repitch?.parentSessionId;
+    if (!parentId) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await authFetch(`/api/sessions/${parentId}/attempts`);
+        if (res.ok && !cancelled) {
+          const data = await res.json();
+          setAttemptState({
+            canStartNewAttempt: !!data.canStartNewAttempt,
+            attemptsUsed: Number(data.attemptsUsed) || 0,
+            maxAttempts: Number(data.maxAttempts) || 5,
+          });
+        }
+      } catch (err) {
+        console.error("Failed to load attempt state:", err);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [repitch?.parentSessionId]);
+
   const onSubmit = async (data: SetupFormValues) => {
+    // Client gate mirrors the server's; if the server still refuses (a race
+    // with another tab), the socket close code 4006 explains itself in-room.
+    if (attemptState && !attemptState.canStartNewAttempt) {
+      alert(
+        `This pitch has used all ${attemptState.maxAttempts} attempts. Its report, transcript and audio replay stay available — start a new pitch to keep practising.`,
+      );
+      return;
+    }
     setIsSubmitting(true);
     await new Promise(resolve => setTimeout(resolve, 800));
     navigate('/room', {
@@ -277,6 +321,19 @@ export default function PrePitchSetup() {
           <span className="font-extrabold text-sky-600 dark:text-sky-400">Re-pitching {repitch.config?.businessName || 'your startup'}</span>
           <span className="text-slate-400">·</span>
           <span>previous score {repitch.previousSession?.overallScore ?? '—'}/100 — the panel will remember your last attempt.</span>
+        </div>
+      )}
+
+      {/* Req 14: a pitch that has used all its attempts is read/replay/report-only.
+          The server decides (canStartNewAttempt); this banner is its message. */}
+      {attemptState && !attemptState.canStartNewAttempt && (
+        <div className="shrink-0 mb-6 px-4 py-3 bg-rose-50 dark:bg-rose-900/10 border border-rose-200 dark:border-rose-900/40 rounded-xl text-sm font-medium text-rose-700 dark:text-rose-300 flex items-center gap-2">
+          <Lock size={14} className="shrink-0" />
+          <span>
+            This pitch has used all {attemptState.maxAttempts} attempts. Its
+            report, transcript and audio replay stay available — start a new
+            pitch to keep practising.
+          </span>
         </div>
       )}
 
@@ -477,8 +534,28 @@ export default function PrePitchSetup() {
                 className="hidden"
               />
               
-              <button type="submit" data-tour="setup-start" disabled={isSubmitting} className="w-full py-4 bg-sky-500 text-white font-bold rounded-2xl hover:bg-sky-400 transition-all flex items-center justify-center gap-2 group disabled:opacity-50 cursor-pointer">
-                {isSubmitting ? <Loader2 className="animate-spin" size={20} /> : <>Enter Live Room <PlayCircle size={20} className="group-hover:translate-x-1 transition-transform" /></>}
+              <button
+                type="submit"
+                data-tour="setup-start"
+                disabled={
+                  isSubmitting ||
+                  (attemptState !== null && !attemptState.canStartNewAttempt)
+                }
+                className="w-full py-4 bg-sky-500 text-white font-bold rounded-2xl hover:bg-sky-400 transition-all flex items-center justify-center gap-2 group disabled:opacity-50 cursor-pointer"
+              >
+                {isSubmitting ? (
+                  <Loader2 className="animate-spin" size={20} />
+                ) : attemptState !== null && !attemptState.canStartNewAttempt ? (
+                  <>No attempts left</>
+                ) : (
+                  <>
+                    Enter Live Room{" "}
+                    <PlayCircle
+                      size={20}
+                      className="group-hover:translate-x-1 transition-transform"
+                    />
+                  </>
+                )}
               </button>
             </div>
           </div>

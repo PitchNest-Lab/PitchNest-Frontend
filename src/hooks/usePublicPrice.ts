@@ -12,10 +12,20 @@ import { useEffect, useState } from "react";
  * Falls back to nulls on failure — the pricing UI renders a neutral "See
  * pricing" rather than inventing an amount that might not match checkout.
  */
+export interface CatalogItem {
+  plan: "prep" | "pro";
+  term: "monthly" | "annual";
+  amount: number;
+  currency: string;
+  days: number;
+}
+
 export interface PublicPrice {
   amount: number | null;
   currency: string | null;
   days: number | null;
+  /** Every purchasable (plan, term) SKU, from the server. Drives per-tier price display. */
+  catalog: CatalogItem[];
   billingEnabled: boolean;
   loaded: boolean;
 }
@@ -24,6 +34,7 @@ const EMPTY: PublicPrice = {
   amount: null,
   currency: null,
   days: null,
+  catalog: [],
   billingEnabled: false,
   loaded: false,
 };
@@ -42,6 +53,7 @@ export function usePublicPrice(): PublicPrice {
           amount: body?.price?.amount ?? null,
           currency: body?.price?.currency ?? null,
           days: body?.price?.days ?? null,
+          catalog: Array.isArray(body?.catalog) ? body.catalog : [],
           billingEnabled: !!body?.billingEnabled,
           loaded: true,
         });

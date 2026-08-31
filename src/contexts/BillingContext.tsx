@@ -110,8 +110,15 @@ export const BillingProvider: React.FC<{ children: React.ReactNode }> = ({ child
   }, [authFetch]);
 
   // Keep the context in step with /me: the plan changes after checkout, on
-  // expiry, and when an admin comps or revokes access.
+  // expiry, and when an admin comps or revokes access. Skipped while logged
+  // out — /api/billing/plan is an authenticated route, so an anonymous refresh
+  // could only ever 401 (and did, on every landing-page load).
   useEffect(() => {
+    if (!user?.id) {
+      setInfo(DEFAULT_INFO);
+      setLoaded(true);
+      return;
+    }
     refresh();
   }, [user?.id, user?.plan, refresh]);
 

@@ -21,11 +21,11 @@ import { usePublicPrice } from "../hooks/usePublicPrice";
 /** Rows are explicit rather than derived so the matrix reads like a spec. */
 type Cellv = string | boolean;
 const MATRIX: { label: string; free: Cellv; founder: Cellv; pro: Cellv; enterprise: Cellv }[] = [
-  { label: "Practice pitch time", free: "10 min / session", founder: "150 min / mo", pro: "Unlimited", enterprise: "Unlimited" },
-  { label: "AI investor personas", free: "1 Persona", founder: "6 Personas", pro: "All Personas + Multi-VC", enterprise: "All Personas" },
+  { label: "Practice pitch time", free: "2 × 10 min / week", founder: "Unlimited", pro: "Unlimited", enterprise: "Unlimited" },
+  { label: "AI investor personas", free: "2 Personas", founder: "3 Personas", pro: "All Personas + Multi-VC", enterprise: "All Personas" },
   { label: "Grilling Session / Rapid Q&A", free: false, founder: true, pro: true, enterprise: true },
   { label: "Multi-VC panel simulation", free: false, founder: false, pro: true, enterprise: true },
-  { label: "Multilingual AI VCs", free: false, founder: false, pro: true, enterprise: true },
+  { label: "Multilingual AI VCs", free: false, founder: false, pro: "Coming Soon", enterprise: "Coming Soon" },
   { label: "Readiness score & actionable fixes", free: "Basic", founder: "Detailed", pro: "Detailed + Analytics", enterprise: "Cohort Analytics" },
   { label: "Deck-aware questioning", free: true, founder: true, pro: true, enterprise: true },
   { label: "Downloadable PDF report & share link", free: "Unlocked in Trial", founder: true, pro: true, enterprise: true },
@@ -49,6 +49,15 @@ export default function PricingPage() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const publicPrice = usePublicPrice();
   const plans = useMemo(() => getPlans(publicPrice), [publicPrice]);
+  // Per-tier monthly prices from the server catalog (fallback to deck values
+  // until the price loads), so cards + matrix never show a number that differs
+  // from what checkout charges.
+  const founderAmt =
+    publicPrice.catalog.find((c) => c.plan === "prep" && c.term === "monthly")?.amount ?? 9.99;
+  const proAmt =
+    publicPrice.catalog.find((c) => c.plan === "pro" && c.term === "monthly")?.amount ??
+    publicPrice.amount ??
+    15;
 
   useEffect(() => {
     if (localStorage.getItem("user")) setIsLoggedIn(true);
@@ -122,12 +131,12 @@ export default function PricingPage() {
                     </>
                   ) : plan.id === "founder" ? (
                     <>
-                      <span className="text-3xl font-extrabold text-amber-600 dark:text-amber-500">$8</span>
+                      <span className="text-3xl font-extrabold text-amber-600 dark:text-amber-500">{`$${founderAmt}`}</span>
                       <span className={cn("text-xs font-medium", isPro ? "text-slate-300" : "text-slate-500 dark:text-zinc-400")}>/mo</span>
                     </>
                   ) : plan.id === "pro" ? (
                     <>
-                      <span className="text-3xl font-extrabold text-[#F59E0B]">$15</span>
+                      <span className="text-3xl font-extrabold text-[#F59E0B]">{`$${proAmt}`}</span>
                       <span className="text-xs font-medium text-slate-300">/mo</span>
                     </>
                   ) : (
@@ -191,8 +200,8 @@ export default function PricingPage() {
               <tr className="bg-slate-50 dark:bg-zinc-900/60 border-b border-slate-200 dark:border-zinc-800">
                 <th scope="col" className="text-left font-bold text-xs uppercase tracking-wider text-slate-500 dark:text-zinc-400 px-4 py-3">Feature</th>
                 <th scope="col" className="font-bold text-xs uppercase tracking-wider text-slate-500 dark:text-zinc-400 px-4 py-3 w-28">Free ($0)</th>
-                <th scope="col" className="font-bold text-xs uppercase tracking-wider text-slate-500 dark:text-zinc-400 px-4 py-3 w-28">Founder ($8)</th>
-                <th scope="col" className="font-bold text-xs uppercase tracking-wider text-amber-600 dark:text-amber-400 px-4 py-3 w-32">Pro Founder ($15)</th>
+                <th scope="col" className="font-bold text-xs uppercase tracking-wider text-slate-500 dark:text-zinc-400 px-4 py-3 w-28">{`Founder ($${founderAmt})`}</th>
+                <th scope="col" className="font-bold text-xs uppercase tracking-wider text-amber-600 dark:text-amber-400 px-4 py-3 w-32">{`Pro Founder ($${proAmt})`}</th>
                 <th scope="col" className="font-bold text-xs uppercase tracking-wider text-slate-500 dark:text-zinc-400 px-4 py-3 w-32">Hubs & Accelerators</th>
               </tr>
             </thead>

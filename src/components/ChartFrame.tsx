@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 
 /**
  * Defers rendering its children (a Recharts ResponsiveContainer) until the

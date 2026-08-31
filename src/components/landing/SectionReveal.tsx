@@ -1,4 +1,4 @@
-import { useRef, type ReactNode } from 'react';
+import { useRef, type ReactNode, type Key } from 'react';
 import { motion, useInView } from 'motion/react';
 
 const EASE = [0.16, 1, 0.3, 1] as const;
@@ -8,6 +8,7 @@ type Props = {
   className?: string;
   delay?: number;
   y?: number;
+  key?: Key;
 };
 
 export function SectionReveal({ children, className, delay = 0, y = 16 }: Props) {

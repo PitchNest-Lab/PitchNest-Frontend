@@ -11,20 +11,28 @@ import {
 import { LogoLink } from "../components/Logo";
 import { motion, AnimatePresence } from "framer-motion";
 
+// MUST match the backend's EMAIL_FROM / config.emailFrom (backend/src/config/env.ts).
+// This previously read "pitchnestapp@gmail.com" — an address that has never sent
+// anything: Resend delivers from the verified pitchnest.app domain, and a
+// gmail.com sender is not something Resend can authenticate at all. Users
+// searched their inbox for the wrong sender and concluded the email never
+// arrived, which is exactly the bug this string caused.
+const SENDER_ADDRESS = "hello@pitchnest.app";
+
 const steps = [
   {
     num: 1,
     label: "Open the email",
     detail: (
       <>
-        from <span className="text-sky-500 font-bold">pitchnestapp@gmail.com</span>{" "}
+        from <span className="text-sky-500 font-bold">{SENDER_ADDRESS}</span>{" "}
         — check spam/promotions if you don't see it
       </>
     ),
   },
   {
     num: 2,
-    label: 'Click "Verify my email"',
+    label: 'Enter the code above or click "Verify my email"',
     detail: "in the email to confirm your address",
   },
   {
@@ -42,7 +50,7 @@ function TokenVerifyingScreen() {
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
-      className="min-h-screen bg-[#FAFBFC] dark:bg-[#09090B] flex flex-col items-center justify-center gap-5 transition-colors duration-300"
+      className="min-h-screen bg-bg-main dark:bg-[#09090B] flex flex-col items-center justify-center gap-5 transition-colors duration-300"
     >
       <div className="w-16 h-16 rounded-2xl bg-sky-50 dark:bg-sky-500/10 flex items-center justify-center mb-2">
         <Loader2 className="text-sky-500 animate-spin" size={32} />
@@ -72,9 +80,9 @@ function TokenErrorScreen({
       initial={{ opacity: 0, y: 16 }}
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0 }}
-      className="min-h-screen bg-[#FAFBFC] dark:bg-[#09090B] flex items-center justify-center p-6 transition-colors duration-300"
+      className="min-h-screen bg-bg-main dark:bg-[#09090B] flex items-center justify-center p-6 transition-colors duration-300"
     >
-      <div className="w-full max-w-[420px] card rounded-3xl shadow-2xl shadow-slate-200/50 dark:shadow-black/20 p-8 md:p-10 text-center">
+      <div className="w-full max-w-105 card rounded-3xl shadow-2xl shadow-slate-200/50 dark:shadow-black/20 p-8 md:p-10 text-center">
         <LogoLink showText size="md" className="mb-8 justify-center" />
 
         <div className="w-16 h-16 rounded-2xl bg-rose-50 dark:bg-rose-500/10 flex items-center justify-center mx-auto mb-5">
@@ -139,14 +147,13 @@ export default function VerifyEmailPage() {
         return r.json();
       })
       .then((data) => {
-        if (data.message === "Email verified successfully") {
+        if (data.token) {
+          // The emailed-link path proves ownership via the high-entropy token,
+          // so the server returns a session token on both "verified" and
+          // "already verified" — store it and route via the server's redirectTo.
           localStorage.setItem("user", JSON.stringify(data.user));
           localStorage.setItem("token", data.token);
-          if (data.onboardingCompleted) {
-            navigate("/dashboard", { replace: true });
-          } else {
-            navigate("/onboarding", { replace: true });
-          }
+          navigate(data.redirectTo || "/onboarding", { replace: true });
         } else {
           if (isManual) {
             setErrorMessage(data.message || "Invalid code");
@@ -165,6 +172,41 @@ export default function VerifyEmailPage() {
           setErrorMessage(err.message || "Something went wrong");
           setStatus("error");
         }
+      });
+  };
+
+  // Manual 6-digit code entry → the SCOPED, attempt-locked endpoint. Unlike the
+  // emailed link (a long high-entropy token verified by verifyToken), the code
+  // is low-entropy, so it is checked server-side only against THIS email's token
+  // row with a per-account lockout. Requires the email (from signup/login
+  // redirect state); without it the server returns a generic error and the user
+  // falls back to the email link.
+  const verifyOtp = (code: string) => {
+    setStatus("verifying");
+    setErrorMessage("");
+    fetch("/api/auth/verify-email-otp", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email, code }),
+    })
+      .then((r) => r.json().then((data) => ({ ok: r.ok, data })))
+      .then(({ ok, data }) => {
+        if (ok && data.message === "Email verified successfully" && data.token) {
+          localStorage.setItem("user", JSON.stringify(data.user));
+          localStorage.setItem("token", data.token);
+          navigate(data.redirectTo || "/onboarding", { replace: true });
+        } else if (ok && data.alreadyVerified) {
+          // Account is already verified (e.g. verified on another device). No
+          // token is issued without a matching code — send them to log in.
+          navigate("/login", { replace: true });
+        } else {
+          setErrorMessage(data.message || "Invalid code");
+          setStatus("idle");
+        }
+      })
+      .catch((err: any) => {
+        setErrorMessage(err.message || "Something went wrong");
+        setStatus("idle");
       });
   };
 
@@ -238,8 +280,22 @@ export default function VerifyEmailPage() {
       if (res.ok) {
         setResent(true);
         setTimer(60);
+        setErrorMessage("");
         setStatus("idle"); // reset back to verification input page if error was showing
+      } else {
+        // A silent failure here is what makes "I never got the email"
+        // undiagnosable: the button spins, nothing changes, and the user has no
+        // way to tell a delivery problem from a slow inbox.
+        setErrorMessage(
+          "We couldn't send the email just now. Please try again in a moment.",
+        );
+        setStatus("idle");
       }
+    } catch {
+      setErrorMessage(
+        "We couldn't reach the server. Check your connection and try again.",
+      );
+      setStatus("idle");
     } finally {
       setResending(false);
     }
@@ -266,7 +322,7 @@ export default function VerifyEmailPage() {
     // Auto-verify if all 6 digits are typed
     const otpCode = newOtp.join("");
     if (otpCode.length === 6) {
-      verifyToken(otpCode, true);
+      verifyOtp(otpCode);
     }
   };
 
@@ -305,9 +361,9 @@ export default function VerifyEmailPage() {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           exit={{ opacity: 0 }}
-          className="min-h-[80vh] bg-[#FAFBFC] dark:bg-[#09090B] flex items-center justify-center p-6 font-sans transition-colors duration-300"
+          className="min-h-[80vh] bg-bg-main dark:bg-[#09090B] flex items-center justify-center p-6 font-sans transition-colors duration-300"
         >
-          <div className="w-full max-w-[480px] card rounded-3xl shadow-2xl shadow-slate-200/50 dark:shadow-black/20 overflow-hidden transition-colors">
+          <div className="w-full max-w-120 card rounded-3xl shadow-2xl shadow-slate-200/50 dark:shadow-black/20 overflow-hidden transition-colors">
             <div className="px-8 md:p-12">
               <LogoLink showText size="md" className="mb-10" />
 
@@ -358,14 +414,14 @@ export default function VerifyEmailPage() {
               <div className="bg-slate-50 dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-2xl p-5 mb-6 space-y-4">
                 {steps.map((s) => (
                   <div key={s.num} className="flex items-start gap-3">
-                    <span className="w-6 h-6 min-w-[24px] rounded-full bg-sky-500 text-white text-[11px] font-bold flex items-center justify-center mt-0.5">
+                    <span className="w-6 h-6 min-w-6 rounded-full bg-sky-500 text-white text-[11px] font-bold flex items-center justify-center mt-0.5">
                       {s.num}
                     </span>
                     <p className="text-sm text-slate-500 dark:text-zinc-400 leading-relaxed">
                       <span className="font-bold text-slate-700 dark:text-zinc-200">
-                        {s.num === 2 ? 'Enter code or click "Verify"' : s.label}
+                        {s.label}
                       </span>{" "}
-                      {s.num === 2 ? "to confirm your address" : s.detail}
+                      {s.detail}
                     </p>
                   </div>
                 ))}

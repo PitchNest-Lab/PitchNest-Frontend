@@ -38,9 +38,10 @@ const DeckCard = ({
   deckId?: string | number;
   onRemove?: () => void;
   onPreview?: (deckId: string | number, fileUrl?: string) => void;
+  key?: React.Key;
 }) => (
   <div className="card overflow-hidden group dark:bg-zinc-900 dark:border-zinc-800 flex flex-col shadow-sm hover:shadow-xl transition-shadow relative">
-    <div className="aspect-[4/3] relative overflow-hidden bg-slate-100 dark:bg-zinc-800">
+    <div className="aspect-4/3 relative overflow-hidden bg-slate-100 dark:bg-zinc-800">
       {image ? (
         <img
           src={image}
@@ -190,11 +191,14 @@ export default function PitchDecksManagement() {
   }, []);
 
   // 🖼️ Preview a deck — resolve a short-lived signed URL (private bucket) then
-  // open it. Falls back to the raw stored file_url (legacy public URL / local
-  // path) if the signed fetch fails, so preview never breaks.
+  // open it. Falls back to the raw stored file_url (legacy public URL only) if
+  // the signed fetch fails, so preview never breaks. Local-fallback /uploads
+  // paths are deliberately NOT used as a fallback (S7): they are no longer
+  // publicly served, and only the signed-url endpoint can produce a valid
+  // token-gated /api/files URL for them.
   const onPreview = useCallback(
     async (deckId: string | number, fileUrl?: string) => {
-      let target = fileUrl;
+      let target = fileUrl && !fileUrl.startsWith("/uploads/") ? fileUrl : "";
       try {
         const res = await authFetch(`/api/decks/${deckId}/signed-url`);
         if (res.ok) {
@@ -280,7 +284,7 @@ export default function PitchDecksManagement() {
         [".pptx"],
     },
     maxSize: 25 * 1024 * 1024,
-  });
+  } as any);
 
   const totalStorageUsedMB = decks.reduce((sum, deck) => sum + deck.size, 0);
   const storagePercentage = Math.min(100, (totalStorageUsedMB / 500) * 100);
@@ -322,7 +326,7 @@ export default function PitchDecksManagement() {
               {readyDecks}
             </span>
           </div>
-          <div className="flex flex-col items-end min-w-[140px] px-2">
+          <div className="flex flex-col items-end min-w-35 px-2">
             <span className="text-[10px] font-bold text-slate-400 dark:text-zinc-500 uppercase tracking-widest mb-1">
               Storage Used
             </span>
@@ -412,12 +416,12 @@ export default function PitchDecksManagement() {
           {/* Dynamic Deck Cards */}
           {isLoading ? (
             <>
-              <div className="card h-[300px] p-6 space-y-4">
+              <div className="card h-75 p-6 space-y-4">
                 <Skeleton className="w-full h-32 rounded-xl" />
                 <Skeleton className="w-3/4 h-6" />
                 <Skeleton className="w-1/2 h-4" />
               </div>
-              <div className="card h-[300px] p-6 space-y-4">
+              <div className="card h-75 p-6 space-y-4">
                 <Skeleton className="w-full h-32 rounded-xl" />
                 <Skeleton className="w-3/4 h-6" />
                 <Skeleton className="w-1/2 h-4" />

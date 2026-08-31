@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { 
   User, 
@@ -319,7 +319,7 @@ export default function SettingsPage() {
           ))}
         </Tabs.List>
 
-        <div className="flex-1 bg-white dark:bg-zinc-900 rounded-3xl border border-slate-200 dark:border-zinc-800 p-6 md:p-10 shadow-sm min-h-[600px] transition-colors">
+        <div className="flex-1 bg-white dark:bg-zinc-900 rounded-3xl border border-slate-200 dark:border-zinc-800 p-6 md:p-10 shadow-sm min-h-150 transition-colors">
           
           {/* PROFILE TAB */}
           <Tabs.Content value="profile" className="space-y-10 outline-none flex flex-col h-full">
@@ -569,7 +569,7 @@ export default function SettingsPage() {
                     {currentPlan === 'pro'
                       ? 'Unlimited sessions, longer durations, full PDF reports'
                       : currentPlan === 'prep'
-                        ? '5 sessions per week, 20-minute sessions, full PDF reports'
+                        ? 'Unlimited live practice, 20-minute sessions, full PDF reports'
                         : '2 sessions per week, 10-minute sessions'}
                   </p>
                   {isPaid && billing.expiresAt && (
@@ -667,7 +667,7 @@ export default function SettingsPage() {
                           'Unlimited Deck Check audits',
                         ]
                       : [
-                          '5 pitch sessions per week',
+                          'Unlimited pitch sessions',
                           '20-minute sessions',
                           'Full downloadable PDF report',
                           '5 Deck Check audits per month',

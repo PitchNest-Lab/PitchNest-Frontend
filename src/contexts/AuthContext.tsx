@@ -193,10 +193,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const data = await res.json();
     if (!res.ok) throw new Error(data.message||data.error || "Signup failed");
 
-    setUser(data.user);
-    setToken(data.token);
-    localStorage.setItem("user", JSON.stringify(data.user));
-    localStorage.setItem("token", data.token);
+    // Signup no longer logs the user in: the backend requires email
+    // verification first and returns NO token (requiresVerification: true).
+    // Only establish a session if a token is actually present (defensive — keeps
+    // this working if the contract ever changes back). Otherwise leave the user
+    // logged out; SignupPage routes to /verify.
+    if (data?.token) {
+      setUser(data.user);
+      setToken(data.token);
+      localStorage.setItem("user", JSON.stringify(data.user));
+      localStorage.setItem("token", data.token);
+    }
     return data;
   };
 

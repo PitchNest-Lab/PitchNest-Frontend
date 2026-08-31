@@ -53,8 +53,8 @@ const COPY: Record<UpgradeReason, { title: string; lead: string }> = {
 };
 
 const BENEFITS = [
-  "150 min practice / mo (Founder) or Unlimited (Pro)",
-  "All 6 AI investor personas + Multi-VC panel",
+  "Unlimited live practice / mo (Founder & Pro)",
+  "All AI investor personas + Multi-VC panel",
   "Full downloadable PDF report & shareable links",
   "Grilling sessions & live market research in panel",
 ];

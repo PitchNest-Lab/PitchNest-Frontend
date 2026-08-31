@@ -19,11 +19,21 @@ import {
   TrendingUp,
   Users,
   Lightbulb,
+  Maximize2,
+  Minimize2,
+  PanelRightClose,
+  PanelRightOpen,
+  Layers,
 } from "lucide-react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "../lib/utils";
 import { LogoMark } from "../components/Logo";
+import {
+  SlideDeckViewer,
+  SlideDeckControls,
+  canPaginateDeck,
+} from "../components/SlideDeckViewer";
 import { useMediaRecorder } from "../hooks/useMediaRecorder";
 import { useScreenCapture } from "../hooks/useScreenCapture";
 import { useSocketContext } from "../contexts/SocketContext";
@@ -187,6 +197,7 @@ const AIPanelist = ({
   role: string;
   isActive?: boolean;
   interest?: string;
+  key?: React.Key;
 }) => {
   const isOut = interest === "out";
   return (
@@ -389,70 +400,67 @@ const VerdictOverlay = ({
     </motion.div>
   );
 };
-// Move this OUTSIDE LivePitchRoom, near the top with other components
+// DECK RENDERING. This is now a thin adapter over SlideDeckViewer, which shows
+// ONE COMPLETE SLIDE at a time (see that file for why it works the way it does).
+// Keeping the adapter means every existing call site — desktop main area,
+// desktop thumbnail, mobile main area, mobile PIP — keeps its current shape and
+// only gains the slide props, and there is exactly one place that decides how a
+// deck is drawn. Screen-share and the empty state are unchanged.
 const DeckViewer = React.memo(
   ({
     className = "",
-    isCapturing,
+    isCapturing = false,
     screenRef,
     deckUrl,
+    pageCount = 0,
+    slide = 1,
+    onSlideChange,
+    showControls = true,
+    captureKeyboard = false,
   }: {
     className?: string;
-    isCapturing: boolean;
-    screenRef: any;
+    /** Screen-share replaces the slide surface. Omitted by preview instances,
+     *  which never host the capture element. */
+    isCapturing?: boolean;
+    screenRef?: any;
     deckUrl?: string;
+    pageCount?: number;
+    slide?: number;
+    onSlideChange?: (slide: number) => void;
+    /** Arrows on the slide surface. Off for thumbnails/PIPs. */
+    showControls?: boolean;
+    /** Window-level arrow keys. Only ONE mounted viewer may claim these. */
+    captureKeyboard?: boolean;
   }) => {
-    // Remove the useEffect with console logs - it causes re-mounting issues
-
-    if (isCapturing) {
-      return (
-        <video
-          ref={screenRef}
-          autoPlay
-          muted
-          playsInline
-          className={cn("w-full h-full object-contain bg-black/40", className)}
-        />
-      );
-    }
-
-    if (!deckUrl) {
-      return (
-        <div
-          className={cn(
-            "w-full h-full flex flex-col items-center justify-center bg-slate-100 dark:bg-slate-900",
-            className,
-          )}
-        >
-          <MonitorOff
-            size={40}
-            className="text-slate-400 dark:text-slate-500 opacity-50 mb-2"
-          />
-          <p className="text-xs font-bold uppercase tracking-widest text-slate-400 opacity-50">
-            No deck selected
-          </p>
-        </div>
-      );
-    }
-
+    const noop = React.useCallback(() => {}, []);
     return (
-      <div
-        className={cn(
-          "w-full h-full overflow-auto overscroll-contain",
-          className,
-        )}
-        style={{ WebkitOverflowScrolling: "touch" }}
-      >
-        <iframe
-          src={deckUrl}
-          className="w-full h-full border-none"
-          title="Pitch Deck"
-          allow="fullscreen"
-        />
-      </div>
+      <SlideDeckViewer
+        className={className}
+        isCapturing={isCapturing}
+        screenRef={screenRef}
+        url={deckUrl || ""}
+        pageCount={pageCount}
+        slide={slide}
+        onSlideChange={onSlideChange || noop}
+        showControls={showControls && !!onSlideChange}
+        captureKeyboard={captureKeyboard}
+      />
     );
   },
 );
+/**
+ * Monotonic transcript-message ids.
+ *
+ * Ids used to be `${prefix}-${Date.now()}`, which is only unique when no two
+ * messages are created within the same millisecond. Verdicts are now synthesized
+ * in parallel on the server and arrive as a burst, so two panelists can land on
+ * an identical key — React then treats them as the same element and one verdict
+ * silently disappears from the transcript. A counter cannot collide.
+ */
+let messageSeq = 0;
+const nextMessageId = (prefix: string) =>
+  `${prefix}-${Date.now()}-${++messageSeq}`;
+
 const getDeckUrl = (url: string) => {
   if (!url) return "";
   if (url.startsWith("http://") || url.startsWith("https://")) return url;
@@ -473,6 +481,11 @@ const getDeckUrl = (url: string) => {
 };
 
 const getDeckDisplayUrl = (url: string) => {
+  if (!url) return "";
+  // S7: local-fallback /uploads paths are no longer publicly served — a raw
+  // path would only 404. Local-fallback decks get a token-gated /api/files
+  // URL from the signed-url endpoint; never fall back to the bare path here.
+  if (url.startsWith("/uploads/")) return "";
   const deckUrl = getDeckUrl(url);
   if (!deckUrl) return "";
   // Item A: decks are now served via short-lived signed URLs (or legacy public
@@ -650,6 +663,11 @@ export default function LivePitchRoom() {
   // feed that to every deck consumer. Falls back to the raw stored URL if the
   // signed fetch fails so a live pitch never blanks the deck tile.
   const [deckDisplayUrl, setDeckDisplayUrl] = useState<string>("");
+  // Number of pages in the deck, measured server-side from the document itself
+  // (decks.page_count). This is what makes "Slide 4 of 12" real rather than a
+  // frontend guess — and it is the SAME number the AI's deck context is built
+  // from, so the founder's slide 4 and the panel's slide 4 are one page.
+  const [deckPageCount, setDeckPageCount] = useState(0);
   const deckId = pitchConfig?.selectedDeck?.id;
 
   useEffect(() => {
@@ -657,12 +675,14 @@ export default function LivePitchRoom() {
     const selectedDeck = pitchConfig?.selectedDeck;
     if (!selectedDeck?.file_url) {
       setDeckDisplayUrl("");
+      setDeckPageCount(0);
       return;
     }
     // Local-fallback / legacy public URLs render directly — only sign when we
     // have a deck id (new bare-path rows always do).
     if (!selectedDeck.id) {
       setDeckDisplayUrl(getDeckDisplayUrl(selectedDeck.file_url));
+      setDeckPageCount(0);
       return;
     }
     authFetch(`/api/decks/${selectedDeck.id}/signed-url`)
@@ -670,11 +690,19 @@ export default function LivePitchRoom() {
         if (cancelled) return;
         if (!res.ok) throw new Error(`signed-url ${res.status}`);
         const data = await res.json().catch(() => null);
-        if (!cancelled && data?.url) setDeckDisplayUrl(data.url);
+        if (cancelled) return;
+        if (data?.url) setDeckDisplayUrl(data.url);
+        // Absent/zero means the server could not measure the document. The
+        // viewer then renders the deck plainly instead of inventing slides.
+        const pages = Number(data?.pageCount);
+        setDeckPageCount(Number.isFinite(pages) && pages > 0 ? pages : 0);
       })
       .catch(() => {
         // Fall back to the raw stored URL (renders for legacy public URLs).
-        if (!cancelled) setDeckDisplayUrl(getDeckDisplayUrl(selectedDeck.file_url));
+        if (!cancelled) {
+          setDeckDisplayUrl(getDeckDisplayUrl(selectedDeck.file_url));
+          setDeckPageCount(0);
+        }
       });
     return () => {
       cancelled = true;
@@ -725,6 +753,56 @@ export default function LivePitchRoom() {
   );
 
   const [mainView, setMainView] = useState<"slide" | "camera">("slide");
+
+  // ── Deck slide position (req 5/6/10) ───────────────────────────────────────
+  // One source of truth for "which slide is on screen", so the main view, the
+  // thumbnail and the server all agree. 1-based, clamped by the viewer.
+  const [currentSlide, setCurrentSlide] = useState(1);
+  // Reset to slide 1 whenever a different deck loads.
+  useEffect(() => {
+    setCurrentSlide(1);
+  }, [deckId]);
+  // True only when the deck is a real multi-page document the server measured.
+  const deckIsPaginated = canPaginateDeck(resolvedDeckUrl, deckPageCount);
+
+  // ── Deck panel visibility (req 8) ──────────────────────────────────────────
+  // Hiding the deck gives the freed space to the conversation: the main area
+  // shows the founder/panel view and the transcript grows to fill the rest of
+  // the column, so nothing is left blank.
+  const [isDeckHidden, setIsDeckHidden] = useState(false);
+  // With the deck hidden there is nothing to swap TO, so the main view is pinned
+  // to the camera side without destroying the founder's swap preference.
+  const effectiveMainView: "slide" | "camera" = isDeckHidden
+    ? "camera"
+    : mainView;
+
+  // ── Full-screen presentation mode (req 9) ──────────────────────────────────
+  // Shows only the main session view, the AI panel and the swap control. The
+  // live session monitor, data chart, chat box and transcript are hidden.
+  const [isFullscreen, setIsFullscreen] = useState(false);
+  const rootRef = useRef<HTMLDivElement>(null);
+
+  const toggleFullscreen = useCallback(() => {
+    const el = rootRef.current;
+    // Track the real document state, not our own intent — the user can leave
+    // native full-screen with Escape or the OS, and the layout must follow.
+    if (!document.fullscreenElement) {
+      el?.requestFullscreen?.().catch(() => {
+        // Native full-screen refused (permissions, unsupported). Still switch to
+        // the focused layout — that is the part the founder actually asked for.
+        setIsFullscreen(true);
+      });
+    } else {
+      document.exitFullscreen?.().catch(() => setIsFullscreen(false));
+    }
+  }, []);
+
+  useEffect(() => {
+    const onChange = () => setIsFullscreen(!!document.fullscreenElement);
+    document.addEventListener("fullscreenchange", onChange);
+    return () => document.removeEventListener("fullscreenchange", onChange);
+  }, []);
+
   const [chatInput, setChatInput] = useState("");
   const chatInputRef = useRef("");
   const [activeSpeakerName, setActiveSpeakerName] = useState("");
@@ -757,6 +835,18 @@ export default function LivePitchRoom() {
   const [isMicMuted, setIsMicMuted] = useState(false);
   const [isCameraMuted, setIsCameraMuted] = useState(false);
 
+  // ── Mute is purely LOCAL (req 11) ──────────────────────────────────────────
+  // Muting disables the mic track and the two upstream paths (PCM frames and the
+  // STT stream) already bail on `isMicMuted`, so no muted audio reaches the AI.
+  // Nothing about the mute is ever SENT: there is no "founder muted" message in
+  // the protocol, and the panel must not change its behaviour because of it — it
+  // simply hears silence, exactly as if the founder had stopped talking.
+  //
+  // The cost of that is a founder who forgets they are muted and gets no reply,
+  // so after ~10s of a muted mic we tell them. (The timer effect lives further
+  // down, next to the verdict state it depends on.)
+  const [showUnmuteHint, setShowUnmuteHint] = useState(false);
+
   // ── Answer-Tips coaching layer (read-only, additive visual overlay) ────────
   // Gated behind a toggle (default ON). When OFF the avatar box behaves exactly
   // as before. This layer only OBSERVES existing conversation state — it never
@@ -782,15 +872,58 @@ export default function LivePitchRoom() {
   useEffect(() => {
     awaitingFounderTipRef.current = awaitingFounderTip;
   }, [awaitingFounderTip]);
-  const toggleCoachingTips = useCallback(() => {
-    setCoachingTipsEnabled((prev) => {
-      const next = !prev;
+
+  // ── Hint visibility is SEPARATE from hint availability (req 12) ─────────────
+  //
+  // The bug this fixes: the card's visibility was derived entirely from
+  // `awaitingFounderTip`, which is a one-shot flag — set at a question's
+  // turn_complete and cleared the moment the founder starts speaking. So once the
+  // founder had spoken, clicking the hint button did nothing at all until the NEXT
+  // question, and the button read as broken. Worse, the next turn_complete would
+  // build a fresh card, so a founder who toggled the button off and on could come
+  // back to a DIFFERENT hint than the one they were reading.
+  //
+  // Now `currentTip` is the hint for the current question and it STAYS until a new
+  // question replaces it, while this override records what the founder asked for:
+  //   null  → follow the automatic behaviour (show between questions, hide while
+  //           either side is speaking) — unchanged from before
+  //   true  → founder pressed the button to see the hint: keep it up
+  //   false → founder pressed the button to dismiss it: keep it down
+  // The override resets to null when a NEW hint arrives, so the automatic rhythm
+  // resumes on the next question. Toggling never re-requests or re-derives a hint,
+  // which is what guarantees the founder gets the same card back.
+  const [tipVisibilityOverride, setTipVisibilityOverride] = useState<
+    boolean | null
+  >(null);
+
+  /**
+   * The hint button — show / hide / show / hide, any number of times.
+   *
+   * The press is resolved against what is EFFECTIVELY visible right now (the
+   * override if the founder has one, otherwise the saved preference), so the
+   * button always does the opposite of what the founder currently sees. The new
+   * value is persisted as the default too, which is what keeps "exam mode" (hints
+   * off) sticky across sessions the way it was before.
+   */
+  const toggleTipVisibility = useCallback(() => {
+    setTipVisibilityOverride((prev) => {
+      const next = !(prev === null ? coachingTipsEnabled : prev);
+      setCoachingTipsEnabled(next);
       try {
         window.localStorage?.setItem("pn_coaching_tips", next ? "on" : "off");
       } catch {}
       return next;
     });
-  }, []);
+  }, [coachingTipsEnabled]);
+
+  /**
+   * A hint always exists to show. Before the panel has asked anything there is no
+   * question-specific card, so the button would otherwise appear dead on the first
+   * press — the generic card is a better answer than nothing happening.
+   */
+  const fallbackTip = React.useMemo(() => matchAnswerTip(undefined), []);
+
+
   const [messages, setMessages] = useState<
     {
       id: string;
@@ -936,6 +1069,93 @@ export default function LivePitchRoom() {
   const [activeMobileTab, setActiveMobileTab] = useState<
     "room" | "panelists" | "vitals"
   >("room");
+
+  // ── "Unmute to speak." after ~10s of a muted mic (req 11) ──────────────────
+  // Declared here rather than beside `isMicMuted` because it reads verdictPhase.
+  // Any speech we detect resets it, so the hint only ever appears when the
+  // founder is genuinely inaudible to the panel.
+  useEffect(() => {
+    if (!isPitching || !isMicMuted || verdictPhase) {
+      setShowUnmuteHint(false);
+      return;
+    }
+    setShowUnmuteHint(false);
+    const timer = setTimeout(() => setShowUnmuteHint(true), 10_000);
+    return () => clearTimeout(timer);
+  }, [isPitching, isMicMuted, verdictPhase]);
+
+  // ── Tell the server which slide the founder is presenting (req 6) ──────────
+  // The backend already infers a slide from what the founder SAYS; this reports
+  // what they are actually LOOKING AT, which the server prefers when present. It
+  // is an additive message: an older server ignores an unknown type, so nothing
+  // breaks if the two sides are deployed out of step.
+  const lastSentSlideRef = useRef<number | null>(null);
+  useEffect(() => {
+    if (!socket || !isConnected || !isPitching) return;
+    if (!deckIsPaginated) return;
+    if (lastSentSlideRef.current === currentSlide) return;
+    lastSentSlideRef.current = currentSlide;
+    try {
+      socket.send(
+        JSON.stringify({
+          type: "deck_slide",
+          slide: currentSlide,
+          total: deckPageCount,
+        }),
+      );
+    } catch {
+      // A closing socket must never break slide navigation.
+      lastSentSlideRef.current = null;
+    }
+  }, [socket, isConnected, isPitching, currentSlide, deckPageCount, deckIsPaginated]);
+
+  // ── Attempt state for this pitch (reqs 13/16/17) ───────────────────────────
+  // Display only. The server is the authority — it re-derives the count from the
+  // session chain and refuses a 6th attempt at the socket handshake regardless of
+  // anything this component believes.
+  const [attemptState, setAttemptState] = useState<{
+    attemptsUsed: number;
+    attemptsRemaining: number;
+    maxAttempts: number;
+    canStartNewAttempt: boolean;
+  } | null>(null);
+  const parentSessionIdForAttempts =
+    (pitchConfig as any)?.parentSessionId ?? (pitchConfig as any)?.sessionId ?? null;
+  useEffect(() => {
+    let cancelled = false;
+    if (!parentSessionIdForAttempts) {
+      setAttemptState(null);
+      return;
+    }
+    authFetch(`/api/sessions/${parentSessionIdForAttempts}/attempts`)
+      .then(async (res) => {
+        if (!res.ok) throw new Error(`attempts ${res.status}`);
+        const data = await res.json().catch(() => null);
+        if (cancelled || !data) return;
+        setAttemptState({
+          attemptsUsed: Number(data.attemptsUsed) || 0,
+          attemptsRemaining: Number(data.attemptsRemaining) || 0,
+          maxAttempts: Number(data.maxAttempts) || 5,
+          canStartNewAttempt: !!data.canStartNewAttempt,
+        });
+      })
+      .catch(() => {
+        // Non-fatal: the badge just doesn't render. The gate is server-side.
+        if (!cancelled) setAttemptState(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [parentSessionIdForAttempts]);
+
+  // `attemptsUsed` counts COMPLETED attempts (a session row is only written when
+  // a pitch ends), so the one being pitched right now is the next one up. A brand
+  // new pitch has no parent and is therefore attempt 1.
+  const liveAttemptMax = attemptState?.maxAttempts ?? 5;
+  const liveAttemptNumber = attemptState
+    ? Math.min(attemptState.attemptsUsed + 1, liveAttemptMax)
+    : 1;
 
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<BlobPart[]>([]);
@@ -1348,8 +1568,13 @@ export default function LivePitchRoom() {
     if (activeStream) {
       try {
         chunksRef.current = [];
+        // AUDIO ONLY (req 1). `startStream` acquires the microphone with
+        // `video: false`, so this stream carries no video track — but the audio
+        // tracks are taken explicitly so that adding a camera preview later can
+        // never silently begin recording the founder's video.
+        const audioOnly = new MediaStream(activeStream.getAudioTracks());
         // Let the browser pick its default hardware-accelerated codec (fixes mobile stuttering/cracking)
-        const recorder = new MediaRecorder(activeStream);
+        const recorder = new MediaRecorder(audioOnly);
         recorder.ondataavailable = (event) => {
           if (event.data && event.data.size > 0) {
             chunksRef.current.push(event.data);
@@ -1357,7 +1582,7 @@ export default function LivePitchRoom() {
         };
         recorder.start(); // start recording without timeslice to prevent continuous encoder stutter on mobile
         mediaRecorderRef.current = recorder;
-        console.log("🎥 Video recording started");
+        console.log("🎙️ Audio recording started");
       } catch (recErr) {
         console.error("❌ Failed to start MediaRecorder:", recErr);
       }
@@ -1805,6 +2030,11 @@ export default function LivePitchRoom() {
             }
             setCurrentTip(matched);
             setAwaitingFounderTip(true);
+            // A NEW question means a new hint, so the founder's show/hide choice
+            // for the previous one no longer applies — hand control back to the
+            // automatic rhythm. (An `answer_tip` arriving later refines the card
+            // for THIS question and deliberately leaves the choice alone.)
+            setTipVisibilityOverride(null);
           };
           if (
             !audioContextRef.current ||
@@ -1878,7 +2108,7 @@ export default function LivePitchRoom() {
           setMessages((prev) => [
             ...prev,
             {
-              id: `verdict-${Date.now()}`,
+              id: nextMessageId("verdict"),
               text: `[Verdict] ${data.text}`,
               type: "ai",
               speaker: data.speaker,
@@ -1957,6 +2187,23 @@ export default function LivePitchRoom() {
           if (data.code === "PLAN_QUOTA_EXCEEDED") {
             navigate("/dashboard", { replace: true });
             showUpgrade("sessions");
+            return;
+          }
+
+          // Req 14: attempt limit (close code 4006, authoritative server-side —
+          // see pitchAttemptService). The founder cannot start another live
+          // session for this pitch, but the pitch itself, its report, its audio
+          // replay and its transcript all remain — the archive row becomes
+          // read/replay/report-only. Leave the room and say exactly that (an
+          // alert, matching the room's other hard-failure prompts, because the
+          // chat bubble would die with the socket). The server's own message
+          // distinguishes the attempt limit from an expired practice window.
+          if (data.code === "PITCH_ATTEMPT_LIMIT") {
+            navigate("/dashboard", { replace: true });
+            alert(
+              data.message ||
+                "This pitch has used all its attempts. You can still replay it and read the report.",
+            );
             return;
           }
 
@@ -2531,7 +2778,7 @@ export default function LivePitchRoom() {
       }
       if (isCapturing) stopCapture();
 
-      setLoadingStatus("Panel is grading your pitch while video uploads...");
+      setLoadingStatus("Panel is grading your pitch while audio uploads...");
       if (socket && socket.readyState === WebSocket.OPEN) {
         const finalDuration = Math.floor(
           (Date.now() - pitchStartTimeRef.current) / 1000,
@@ -2547,10 +2794,22 @@ export default function LivePitchRoom() {
 
       if (chunksRef.current && chunksRef.current.length > 0) {
         const firstChunk = chunksRef.current[0] as any;
-        const mimeType = firstChunk.type || "video/webm";
-        const extension = mimeType.includes("mp4") ? "mp4" : "webm";
+        // AUDIO ONLY (req 1). The default is an audio container now, not
+        // 'video/webm' — that old fallback made a perfectly good audio recording
+        // arrive at storage labelled as a video, which is what the replay page
+        // then failed to play.
+        const mimeType = firstChunk.type || "audio/webm";
+        const extension = mimeType.includes("mp4")
+          ? "m4a"
+          : mimeType.includes("ogg")
+            ? "ogg"
+            : "webm";
         const blob = new Blob(chunksRef.current, { type: mimeType });
         const formData = new FormData();
+        // The field name, the route and the `videoUrl` response key are all
+        // historical and deliberately unchanged — the mobile client and the
+        // account-purge cleanup both still speak this contract. See
+        // uploadController.uploadVideo for the same note.
         formData.append("video", blob, `pitch_${Date.now()}.${extension}`);
 
         uploadPromiseRef.current = new Promise<void>(async (resolve) => {
@@ -2570,7 +2829,7 @@ export default function LivePitchRoom() {
               );
             }
           } catch (err) {
-            console.error("Video upload failed:", err);
+            console.error("Audio upload failed:", err);
           } finally {
             resolve();
           }
@@ -2595,17 +2854,29 @@ export default function LivePitchRoom() {
     ? getPersonas(pitchConfig.investorArchetype, pitchConfig.mode)
     : [];
 
-  // AWAITING_FOUNDER ⇒ show the Tip Card. The `!isUserSpeaking` term ties the
-  // hide to the exact same VAD signal as the glow, so the card vanishes the
-  // instant the founder speaks (no separate timer / animation delay).
-  const showCoachingTip =
+  // ── Hint card visibility (req 12) ──────────────────────────────────────────
+  // AUTOMATIC: between questions the card appears on its own, and the
+  // `!isUserSpeaking` term ties the hide to the same VAD signal as the glow so it
+  // vanishes the instant the founder answers (no separate timer/animation delay).
+  // MANUAL: a press of the hint button overrides that in either direction and
+  // keeps working for the rest of the question — see toggleTipVisibility.
+  const tipAutoVisible =
     coachingTipsEnabled &&
     awaitingFounderTip &&
     !!currentTip &&
     !isUserSpeaking &&
-    !isSpeaking &&
+    !isSpeaking;
+
+  const showCoachingTip =
     isPitching &&
-    !verdictPhase;
+    !verdictPhase &&
+    (tipVisibilityOverride === null
+      ? tipAutoVisible
+      : tipVisibilityOverride && coachingTipsEnabled);
+
+  // The card the overlay renders. Falls back to the generic hint so the button is
+  // never a no-op before the panel's first question.
+  const visibleTip = currentTip || fallbackTip;
 
   if (!pitchConfig) {
     return (
@@ -2625,7 +2896,10 @@ export default function LivePitchRoom() {
   // ── Deck viewer component — scrollable, touch-friendly ───────────────────
 
   return (
-    <div className="h-screen max-h-screen bg-slate-50 dark:bg-zinc-950 text-slate-800 dark:text-white font-sans flex flex-col relative overflow-hidden transition-colors">
+    <div
+      ref={rootRef}
+      className="h-screen max-h-screen bg-slate-50 dark:bg-zinc-950 text-slate-800 dark:text-white font-sans flex flex-col relative overflow-hidden transition-colors"
+    >
       <FirstTimeTour
         tourKey="live-room"
         steps={[
@@ -2745,6 +3019,14 @@ export default function LivePitchRoom() {
               {isConnected ? "Brain Connected" : "Offline"}
             </span>
           </div>
+
+          {/* Attempt position for this pitch (req 13). Server-derived. */}
+          <div className="hidden md:flex items-center gap-1.5 px-2 py-1 rounded-full border bg-slate-100 dark:bg-zinc-900 border-slate-200 dark:border-white/10">
+            <Layers size={11} className="text-slate-400 shrink-0" />
+            <span className="text-[9px] font-bold uppercase tracking-widest text-slate-600 dark:text-slate-300 tabular-nums">
+              Attempt {liveAttemptNumber} of {liveAttemptMax}
+            </span>
+          </div>
         </div>
 
         <div
@@ -2834,7 +3116,7 @@ export default function LivePitchRoom() {
         {/* CENTER COLUMN */}
         <div className="flex-1 flex flex-col gap-3.5 min-h-0">
           {/* Main Viewing Area */}
-          <div className="flex-1 relative border border-slate-200 dark:border-white/10 shadow-xl dark:shadow-2xl group rounded-3xl min-h-0 bg-white dark:bg-zinc-900/80 overflow-hidden backdrop-blur-lg transition-colors">
+          <div className="flex-1 relative border border-slate-200 dark:border-white/10 shadow-xl dark:shadow-2xl group/deck rounded-3xl min-h-0 bg-white dark:bg-zinc-900/80 overflow-hidden backdrop-blur-lg transition-colors">
             {/* Verdict phase overlay on desktop */}
             {/* Verdict status indicator (inline, not overlay) */}
             {verdictPhase && (
@@ -2848,13 +3130,19 @@ export default function LivePitchRoom() {
               </div>
             )}
 
-            {mainView === "slide" ? (
+            {effectiveMainView === "slide" ? (
               <div className="w-full h-full relative flex items-center justify-center rounded-3xl overflow-hidden">
                 <DeckViewer
                   className="rounded-3xl"
                   isCapturing={isCapturing}
                   screenRef={setScreenRef}
                   deckUrl={resolvedDeckUrl}
+                  pageCount={deckPageCount}
+                  slide={currentSlide}
+                  onSlideChange={setCurrentSlide}
+                  /* Only the main, full-size instance owns the arrow keys —
+                     the thumbnail must not react to them as well. */
+                  captureKeyboard
                 />
               </div>
             ) : (
@@ -2874,26 +3162,96 @@ export default function LivePitchRoom() {
             {/* AWAITING_FOUNDER — Tip Card pops large over the main area
                 regardless of deck/camera view. Conditionally mounted (no exit
                 animation) so it vanishes the instant the founder speaks. */}
-            {showCoachingTip && currentTip && <TipCard tip={currentTip} />}
+            {showCoachingTip && visibleTip && <TipCard tip={visibleTip} />}
 
-            <button
-              onClick={() =>
-                setMainView((v) => (v === "slide" ? "camera" : "slide"))
-              }
-              className="absolute top-4 left-4 px-4 py-2 bg-black/60 hover:bg-black/80 backdrop-blur-md border border-white/10 rounded-xl text-white transition-all z-20 flex items-center gap-2 shadow-lg cursor-pointer"
-            >
-              <ArrowRightLeft size={14} />
-              <span className="text-[10px] font-bold uppercase tracking-widest">
-                Swap View
-              </span>
-            </button>
+            {/* "Unmute to speak." — the mic is muted and has been for ~10s, so
+                the panel is hearing nothing (req 11). Pinned to the top edge,
+                clear of the slide's fitted area. */}
+            {showUnmuteHint && (
+              <div className="absolute top-4 left-1/2 -translate-x-1/2 z-30 flex items-center gap-2 px-4 py-2 bg-rose-500/90 text-white rounded-full shadow-lg backdrop-blur-md">
+                <MicOff size={14} className="shrink-0" />
+                <span className="text-[11px] font-bold uppercase tracking-widest">
+                  Unmute to speak.
+                </span>
+              </div>
+            )}
+          </div>
 
-            {/* Control Bar */}
-            <div className="absolute bottom-6 left-1/2 -translate-x-1/2 flex items-center gap-3 bg-white/95 dark:bg-zinc-900/90 backdrop-blur-xl border border-slate-200 dark:border-white/10 p-2 rounded-2xl shadow-xl dark:shadow-2xl z-20 transition-colors">
+          {/*
+            SESSION CONTROLS — a sibling ROW below the slide, never an overlay.
+            They used to be absolutely positioned inside the main area, where on a
+            smaller laptop the bar sat squarely on top of the bottom third of the
+            slide. Out here they cannot cover deck content at any window size, and
+            the slide keeps the whole area it is given.
+          */}
+          <div className="shrink-0 flex items-center justify-between gap-3 flex-wrap bg-white/95 dark:bg-zinc-900/90 backdrop-blur-xl border border-slate-200 dark:border-white/10 p-2 rounded-2xl shadow-xl dark:shadow-2xl transition-colors">
+            {/* Left group: view controls */}
+            <div className="flex items-center gap-2 min-w-0">
+              <button
+                onClick={() =>
+                  setMainView((v) => (v === "slide" ? "camera" : "slide"))
+                }
+                disabled={isDeckHidden}
+                title={
+                  isDeckHidden
+                    ? "Show the deck to swap views"
+                    : "Swap the main view between your deck and your camera"
+                }
+                className="px-3 h-10 bg-slate-100 dark:bg-zinc-800 hover:bg-slate-200 dark:hover:bg-zinc-700 border border-slate-200 dark:border-white/10 rounded-xl text-slate-700 dark:text-white transition-all flex items-center gap-2 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                <ArrowRightLeft size={14} />
+                <span className="text-[10px] font-bold uppercase tracking-widest hidden xl:inline">
+                  Swap View
+                </span>
+              </button>
+
+              {/* Deck panel hide/show (req 8) */}
+              <button
+                onClick={() => setIsDeckHidden((v) => !v)}
+                title={
+                  isDeckHidden
+                    ? "Show the deck panel"
+                    : "Hide the deck panel and give the space to the conversation"
+                }
+                aria-pressed={isDeckHidden}
+                className={cn(
+                  "px-3 h-10 rounded-xl border transition-all flex items-center gap-2 cursor-pointer",
+                  isDeckHidden
+                    ? "bg-sky-500/15 text-sky-600 dark:text-sky-400 border-sky-500/30 hover:bg-sky-500/25"
+                    : "bg-slate-100 dark:bg-zinc-800 text-slate-700 dark:text-white border-slate-200 dark:border-white/10 hover:bg-slate-200 dark:hover:bg-zinc-700",
+                )}
+              >
+                {isDeckHidden ? (
+                  <PanelRightOpen size={14} />
+                ) : (
+                  <PanelRightClose size={14} />
+                )}
+                <span className="text-[10px] font-bold uppercase tracking-widest hidden xl:inline">
+                  {isDeckHidden ? "Show Deck" : "Hide Deck"}
+                </span>
+              </button>
+
+              {/* Slide position + arrows (req 5). Lives out here with the other
+                  controls so the readout never sits over the slide itself. */}
+              {!isDeckHidden &&
+                effectiveMainView === "slide" &&
+                deckIsPaginated &&
+                !isCapturing && (
+                  <SlideDeckControls
+                    slide={currentSlide}
+                    total={deckPageCount}
+                    onSlideChange={setCurrentSlide}
+                    className="pl-1"
+                  />
+                )}
+            </div>
+
+            {/* Right group: media + session controls */}
+            <div className="flex items-center gap-2 shrink-0">
               <button
                 onClick={toggleCamera}
                 className={cn(
-                  "w-12 h-12 rounded-xl transition-all flex items-center justify-center cursor-pointer",
+                  "w-11 h-11 rounded-xl transition-all flex items-center justify-center cursor-pointer",
                   stream && !isCameraMuted
                     ? "bg-slate-100 dark:bg-zinc-800 text-slate-800 dark:text-white hover:bg-slate-200 dark:hover:bg-zinc-700"
                     : "bg-rose-500/20 text-rose-500 hover:bg-rose-500/30",
@@ -2907,8 +3265,13 @@ export default function LivePitchRoom() {
               </button>
               <button
                 onClick={toggleMic}
+                title={
+                  isMicMuted
+                    ? "Mic muted — the panel hears nothing. Unmute to speak."
+                    : "Mute your mic (stays on this device — the panel is not told)"
+                }
                 className={cn(
-                  "w-12 h-12 rounded-xl transition-all flex items-center justify-center cursor-pointer",
+                  "w-11 h-11 rounded-xl transition-all flex items-center justify-center cursor-pointer",
                   !isMicMuted
                     ? "bg-sky-500 text-white hover:bg-sky-600 shadow-lg shadow-sky-500/20"
                     : "bg-rose-500/20 text-rose-500 hover:bg-rose-500/30",
@@ -2923,7 +3286,7 @@ export default function LivePitchRoom() {
                 <button
                   onClick={toggleScreenShare}
                   className={cn(
-                    "w-12 h-12 rounded-xl transition-all flex items-center justify-center cursor-pointer",
+                    "w-11 h-11 rounded-xl transition-all flex items-center justify-center cursor-pointer",
                     isCapturing
                       ? "bg-emerald-500 text-white shadow-lg shadow-emerald-500/20 hover:bg-emerald-600"
                       : "bg-slate-100 dark:bg-zinc-800 text-slate-800 dark:text-white hover:bg-slate-200 dark:hover:bg-zinc-700",
@@ -2937,236 +3300,293 @@ export default function LivePitchRoom() {
                 </button>
               )}
               <button
-                onClick={toggleCoachingTips}
+                onClick={toggleTipVisibility}
                 title={
-                  coachingTipsEnabled
-                    ? "Coaching Tips: ON — answer hints appear between questions"
-                    : "Coaching Tips: OFF — exam mode (avatar + glow only)"
+                  showCoachingTip
+                    ? "Hide the answer hint"
+                    : "Show an answer hint for the current question"
                 }
-                aria-pressed={coachingTipsEnabled}
+                aria-pressed={showCoachingTip}
                 className={cn(
-                  "w-12 h-12 rounded-xl transition-all flex items-center justify-center cursor-pointer",
-                  coachingTipsEnabled
-                    ? "bg-amber-400/20 text-amber-500 hover:bg-amber-400/30"
-                    : "bg-slate-100 dark:bg-zinc-800 text-slate-400 dark:text-zinc-500 hover:bg-slate-200 dark:hover:bg-zinc-700",
+                  "w-11 h-11 rounded-xl transition-all flex items-center justify-center cursor-pointer",
+                  showCoachingTip
+                    ? "bg-amber-400/30 text-amber-500 ring-2 ring-amber-400/40 hover:bg-amber-400/40"
+                    : coachingTipsEnabled
+                      ? "bg-amber-400/15 text-amber-500 hover:bg-amber-400/25"
+                      : "bg-slate-100 dark:bg-zinc-800 text-slate-400 dark:text-zinc-500 hover:bg-slate-200 dark:hover:bg-zinc-700",
                 )}
               >
                 <Lightbulb size={20} />
               </button>
-              <div className="w-px h-8 bg-slate-200 dark:bg-white/10 mx-2" />
+
+              {/* Full-screen presentation mode (req 9) */}
+              <button
+                onClick={toggleFullscreen}
+                title={
+                  isFullscreen
+                    ? "Exit full screen"
+                    : "Full screen — deck and panel only"
+                }
+                aria-pressed={isFullscreen}
+                className={cn(
+                  "w-11 h-11 rounded-xl transition-all flex items-center justify-center cursor-pointer",
+                  isFullscreen
+                    ? "bg-sky-500/15 text-sky-600 dark:text-sky-400 hover:bg-sky-500/25"
+                    : "bg-slate-100 dark:bg-zinc-800 text-slate-800 dark:text-white hover:bg-slate-200 dark:hover:bg-zinc-700",
+                )}
+              >
+                {isFullscreen ? (
+                  <Minimize2 size={20} />
+                ) : (
+                  <Maximize2 size={20} />
+                )}
+              </button>
+
+              <div className="w-px h-8 bg-slate-200 dark:bg-white/10 mx-1" />
               <button
                 onClick={triggerConclusion}
                 disabled={
                   (!isConnected && !isPitching) || isConcluding || verdictPhase
                 }
-                className="px-6 h-12 bg-rose-500 text-white text-sm font-bold rounded-xl hover:bg-rose-600 transition-all disabled:opacity-50 shadow-lg shadow-rose-500/20 flex items-center justify-center gap-2 cursor-pointer"
+                className="px-4 xl:px-6 h-11 bg-rose-500 text-white text-sm font-bold rounded-xl hover:bg-rose-600 transition-all disabled:opacity-50 shadow-lg shadow-rose-500/20 flex items-center justify-center gap-2 cursor-pointer shrink-0"
               >
                 <VolumeX size={18} />
-                {verdictPhase
-                  ? "Getting Verdicts..."
-                  : isConcluding
-                    ? "Concluding..."
-                    : "End Session"}
+                <span className="whitespace-nowrap">
+                  {verdictPhase
+                    ? "Getting Verdicts..."
+                    : isConcluding
+                      ? "Concluding..."
+                      : "End Session"}
+                </span>
               </button>
             </div>
           </div>
 
-          {/* Transcript / Chat Area */}
-          <div className="h-48 shrink-0 bg-white/70 dark:bg-zinc-900/60 backdrop-blur-xl rounded-3xl p-4 flex flex-col border border-slate-200 dark:border-white/5 shadow-xl dark:shadow-2xl transition-colors">
-            <div className="flex items-center gap-2 text-slate-500 dark:text-white/50 text-[10px] font-bold uppercase tracking-widest mb-2 shrink-0">
-              <MessageSquare size={14} /> Chatbox & Transcript
-              {isSpeaking && (
-                <span className="text-sky-500 dark:text-sky-400 animate-pulse ml-auto font-medium">
-                  AI is responding...
-                </span>
-              )}
-            </div>
+          {/*
+            Transcript / Chat Area.
+            • Full-screen (req 9) hides it entirely — the brief lists the chat box
+              and transcript panel among the things NOT to show.
+            • With the deck hidden (req 8) it takes the freed space instead of
+              leaving a gap: `flex-1` rather than a fixed 12rem.
+          */}
+          {!isFullscreen && (
             <div
-              ref={desktopScrollRef}
-              className="flex-1 overflow-y-auto space-y-4 pr-2 custom-scrollbar mb-3"
+              className={cn(
+                "bg-white/70 dark:bg-zinc-900/60 backdrop-blur-xl rounded-3xl p-4 flex flex-col border border-slate-200 dark:border-white/5 shadow-xl dark:shadow-2xl transition-colors",
+                isDeckHidden ? "flex-1 min-h-0" : "h-48 shrink-0",
+              )}
             >
-              {messages.length === 0 ? (
-                <p className="text-slate-400 dark:text-white/30 text-xs text-center mt-4 font-medium tracking-wide">
-                  {pitchConfig?.mode === "coach"
-                    ? "Riley is ready. Start your pitch."
-                    : pitchConfig?.mode === "solo"
-                      ? "Practice mode is ready. Start your pitch."
-                      : "AI Panel is ready. Start your pitch."}
-                </p>
-              ) : (
-                messages.map((m) => (
-                  <div
-                    key={m.id}
-                    className={cn(
-                      "flex w-full",
-                      m.type === "user" ? "justify-end" : "justify-start",
-                    )}
-                  >
+              <div className="flex items-center gap-2 text-slate-500 dark:text-white/50 text-[10px] font-bold uppercase tracking-widest mb-2 shrink-0">
+                <MessageSquare size={14} /> Chatbox & Transcript
+                {isSpeaking && (
+                  <span className="text-sky-500 dark:text-sky-400 animate-pulse ml-auto font-medium">
+                    AI is responding...
+                  </span>
+                )}
+              </div>
+              <div
+                ref={desktopScrollRef}
+                className="flex-1 overflow-y-auto space-y-4 pr-2 custom-scrollbar mb-3"
+              >
+                {messages.length === 0 ? (
+                  <p className="text-slate-400 dark:text-white/30 text-xs text-center mt-4 font-medium tracking-wide">
+                    {pitchConfig?.mode === "coach"
+                      ? "Riley is ready. Start your pitch."
+                      : pitchConfig?.mode === "solo"
+                        ? "Practice mode is ready. Start your pitch."
+                        : "AI Panel is ready. Start your pitch."}
+                  </p>
+                ) : (
+                  messages.map((m) => (
                     <div
+                      key={m.id}
                       className={cn(
-                        "flex flex-col max-w-[80%]",
-                        m.type === "user" ? "items-end" : "items-start",
+                        "flex w-full",
+                        m.type === "user" ? "justify-end" : "justify-start",
                       )}
                     >
-                      <span className="text-[9px] font-bold uppercase text-slate-450 dark:text-white/40 mb-1 px-1 tracking-widest">
-                        {m.speaker ||
-                          (m.type === "user" ? userData.name : "Panelist")}
-                      </span>
                       <div
                         className={cn(
-                          "p-3.5 text-sm leading-relaxed",
-                          m.type === "user"
-                            ? "bg-sky-500 text-white rounded-2xl rounded-tr-sm shadow-md"
-                            : "bg-slate-100 dark:bg-zinc-800 text-slate-800 dark:text-slate-100 rounded-2xl rounded-tl-sm border border-slate-200 dark:border-zinc-700 shadow-sm",
+                          "flex flex-col max-w-[80%]",
+                          m.type === "user" ? "items-end" : "items-start",
                         )}
                       >
-                        {m.text}
+                        <span className="text-[9px] font-bold uppercase text-slate-450 dark:text-white/40 mb-1 px-1 tracking-widest">
+                          {m.speaker ||
+                            (m.type === "user" ? userData.name : "Panelist")}
+                        </span>
+                        <div
+                          className={cn(
+                            "p-3.5 text-sm leading-relaxed",
+                            m.type === "user"
+                              ? "bg-sky-500 text-white rounded-2xl rounded-tr-sm shadow-md"
+                              : "bg-slate-100 dark:bg-zinc-800 text-slate-800 dark:text-slate-100 rounded-2xl rounded-tl-sm border border-slate-200 dark:border-zinc-700 shadow-sm",
+                          )}
+                        >
+                          {m.text}
+                        </div>
                       </div>
                     </div>
-                  </div>
-                ))
-              )}
-            </div>
-            <form
-              onSubmit={handleSendChat}
-              className={cn(
-                "flex items-center gap-3 shrink-0 mt-auto bg-slate-100/50 dark:bg-zinc-950/50 border border-slate-200 dark:border-white/10 rounded-xl p-1.5 shadow-inner",
-                verdictPhase && "opacity-50 pointer-events-none",
-              )}
-            >
-              <input
-                type="text"
-                value={chatInput}
-                onChange={(e) => setChatInput(e.target.value)}
-                placeholder={
-                  verdictPhase
-                    ? "Panel is giving verdicts..."
-                    : "Type a message to the panel..."
-                }
-                disabled={verdictPhase}
-                className="flex-1 bg-transparent border-none focus:ring-0 text-sm text-slate-800 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500 px-3 outline-none disabled:cursor-not-allowed"
-              />
-              <button
-                type="submit"
-                disabled={!isConnected || verdictPhase}
-                className="px-4 py-2 bg-sky-500 text-white font-bold text-xs uppercase tracking-wider rounded-lg hover:bg-sky-600 transition-colors disabled:opacity-50 shadow-md cursor-pointer"
+                  ))
+                )}
+              </div>
+              <form
+                onSubmit={handleSendChat}
+                className={cn(
+                  "flex items-center gap-3 shrink-0 mt-auto bg-slate-100/50 dark:bg-zinc-950/50 border border-slate-200 dark:border-white/10 rounded-xl p-1.5 shadow-inner",
+                  verdictPhase && "opacity-50 pointer-events-none",
+                )}
               >
-                Send
-              </button>
-            </form>
-          </div>
+                <input
+                  type="text"
+                  value={chatInput}
+                  onChange={(e) => setChatInput(e.target.value)}
+                  placeholder={
+                    verdictPhase
+                      ? "Panel is giving verdicts..."
+                      : "Type a message to the panel..."
+                  }
+                  disabled={verdictPhase}
+                  className="flex-1 bg-transparent border-none focus:ring-0 text-sm text-slate-800 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500 px-3 outline-none disabled:cursor-not-allowed"
+                />
+                <button
+                  type="submit"
+                  disabled={!isConnected || verdictPhase}
+                  className="px-4 py-2 bg-sky-500 text-white font-bold text-xs uppercase tracking-wider rounded-lg hover:bg-sky-600 transition-colors disabled:opacity-50 shadow-md cursor-pointer"
+                >
+                  Send
+                </button>
+              </form>
+            </div>
+          )}
         </div>
 
-        {/* RIGHT COLUMN */}
-        <div className="w-96 shrink-0 flex flex-col gap-3.5 min-h-0 overflow-y-auto custom-scrollbar pr-1">
-          {/* Deck/Camera Preview (thumbnail, swaps on click) */}
-          <div
-            className="h-36 shrink-0 relative shadow-xl dark:shadow-2xl border-4 border-slate-250 dark:border-white/10 rounded-3xl overflow-hidden bg-white dark:bg-zinc-900 cursor-pointer group transition-transform hover:scale-[1.02]"
-            onClick={() =>
-              setMainView((v) => (v === "slide" ? "camera" : "slide"))
-            }
-          >
-            {mainView === "camera" ? (
-              <div className="w-full h-full pointer-events-none">
-                <DeckViewer
-                  className="rounded-3xl"
-                  isCapturing={isCapturing}
-                  screenRef={setScreenRef}
-                  deckUrl={resolvedDeckUrl}
-                />
-              </div>
-            ) : (
-              <div className="w-full h-full pointer-events-none">
-                <CameraViewer
-                  videoRef={setVideoRef}
-                  stream={stream}
-                  isCameraMuted={isCameraMuted}
-                  isPitching={isPitching}
-                  avatarUrl={userData.avatarUrl}
-                  userName={userData.name}
-                  isUserSpeaking={isUserSpeaking}
-                />
-              </div>
-            )}
-            <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center backdrop-blur-sm">
-              <ArrowRightLeft className="text-white drop-shadow-xl" size={32} />
-              <span className="absolute bottom-4 text-[10px] font-bold uppercase tracking-widest text-white drop-shadow-lg">
-                Switch to Main Screen
-              </span>
-            </div>
-          </div>
-
-          {/* Live Session Monitor */}
-          <div className="bg-white/70 dark:bg-zinc-900/40 backdrop-blur-xl rounded-3xl p-4 border border-slate-200 dark:border-white/5 shadow-xl flex flex-col shrink-0 transition-colors">
-            <div className="flex items-center gap-2 text-slate-500 dark:text-white/50 text-[10px] font-bold uppercase tracking-widest shrink-0 mb-2.5">
-              <Activity size={14} /> Live Session Monitor
-            </div>
-            <h4 className="text-[11px] font-bold text-slate-700 dark:text-white/80 uppercase tracking-widest mb-3">
-              Boardroom Vitals
-            </h4>
-            <div className="space-y-2.5">
-              {[
-                {
-                  label: "Brain Link",
-                  val: isConnected ? "Connected" : "Offline",
-                  active: isConnected,
-                },
-                {
-                  label: "Audio Pipeline",
-                  val: stream && !isMicMuted ? "Active" : "Muted",
-                  active: !!(stream && !isMicMuted),
-                },
-                {
-                  label: "Vision Input",
-                  val: stream ? "Active" : "Disabled",
-                  active: !!stream,
-                },
-                {
-                  label: "Interactive Sharing",
-                  val: isCapturing ? "Casting" : "Inactive",
-                  active: isCapturing,
-                  amber: true,
-                },
-              ].map(({ label, val, active, amber }) => (
-                <div
-                  key={label}
-                  className="flex justify-between items-center text-sm"
-                >
-                  <span className="text-slate-500 dark:text-slate-400 font-medium">
-                    {label}
-                  </span>
-                  <span
-                    className={cn(
-                      "text-[10px] font-bold uppercase tracking-wider",
-                      amber
-                        ? active
-                          ? "text-amber-500 dark:text-amber-400"
-                          : "text-slate-400 dark:text-slate-500"
-                        : active
-                          ? "text-emerald-500 dark:text-emerald-450"
-                          : "text-rose-500 dark:text-rose-455",
-                    )}
-                  >
-                    {val}
+        {/*
+          RIGHT COLUMN — secondary panels.
+          Full-screen mode (req 9) drops the whole column: the live session
+          monitor and the data chart are exactly the "secondary/live session
+          monitor" the brief says not to show while presenting. The center column
+          then expands into the width on its own (it is `flex-1`).
+        */}
+        {!isFullscreen && (
+          <div className="w-96 shrink-0 flex flex-col gap-3.5 min-h-0 overflow-y-auto custom-scrollbar pr-1">
+            {/* Deck/Camera Preview (thumbnail, swaps on click). Hidden along with
+                the deck panel (req 8) — with no deck there is nothing to swap. */}
+            {!isDeckHidden && (
+              <div
+                className="h-36 shrink-0 relative shadow-xl dark:shadow-2xl border-4 border-slate-250 dark:border-white/10 rounded-3xl overflow-hidden bg-white dark:bg-zinc-900 cursor-pointer group transition-transform hover:scale-[1.02]"
+                onClick={() =>
+                  setMainView((v) => (v === "slide" ? "camera" : "slide"))
+                }
+              >
+                {mainView === "camera" ? (
+                  <div className="w-full h-full pointer-events-none">
+                    {/* Thumbnail: same slide as the main view, no arrows and no
+                        keyboard — it mirrors, it does not navigate. */}
+                    <DeckViewer
+                      className="rounded-3xl"
+                      isCapturing={isCapturing}
+                      screenRef={setScreenRef}
+                      deckUrl={resolvedDeckUrl}
+                      pageCount={deckPageCount}
+                      slide={currentSlide}
+                      showControls={false}
+                    />
+                  </div>
+                ) : (
+                  <div className="w-full h-full pointer-events-none">
+                    <CameraViewer
+                      videoRef={setVideoRef}
+                      stream={stream}
+                      isCameraMuted={isCameraMuted}
+                      isPitching={isPitching}
+                      avatarUrl={userData.avatarUrl}
+                      userName={userData.name}
+                      isUserSpeaking={isUserSpeaking}
+                    />
+                  </div>
+                )}
+                <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center backdrop-blur-sm">
+                  <ArrowRightLeft className="text-white drop-shadow-xl" size={32} />
+                  <span className="absolute bottom-4 text-[10px] font-bold uppercase tracking-widest text-white drop-shadow-lg">
+                    Switch to Main Screen
                   </span>
                 </div>
-              ))}
-            </div>
-          </div>
+              </div>
+            )}
 
-          {/* Data Chart — live analytics coming soon (placeholder, not fake data) */}
-          <div className="bg-white/70 dark:bg-zinc-900/40 backdrop-blur-xl rounded-3xl p-4 border border-slate-200 dark:border-white/5 flex flex-col shadow-xl min-h-31.25 transition-colors">
-            <h4 className="text-[11px] font-bold text-slate-700 dark:text-white/80 uppercase tracking-widest mb-3">
-              Data Chart
-            </h4>
-            <div className="flex-1 flex flex-col items-center justify-center gap-2 text-center py-3">
-              <Activity size={22} className="text-slate-300 dark:text-white/20" />
-              <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400 dark:text-white/40">
-                Coming soon
-              </span>
+            {/* Live Session Monitor */}
+            <div className="bg-white/70 dark:bg-zinc-900/40 backdrop-blur-xl rounded-3xl p-4 border border-slate-200 dark:border-white/5 shadow-xl flex flex-col shrink-0 transition-colors">
+              <div className="flex items-center gap-2 text-slate-500 dark:text-white/50 text-[10px] font-bold uppercase tracking-widest shrink-0 mb-2.5">
+                <Activity size={14} /> Live Session Monitor
+              </div>
+              <h4 className="text-[11px] font-bold text-slate-700 dark:text-white/80 uppercase tracking-widest mb-3">
+                Boardroom Vitals
+              </h4>
+              <div className="space-y-2.5">
+                {[
+                  {
+                    label: "Brain Link",
+                    val: isConnected ? "Connected" : "Offline",
+                    active: isConnected,
+                  },
+                  {
+                    label: "Audio Pipeline",
+                    val: stream && !isMicMuted ? "Active" : "Muted",
+                    active: !!(stream && !isMicMuted),
+                  },
+                  {
+                    label: "Vision Input",
+                    val: stream ? "Active" : "Disabled",
+                    active: !!stream,
+                  },
+                  {
+                    label: "Interactive Sharing",
+                    val: isCapturing ? "Casting" : "Inactive",
+                    active: isCapturing,
+                    amber: true,
+                  },
+                ].map(({ label, val, active, amber }) => (
+                  <div
+                    key={label}
+                    className="flex justify-between items-center text-sm"
+                  >
+                    <span className="text-slate-500 dark:text-slate-400 font-medium">
+                      {label}
+                    </span>
+                    <span
+                      className={cn(
+                        "text-[10px] font-bold uppercase tracking-wider",
+                        amber
+                          ? active
+                            ? "text-amber-500 dark:text-amber-400"
+                            : "text-slate-400 dark:text-slate-500"
+                          : active
+                            ? "text-emerald-500 dark:text-emerald-450"
+                            : "text-rose-500 dark:text-rose-455",
+                      )}
+                    >
+                      {val}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Data Chart — live analytics coming soon (placeholder, not fake data) */}
+            <div className="bg-white/70 dark:bg-zinc-900/40 backdrop-blur-xl rounded-3xl p-4 border border-slate-200 dark:border-white/5 flex flex-col shadow-xl min-h-31.25 transition-colors">
+              <h4 className="text-[11px] font-bold text-slate-700 dark:text-white/80 uppercase tracking-widest mb-3">
+                Data Chart
+              </h4>
+              <div className="flex-1 flex flex-col items-center justify-center gap-2 text-center py-3">
+                <Activity size={22} className="text-slate-300 dark:text-white/20" />
+                <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400 dark:text-white/40">
+                  Coming soon
+                </span>
+              </div>
             </div>
           </div>
-        </div>
+        )}
       </div>
 
       {/* ============================================================== */}
@@ -3192,13 +3612,19 @@ export default function LivePitchRoom() {
                   </div>
                 )}
 
+                {/* Mobile keeps `mainView` directly: there is no side-by-side
+                    deck panel here, so there is no hide-deck control either, and
+                    the swap button must always mean something. */}
                 {mainView === "slide" ? (
-                  <div className="w-full h-full relative">
+                  <div className="w-full h-full relative group/deck">
                     <DeckViewer
                       className="rounded-xl"
                       isCapturing={isCapturing}
                       screenRef={setScreenRef}
                       deckUrl={resolvedDeckUrl}
+                      pageCount={deckPageCount}
+                      slide={currentSlide}
+                      onSlideChange={setCurrentSlide}
                     />
                     {/* Camera PIP */}
                     <div
@@ -3248,18 +3674,23 @@ export default function LivePitchRoom() {
                     >
                       {isCapturing ? (
                         <video
-                          ref={screenRef}
+                          ref={setScreenRef}
                           autoPlay
                           muted
                           playsInline
                           className="w-full h-full object-contain pointer-events-none"
                         />
                       ) : pitchConfig.selectedDeck ? (
-                        <iframe
-                          src={resolvedDeckUrl}
-                          className="w-full h-full border-none pointer-events-none opacity-80"
-                          title="Deck Preview"
-                        />
+                        // Mirrors the main view's slide rather than showing the
+                        // whole scrolling document at thumbnail size.
+                        <div className="w-full h-full pointer-events-none opacity-80">
+                          <DeckViewer
+                            deckUrl={resolvedDeckUrl}
+                            pageCount={deckPageCount}
+                            slide={currentSlide}
+                            showControls={false}
+                          />
+                        </div>
                       ) : (
                         <MonitorOff size={14} className="text-white/40" />
                       )}
@@ -3268,7 +3699,18 @@ export default function LivePitchRoom() {
                 )}
 
                 {/* AWAITING_FOUNDER — Tip Card over the mobile main area. */}
-                {showCoachingTip && currentTip && <TipCard tip={currentTip} />}
+                {showCoachingTip && visibleTip && <TipCard tip={visibleTip} />}
+
+                {/* Req 11: the mic mute is local, so nothing tells the panel the
+                    founder is muted. This is what tells the FOUNDER. */}
+                {showUnmuteHint && (
+                  <div className="absolute top-2 left-1/2 -translate-x-1/2 z-30 flex items-center gap-1.5 px-3 py-1.5 bg-rose-500/90 text-white rounded-full shadow-lg backdrop-blur-md">
+                    <MicOff size={11} className="shrink-0" />
+                    <span className="text-[9px] font-bold uppercase tracking-widest">
+                      Unmute to speak.
+                    </span>
+                  </div>
+                )}
 
                 <button
                   onClick={() =>
@@ -3282,6 +3724,22 @@ export default function LivePitchRoom() {
                   </span>
                 </button>
               </div>
+
+              {/*
+                Slide position + arrows, OUTSIDE the slide surface (req 7). On a
+                phone the surface is small enough that an overlaid control would
+                cover a meaningful part of the slide, so the canonical readout
+                lives in its own strip under it.
+              */}
+              {mainView === "slide" && deckIsPaginated && !isCapturing && (
+                <SlideDeckControls
+                  slide={currentSlide}
+                  total={deckPageCount}
+                  onSlideChange={setCurrentSlide}
+                  className="mt-2"
+                  compact
+                />
+              )}
 
               {/* Controls row */}
               <div className="flex items-center justify-center gap-2 mt-2 w-full">
@@ -3302,6 +3760,12 @@ export default function LivePitchRoom() {
                 </button>
                 <button
                   onClick={toggleMic}
+                  title={
+                    isMicMuted
+                      ? "Microphone muted (local only — the panel is not told)"
+                      : "Mute microphone (local only)"
+                  }
+                  aria-pressed={isMicMuted}
                   className={cn(
                     "w-10 h-10 rounded-xl transition-all flex items-center justify-center cursor-pointer shrink-0",
                     !isMicMuted
@@ -3326,19 +3790,18 @@ export default function LivePitchRoom() {
                     <MonitorOff size={17} />
                   )}
                 </button>
+                {/* Req 12: same reusable show/hide as desktop. */}
                 <button
-                  onClick={toggleCoachingTips}
-                  title={
-                    coachingTipsEnabled
-                      ? "Coaching Tips: ON"
-                      : "Coaching Tips: OFF"
-                  }
-                  aria-pressed={coachingTipsEnabled}
+                  onClick={toggleTipVisibility}
+                  title={showCoachingTip ? "Hide hint" : "Show hint"}
+                  aria-pressed={showCoachingTip}
                   className={cn(
                     "w-10 h-10 rounded-xl transition-all flex items-center justify-center cursor-pointer shrink-0",
-                    coachingTipsEnabled
-                      ? "bg-amber-400/20 text-amber-500"
-                      : "bg-slate-100 dark:bg-zinc-800 text-slate-400 dark:text-zinc-500",
+                    showCoachingTip
+                      ? "bg-amber-400 text-white shadow-md shadow-amber-400/20"
+                      : coachingTipsEnabled
+                        ? "bg-amber-400/20 text-amber-500"
+                        : "bg-slate-100 dark:bg-zinc-800 text-slate-400 dark:text-zinc-500",
                   )}
                 >
                   <Lightbulb size={17} />
@@ -3375,6 +3838,12 @@ export default function LivePitchRoom() {
             <div className="flex-1 min-h-0 bg-white/70 dark:bg-zinc-900/60 backdrop-blur-xl border border-slate-200 dark:border-zinc-800/50 rounded-2xl p-3 flex flex-col shadow-inner transition-colors overflow-hidden">
               <div className="flex items-center gap-2 text-slate-500 dark:text-white/50 text-[9px] font-bold uppercase tracking-widest mb-2 shrink-0">
                 <MessageSquare size={12} /> Live Chat & Transcript
+                {/* Attempt position (req 13) — server-derived, same numbers as
+                    the desktop header badge. */}
+                <span className="flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-slate-100 dark:bg-zinc-800 border border-slate-200 dark:border-white/10 tabular-nums">
+                  <Layers size={9} className="text-slate-400 shrink-0" />
+                  {liveAttemptNumber} of {liveAttemptMax}
+                </span>
                 {isSpeaking && (
                   <span className="text-sky-500 dark:text-sky-400 animate-pulse ml-auto text-[8px] font-medium">
                     AI responding...

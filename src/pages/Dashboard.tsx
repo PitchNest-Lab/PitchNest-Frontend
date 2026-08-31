@@ -50,6 +50,9 @@ const RecentPitchItem = ({
   modeLabel,
   score,
   status,
+  attemptsUsed,
+  maxAttempts,
+  attemptsExhausted,
   isSelected,
   onSelectToggle,
 }: {
@@ -59,8 +62,13 @@ const RecentPitchItem = ({
   modeLabel: string;
   score: number;
   status: string;
+  /** Server-attached attempt state — same numbers the session-start gate uses. */
+  attemptsUsed: number;
+  maxAttempts: number;
+  attemptsExhausted: boolean;
   isSelected: boolean;
   onSelectToggle: (id: number) => void;
+  key?: React.Key;
 }) => {
   const isIncomplete = score === 0;
 
@@ -87,8 +95,9 @@ const RecentPitchItem = ({
         <p className="text-sm font-bold text-slate-900 dark:text-zinc-100 truncate">
           {name}
         </p>
+        {/* Req 13: attempt status visible at a glance on the dashboard too. */}
         <p className="text-[10px] text-slate-400 dark:text-zinc-500 font-medium">
-          {date} · {modeLabel}
+          {date} · {modeLabel} · {attemptsUsed} of {maxAttempts} attempts used
         </p>
       </div>
 
@@ -123,21 +132,34 @@ const RecentPitchItem = ({
         )}
       </div>
 
-      {/* Status badge */}
-      <span
-        className={cn(
-          "shrink-0 text-[10px] font-bold px-2.5 py-1 rounded-full whitespace-nowrap",
-          status === "Investor Ready"
-            ? "bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400"
-            : status === "Good Progress"
-              ? "bg-sky-50 dark:bg-sky-900/20 text-sky-600 dark:text-sky-400"
-              : status === "Incomplete"
-                ? "bg-slate-100 dark:bg-zinc-800 text-slate-500 dark:text-zinc-400"
-                : "bg-amber-50 dark:bg-amber-900/20 text-amber-600 dark:text-amber-400",
-        )}
-      >
-        {status}
-      </span>
+      {/*
+        Req 16: unavailability is obvious before clicking in. An exhausted pitch
+        swaps its status badge for the "Replay Report" affordance — the pitch is
+        read/replay/report-only now, so that is its real status.
+      */}
+      {attemptsExhausted ? (
+        <Link
+          to={`/replay?session=${id}`}
+          className="shrink-0 flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-amber-50 dark:bg-amber-900/20 text-amber-600 dark:text-amber-400 text-[10px] font-bold whitespace-nowrap hover:bg-amber-100 dark:hover:bg-amber-900/40 transition-colors"
+        >
+          <Play size={10} fill="currentColor" /> Replay Report
+        </Link>
+      ) : (
+        <span
+          className={cn(
+            "shrink-0 text-[10px] font-bold px-2.5 py-1 rounded-full whitespace-nowrap",
+            status === "Investor Ready"
+              ? "bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400"
+              : status === "Good Progress"
+                ? "bg-sky-50 dark:bg-sky-900/20 text-sky-600 dark:text-sky-400"
+                : status === "Incomplete"
+                  ? "bg-slate-100 dark:bg-zinc-800 text-slate-500 dark:text-zinc-400"
+                  : "bg-amber-50 dark:bg-amber-900/20 text-amber-600 dark:text-amber-400",
+          )}
+        >
+          {status}
+        </span>
+      )}
 
       {/* Arrow link */}
       <Link
@@ -162,6 +184,7 @@ const InsightCard = ({
   icon: any;
   color: string;
   darkColor: string;
+  key?: React.Key;
 }) => (
   <div
     className={cn(
@@ -481,6 +504,13 @@ export default function Dashboard() {
             ) : (
               recentSessions.map((session: any) => {
                 const score = getOverallScore(session.evaluation_report);
+                // Server-attached attempt state; fallback keeps old cached rows
+                // rendering. The limit itself is enforced server-side.
+                const att = session.attempts || {
+                  attemptsUsed: 1,
+                  maxAttempts: 5,
+                  attemptsExhausted: false,
+                };
                 return (
                   <RecentPitchItem
                     key={session.id}
@@ -490,6 +520,9 @@ export default function Dashboard() {
                     modeLabel={MODE_LABELS[getSessionMode(session)]}
                     score={score}
                     status={getStatus(score)}
+                    attemptsUsed={Number(att.attemptsUsed) || 1}
+                    maxAttempts={Number(att.maxAttempts) || 5}
+                    attemptsExhausted={!!att.attemptsExhausted}
                     isSelected={selectedIds.includes(session.id)}
                     onSelectToggle={handleSelectToggle}
                   />

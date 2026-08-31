@@ -14,6 +14,7 @@ import {
   Share2,
   Loader2,
   RotateCcw,
+  Mic,
 } from "lucide-react";
 import { cn } from "../lib/utils";
 import { useAuth } from "../contexts/AuthContext";
@@ -29,6 +30,7 @@ const TimelineEvent = ({
   time: string;
   content: string;
   active?: boolean;
+  key?: React.Key;
 }) => (
   <div
     className={cn(
@@ -81,6 +83,11 @@ export default function PitchReplayScreen() {
   const [session, setSession] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isDownloading, setIsDownloading] = useState(false);
+  /** { url, available } for the AUDIO replay — see GET /api/sessions/:id/recording. */
+  const [recording, setRecording] = useState<{
+    url: string;
+    available: boolean;
+  } | null>(null);
 
   const handleDownloadPDF = useCallback(async () => {
     if (!session?.id || isDownloading) return;
@@ -122,6 +129,34 @@ export default function PitchReplayScreen() {
     };
     fetchSession();
   }, [sessionId]);
+
+  // Audio replay is the primary replay experience (req 4). The recording lives
+  // in a private bucket and needs a short-lived signed URL; `available: false`
+  // is a normal answer for sessions that predate audio capture, so the player
+  // simply degrades to the transcript, exactly like the report page does.
+  useEffect(() => {
+    if (!sessionId) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await authFetch(`/api/sessions/${sessionId}/recording`);
+        if (res.ok) {
+          const data = await res.json();
+          if (!cancelled) {
+            setRecording({
+              url: typeof data.url === "string" ? data.url : "",
+              available: !!data.available,
+            });
+          }
+        }
+      } catch (err) {
+        console.error("Failed to load session recording:", err);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [sessionId, authFetch]);
 
   if (isLoading) {
     return (
@@ -287,17 +322,51 @@ export default function PitchReplayScreen() {
 
       <div className="grid lg:grid-cols-3 gap-8">
         <div className="lg:col-span-2 space-y-6">
-          {/* Video replay is disabled for now — show a clean cover instead of a
-              fake player or fabricated footage. */}
-          <div className="aspect-video bg-slate-900 rounded-[28px] sm:rounded-[40px] relative overflow-hidden shadow-2xl flex flex-col items-center justify-center gap-3 text-center px-6 border border-slate-800">
-            <div className="w-14 h-14 rounded-full bg-white/5 border border-white/10 flex items-center justify-center">
-              <Film size={24} className="text-white/40" />
+          {/* AUDIO REPLAY — the primary replay experience (req 4). Pitches are
+              audio-only by design (req 1), so reliving a session means listening
+              to it; the transcript below is its text mirror. Sessions that
+              predate audio capture simply show the notice and fall back to the
+              transcript. */}
+          <div className="bg-slate-900 rounded-[28px] sm:rounded-[40px] p-6 sm:p-8 shadow-2xl border border-slate-800 flex flex-col items-center justify-center gap-4 text-center">
+            <div className="w-14 h-14 rounded-full bg-sky-500/15 border border-sky-500/30 flex items-center justify-center">
+              <Mic size={24} className="text-sky-400" />
             </div>
-            <p className="text-white/85 font-bold text-sm sm:text-base">Video replay coming soon</p>
-            <p className="text-white/40 text-xs max-w-xs">
-              We're focused on audio and transcript analysis for now — full video
-              replay is on the way.
-            </p>
+            <div>
+              <p className="text-white/85 font-bold text-sm sm:text-base">
+                Audio Replay
+              </p>
+              <p className="text-white/40 text-xs max-w-md mt-1">
+                Relisten to the session exactly as it happened — every question
+                from the panel and how you answered.
+              </p>
+            </div>
+            {recording?.available && recording.url ? (
+              <audio
+                controls
+                preload="metadata"
+                className="w-full max-w-lg h-12"
+                src={recording.url}
+              >
+                Your browser does not support audio playback.
+              </audio>
+            ) : (
+              <div className="flex items-center gap-2 px-4 py-2 bg-white/5 border border-white/10 rounded-full">
+                <FileText size={13} className="text-white/40" />
+                <span className="text-white/45 text-xs font-medium">
+                  No audio for this session — the transcript below is the full
+                  replay.
+                </span>
+              </div>
+            )}
+          </div>
+
+          {/* Video area. PitchNest never records founder video (req 1), so this
+              placeholder says so plainly instead of implying a video exists. */}
+          <div className="flex items-center justify-center gap-2 rounded-2xl border border-dashed border-slate-200 dark:border-zinc-800 py-4 bg-slate-50/50 dark:bg-zinc-900/30">
+            <Film size={14} className="text-slate-300 dark:text-zinc-600" />
+            <span className="text-[11px] font-bold uppercase tracking-widest text-slate-400 dark:text-zinc-500">
+              Video not available yet.
+            </span>
           </div>
 
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
