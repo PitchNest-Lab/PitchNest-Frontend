@@ -166,11 +166,11 @@ export default function AppLayout() {
     { icon: LayoutDashboard, label: "Dashboard", path: "/dashboard" },
     { icon: PlusCircle, label: "Pre-Pitch Room", path: "/setup" },
     { icon: Megaphone, label: "My Pitches", path: "/archive" },
+    { icon: History, label: "Pitch Replays", path: "/replay" },
     // MVP: coming soon — remove the flag to re-enable
     { icon: Activity, label: "Analytics", path: "/analytics", comingSoon: true },
     { icon: Layers, label: "Pitch Decks", path: "/decks", comingSoon: true },
     { icon: FileSearch, label: "Deck Check", path: "/deck-check", comingSoon: true },
-    { icon: History, label: "Pitch Replays", path: "/replay", comingSoon: true },
   ];
 
   const handleLogout = () => {

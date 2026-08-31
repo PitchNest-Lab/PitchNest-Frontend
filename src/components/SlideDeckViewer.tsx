@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { ChevronLeft, ChevronRight, MonitorOff } from "lucide-react";
+import { ChevronLeft, ChevronRight, MonitorOff, Loader2 } from "lucide-react";
 import { cn } from "../lib/utils";
 
 /**
@@ -81,7 +81,7 @@ export function canPaginateDeck(url: string, pageCount: number): boolean {
 }
 
 /** How long to wait for the buffered page to paint before swapping anyway. */
-const SWAP_TIMEOUT_MS = 1200;
+const SWAP_TIMEOUT_MS = 500;
 /** Wheel events arrive in bursts; one slide per gesture, not per tick. */
 const WHEEL_COOLDOWN_MS = 320;
 
@@ -117,6 +117,8 @@ export const SlideDeckViewer = React.memo(function SlideDeckViewer({
   const total = paginated ? Math.max(1, Math.floor(pageCount)) : 1;
   const current = Math.min(Math.max(1, Math.floor(slide) || 1), total);
 
+  const [isInitialLoading, setIsInitialLoading] = useState(true);
+
   // Double buffer. Each entry is the page a slot is showing; `nonce` forces a
   // fresh iframe (and therefore a real navigation) even when the same page is
   // requested twice.
@@ -148,6 +150,7 @@ export const SlideDeckViewer = React.memo(function SlideDeckViewer({
   };
 
   const commitSwap = useCallback((slotIndex: number) => {
+    setIsInitialLoading(false);
     if (pendingSlotRef.current !== slotIndex) return;
     pendingSlotRef.current = null;
     clearSwapTimer();
@@ -185,6 +188,7 @@ export const SlideDeckViewer = React.memo(function SlideDeckViewer({
   // A new URL (re-signed link, different deck) invalidates both buffers.
   useEffect(() => {
     clearSwapTimer();
+    setIsInitialLoading(true);
     pendingSlotRef.current = null;
     nonceRef.current += 1;
     setActiveSlot(0);
@@ -193,6 +197,9 @@ export const SlideDeckViewer = React.memo(function SlideDeckViewer({
       { page: current, nonce: nonceRef.current },
       { page: current, nonce: nonceRef.current },
     ]);
+    // Safety timer to clear loading overlay after initial load even if iframe onLoad doesn't fire
+    const timer = setTimeout(() => setIsInitialLoading(false), 800);
+    return () => clearTimeout(timer);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [url]);
 
@@ -366,6 +373,16 @@ export const SlideDeckViewer = React.memo(function SlideDeckViewer({
         onContextMenu={(e) => e.preventDefault()}
         role="presentation"
       />
+
+      {/* Visual loading feedback while the browser initializes the PDF viewer */}
+      {isInitialLoading && (
+        <div className="absolute inset-0 z-15 flex flex-col items-center justify-center bg-slate-950/80 backdrop-blur-xs gap-3 pointer-events-none transition-opacity duration-200">
+          <Loader2 size={28} className="animate-spin text-sky-400" />
+          <span className="text-xs font-semibold text-slate-300 tracking-wider">
+            Loading Slide {current}...
+          </span>
+        </div>
+      )}
 
       {showControls && (
         <>

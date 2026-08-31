@@ -134,12 +134,13 @@ export default function PitchReplayScreen() {
   // in a private bucket and needs a short-lived signed URL; `available: false`
   // is a normal answer for sessions that predate audio capture, so the player
   // simply degrades to the transcript, exactly like the report page does.
+  const activeSessionId = sessionId || session?.id;
   useEffect(() => {
-    if (!sessionId) return;
+    if (!activeSessionId) return;
     let cancelled = false;
     (async () => {
       try {
-        const res = await authFetch(`/api/sessions/${sessionId}/recording`);
+        const res = await authFetch(`/api/sessions/${activeSessionId}/recording`);
         if (res.ok) {
           const data = await res.json();
           if (!cancelled) {
@@ -156,7 +157,7 @@ export default function PitchReplayScreen() {
     return () => {
       cancelled = true;
     };
-  }, [sessionId, authFetch]);
+  }, [activeSessionId, authFetch]);
 
   if (isLoading) {
     return (
