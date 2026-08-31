@@ -22,7 +22,7 @@ import PostPitchReport from "./pages/PostPitchReport";
 import PrePitchSetup from "./pages/PrePitchSetup";
 // import PitchDecksManagement from "./pages/PitchDecksManagement"; // MVP: coming soon
 // import DeckCheck from "./pages/DeckCheck"; // MVP: coming soon
-// import PitchReplayScreen from "./pages/PitchReplayScreen"; // MVP: coming soon
+import PitchReplayScreen from "./pages/PitchReplayScreen";
 import MyPitchesArchive from "./pages/MyPitchesArchive";
 import PrivacyPolicy from "./pages/legal/PrivacyPolicy";
 import TermsOfService from "./pages/legal/TermsOfService";
@@ -89,7 +89,16 @@ export default function App() {
               {/* MVP: coming soon — redirect to dashboard until re-enabled */}
               <Route path="/decks" element={<Navigate to="/dashboard" replace />} />
               <Route path="/deck-check" element={<Navigate to="/dashboard" replace />} />
-              <Route path="/replay" element={<Navigate to="/dashboard" replace />} />
+              {/* Replay: audio + transcript replay for a finished pitch. The
+                  archive and dashboard link here — it must be a real page. */}
+              <Route
+                path="/replay"
+                element={
+                  <ErrorBoundary>
+                    <PitchReplayScreen />
+                  </ErrorBoundary>
+                }
+              />
               <Route path="/archive" element={<MyPitchesArchive />} />
             </Route>
 

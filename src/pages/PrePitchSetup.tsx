@@ -99,7 +99,12 @@ export default function PrePitchSetup() {
         body: formData
       });
 
-      if (!res.ok) throw new Error("Upload failed");
+      if (!res.ok) {
+        // The server explains exactly what it rejected (file type, size);
+        // surfacing that beats a generic "Upload failed".
+        const reason = await res.json().catch(() => null);
+        throw new Error(reason?.error || "Upload failed");
+      }
       const savedDeck = await res.json();
 
       setAvailableDecks(prev => 
@@ -111,7 +116,9 @@ export default function PrePitchSetup() {
       setSelectedDeck(savedDeck);
     } catch (err) {
       console.error("Failed to upload deck:", err);
-      alert("Failed to upload pitch deck. Please try again.");
+      alert(err instanceof Error && err.message !== "Upload failed"
+        ? err.message
+        : "Failed to upload pitch deck. Please try again.");
       setAvailableDecks(prev => prev.filter(d => d.id !== tempId));
       setSelectedDeck(null);
     }
@@ -526,11 +533,15 @@ export default function PrePitchSetup() {
                   </button>
                 )}
               </div>
-              <input 
+              <input
                 type="file"
                 ref={deckFileInputRef}
                 onChange={handleUploadDeck}
-                accept=".pdf,.ppt,.pptx"
+                // Only what the backend actually accepts — the deck pipeline
+                // (slide-per-page viewer, PDF text extraction, page counts) is
+                // built on PDF and plain text. PowerPoint needs conversion
+                // first; letting it be picked just ends in a 415.
+                accept=".pdf,.txt,.md"
                 className="hidden"
               />
               
