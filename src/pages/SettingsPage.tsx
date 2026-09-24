@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { 
-  User, 
-  Shield, 
+import {
+  User,
+  Shield,
   CreditCard,
   Bell,
   Lock,
@@ -102,11 +102,11 @@ export default function SettingsPage() {
     weeklyReport: false,
     investorInquiries: true
   });
-  
+
   const ROLE_OPTIONS = ["Founder", "Investor", "Advisor"] as const;
   type Role = (typeof ROLE_OPTIONS)[number];
 
-  const [userData, setUserData] = useState<{name: string, email?: string, bio?: string, avatarUrl?: string, role?: Role}>({
+  const [userData, setUserData] = useState<{ name: string, email?: string, bio?: string, avatarUrl?: string, role?: Role }>({
     name: "Founder",
     role: "Founder",
   });
@@ -146,7 +146,7 @@ export default function SettingsPage() {
             setNotifications(prev => ({ ...prev, ...s.notifications }));
           }
         }
-      } catch (e) {}
+      } catch (e) { }
     }
   }, []);
 
@@ -308,7 +308,7 @@ export default function SettingsPage() {
             { id: "subscription", label: "Subscription", icon: CreditCard },
             { id: "notifications", label: "Notifications", icon: Bell },
           ].map((tab) => (
-            <Tabs.Trigger 
+            <Tabs.Trigger
               key={tab.id}
               value={tab.id}
               className="flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium text-slate-500 dark:text-zinc-400 data-[state=active]:bg-white dark:data-[state=active]:bg-zinc-900 data-[state=active]:text-sky-600 dark:data-[state=active]:text-sky-400 data-[state=active]:shadow-sm transition-all text-left whitespace-nowrap outline-none"
@@ -320,13 +320,13 @@ export default function SettingsPage() {
         </Tabs.List>
 
         <div className="flex-1 bg-white dark:bg-zinc-900 rounded-3xl border border-slate-200 dark:border-zinc-800 p-6 md:p-10 shadow-sm min-h-150 transition-colors">
-          
+
           {/* PROFILE TAB */}
           <Tabs.Content value="profile" className="space-y-10 outline-none flex flex-col h-full">
             <div className="flex justify-between items-center">
               <h2 className="text-xl font-bold text-slate-900 dark:text-zinc-100">Profile Details</h2>
               {!isEditing && (
-                <button 
+                <button
                   onClick={handleEditToggle}
                   className="text-sm font-bold text-sky-500 hover:text-sky-600 flex items-center gap-1 transition-colors active:scale-95 cursor-pointer"
                 >
@@ -368,8 +368,8 @@ export default function SettingsPage() {
                   <>
                     <div className="col-span-1">
                       <label className="block text-[10px] font-bold text-slate-400 dark:text-zinc-500 uppercase tracking-widest mb-2">Full Name</label>
-                      <input 
-                        type="text" 
+                      <input
+                        type="text"
                         value={editName}
                         onChange={(e) => setEditName(e.target.value)}
                         className="w-full px-4 py-2.5 bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-xl text-sm dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-sky-500/20"
@@ -401,7 +401,7 @@ export default function SettingsPage() {
                     </div>
                     <div className="sm:col-span-2">
                       <label className="block text-[10px] font-bold text-slate-400 dark:text-zinc-500 uppercase tracking-widest mb-2">Founder Bio</label>
-                      <textarea 
+                      <textarea
                         rows={4}
                         value={editBio}
                         onChange={(e) => setEditBio(e.target.value)}
@@ -458,7 +458,7 @@ export default function SettingsPage() {
             </div>
 
             <div className="mt-auto pt-10 flex justify-end border-t border-slate-100 dark:border-zinc-800">
-              <button 
+              <button
                 onClick={handleLogout}
                 className="flex items-center gap-2 px-6 py-3 bg-rose-50 dark:bg-rose-900/20 text-rose-600 font-bold text-sm rounded-xl hover:bg-rose-100 dark:hover:bg-rose-900/40 transition-colors active:scale-95"
               >
@@ -613,11 +613,10 @@ export default function SettingsPage() {
                         type="button"
                         onClick={() => setSelPlan(p)}
                         aria-pressed={selected}
-                        className={`rounded-2xl border p-4 text-left transition-colors ${
-                          selected
-                            ? 'border-sky-500 ring-1 ring-sky-500/30 bg-sky-50/50 dark:bg-sky-500/10'
-                            : 'border-slate-200 dark:border-zinc-800 hover:bg-slate-50 dark:hover:bg-zinc-800/40'
-                        }`}
+                        className={`rounded-2xl border p-4 text-left transition-colors ${selected
+                          ? 'border-sky-500 ring-1 ring-sky-500/30 bg-sky-50/50 dark:bg-sky-500/10'
+                          : 'border-slate-200 dark:border-zinc-800 hover:bg-slate-50 dark:hover:bg-zinc-800/40'
+                          }`}
                       >
                         <span className="block text-sm font-extrabold text-slate-900 dark:text-zinc-100">
                           {p === 'pro' ? 'Pro' : 'Prep'}
@@ -640,11 +639,10 @@ export default function SettingsPage() {
                         type="button"
                         onClick={() => setSelTerm(t)}
                         aria-pressed={selected}
-                        className={`px-4 py-2 rounded-lg text-xs font-bold transition-colors ${
-                          selected
-                            ? 'bg-white dark:bg-zinc-900 text-slate-900 dark:text-zinc-100 shadow-sm'
-                            : 'text-slate-500 dark:text-zinc-400'
-                        }`}
+                        className={`px-4 py-2 rounded-lg text-xs font-bold transition-colors ${selected
+                          ? 'bg-white dark:bg-zinc-900 text-slate-900 dark:text-zinc-100 shadow-sm'
+                          : 'text-slate-500 dark:text-zinc-400'
+                          }`}
                       >
                         {t === 'annual' ? 'Annual · 2 months free' : 'Monthly'}
                       </button>
@@ -660,18 +658,18 @@ export default function SettingsPage() {
                   <ul className="space-y-2">
                     {(selPlan === 'pro'
                       ? [
-                          'Unlimited pitch sessions',
-                          'Longer sessions, up to 40 minutes',
-                          'Full downloadable PDF report',
-                          'Live market research in your panel',
-                          'Unlimited Deck Check audits',
-                        ]
+                        'Unlimited pitch sessions',
+                        'Longer sessions, up to 40 minutes',
+                        'Full downloadable PDF report',
+                        'Live market research in your panel',
+                        'Unlimited Deck Check audits',
+                      ]
                       : [
-                          'Unlimited pitch sessions',
-                          '20-minute sessions',
-                          'Full downloadable PDF report',
-                          '5 Deck Check audits per month',
-                        ]
+                        'Unlimited pitch sessions',
+                        '20-minute sessions',
+                        'Full downloadable PDF report',
+                        '5 Deck Check audits per month',
+                      ]
                     ).map((b) => (
                       <li key={b} className="flex items-center gap-2.5 text-sm text-slate-600 dark:text-zinc-400">
                         <CheckCircle2 size={15} className="text-emerald-500 shrink-0" />
@@ -696,7 +694,7 @@ export default function SettingsPage() {
                   /* Billing keys aren't configured — a mail link is honest, a dead
                      button is not. Mirrors the UpgradeModal fallback. */
                   <a
-                    href="mailto:support@pitchnest.app?subject=Upgrade%20my%20PitchNest%20plan"
+                    href="mailto:surpport@pitchnest.app?subject=Upgrade%20my%20PitchNest%20plan"
                     className="inline-flex w-full sm:w-auto items-center justify-center px-6 py-3 bg-sky-500 hover:bg-sky-600 text-white rounded-xl text-sm font-bold transition-colors"
                   >
                     Contact us to upgrade
@@ -709,10 +707,10 @@ export default function SettingsPage() {
           {/* NOTIFICATIONS TAB */}
           <Tabs.Content value="notifications" className="space-y-10 outline-none">
             <h2 className="text-xl font-bold text-slate-900 dark:text-zinc-100">Notifications</h2>
-            
+
             <div className="space-y-8">
-              <SettingItem 
-                label="Pitch Analysis Alerts" 
+              <SettingItem
+                label="Pitch Analysis Alerts"
                 description="Email when your pitch analysis is ready."
               >
                 <Switch.Root
@@ -728,8 +726,8 @@ export default function SettingsPage() {
                 </Switch.Root>
               </SettingItem>
 
-              <SettingItem 
-                label="Weekly Progress Report" 
+              <SettingItem
+                label="Weekly Progress Report"
                 description="Summary of your improvement and deck views."
               >
                 <Switch.Root
@@ -745,8 +743,8 @@ export default function SettingsPage() {
                 </Switch.Root>
               </SettingItem>
 
-              <SettingItem 
-                label="Investor Inquiries" 
+              <SettingItem
+                label="Investor Inquiries"
                 description="In-app notifications when an investor requests access."
               >
                 <Switch.Root

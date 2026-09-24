@@ -227,15 +227,11 @@ export default function SignupPage() {
     } catch (error: any) {
       console.log(error.message);
       // Already registered but email not verified → show popup
-      if (
-        error.message?.toLowerCase().includes("not verified") ||
-        error.message?.toLowerCase().includes("already registered") ||
-        error.message?.toLowerCase().includes("already exists")
-      ) {
+      if (error.message?.toLowerCase().includes("not verified")) {
         setUnverifiedEmail(data.email);
         setShowUnverifiedPopup(true);
       } else {
-        setServerError(error.message);
+        setServerError(error.message || "Signup failed");
       }
     } finally {
       setIsSubmitting(false);
@@ -297,8 +293,16 @@ export default function SignupPage() {
 
             <form className="space-y-4" onSubmit={handleSubmit(onSubmit)}>
               {serverError && (
-                <div className="p-3 bg-rose-50 border border-rose-200 text-rose-600 rounded-lg text-sm font-bold">
-                  {serverError}
+                <div className="p-3.5 bg-rose-50 dark:bg-rose-950/30 border border-rose-200 dark:border-rose-900/50 text-rose-600 dark:text-rose-400 rounded-xl text-sm font-semibold flex items-center justify-between gap-3">
+                  <span>{serverError}</span>
+                  {(serverError.toLowerCase().includes("log in") || serverError.toLowerCase().includes("already exists")) && (
+                    <Link
+                      to="/login"
+                      className="px-3 py-1.5 bg-rose-600 text-white rounded-lg text-xs font-bold hover:bg-rose-700 transition-colors shrink-0"
+                    >
+                      Log in →
+                    </Link>
+                  )}
                 </div>
               )}
 
