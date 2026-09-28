@@ -16,6 +16,7 @@ import * as z from "zod";
 import { cn } from "../lib/utils";
 import { useAuth } from "../contexts/AuthContext";
 import { GoogleSignInButton } from "../components/GoogleSignInButton";
+import Cookies from "js-cookie";
 
 const loginSchema = z.object({
   email: z.string().email("Invalid email address"),
@@ -170,6 +171,12 @@ export default function LoginPage() {
   const { login, loginWithGoogle } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
+  const params = new URLSearchParams(window.location.search);
+  const referralCode = params.get("referralCode");
+  if (referralCode) Cookies.set("code", referralCode);
+  
+
+
 
   const from = location.state?.from?.pathname || "/dashboard";
 
