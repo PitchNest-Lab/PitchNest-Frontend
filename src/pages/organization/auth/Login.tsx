@@ -8,15 +8,13 @@ import {
   RefreshCw,
   CheckCircle,
 } from "lucide-react";
-import { LogoLink } from "../components/Logo";
+import { LogoLink } from "../../../components/Logo";
 import { motion, AnimatePresence } from "framer-motion";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
-import { cn } from "../lib/utils";
-import { useAuth } from "../contexts/AuthContext";
-import { GoogleSignInButton } from "../components/GoogleSignInButton";
-import Cookies from "js-cookie";
+import { cn } from "../../../lib/utils";
+import { useAuth } from "../../../contexts/AuthContext";
 
 const loginSchema = z.object({
   email: z.string().email("Invalid email address"),
@@ -168,17 +166,11 @@ export default function LoginPage() {
   const [showUnverifiedPopup, setShowUnverifiedPopup] = useState(false);
   const [unverifiedEmail, setUnverifiedEmail] = useState("");
 
-  const { login, loginWithGoogle } = useAuth();
+  const { orgLogin } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
-  const params = new URLSearchParams(window.location.search);
-  const referralCode = params.get("referralCode");
-  if (referralCode) Cookies.set("code", referralCode);
-  
 
-
-
-  const from = location.state?.from?.pathname || "/dashboard";
+  const from = "/organization";
 
   useEffect(() => {
     const timer = setInterval(
@@ -207,7 +199,7 @@ export default function LoginPage() {
       localStorage.removeItem("pitchnest_onboarding_complete");
       localStorage.removeItem("pitchnest_startup_name");
       localStorage.removeItem("pitchnest_funding_stage");
-      await login(data.email, data.password, rememberMe);
+      await orgLogin(data.email, data.password, rememberMe);
       navigate(from, { replace: true });
     } catch (error: any) {
       // Check if the error is about email not being verified
@@ -243,21 +235,6 @@ export default function LoginPage() {
   };
   return (
     <>
-      {/* ── Google sign-in loading overlay ── */}
-      <AnimatePresence>
-        {googleLoading && (
-          <motion.div
-            key="google-loading"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[60] flex flex-col items-center justify-center bg-white/80 dark:bg-zinc-950/80 backdrop-blur-sm"
-          >
-            <div className="w-12 h-12 border-4 border-sky-500 border-t-transparent rounded-full animate-spin" />
-            <p className="mt-4 text-sm font-semibold text-slate-600 dark:text-zinc-400">Signing in with Google…</p>
-          </motion.div>
-        )}
-      </AnimatePresence>
 
       {/* ── Email not verified popup ── */}
       <AnimatePresence>
@@ -279,18 +256,9 @@ export default function LoginPage() {
           <div className="flex-1 p-8 md:p-16">
             <LogoLink showText size="md" className="mb-12" />
 
-            <h2 className="text-4xl font-semibold text-slate-900 dark:text-zinc-100 mb-1 tracking-tight">
-              Sign in
+            <h2 className="text-3xl font-semibold text-slate-900 dark:text-zinc-100 mb-1 tracking-tight w-full py-3">
+              Sign in as Organization
             </h2>
-            <p className="text-sm text-slate-500 dark:text-zinc-500 mb-8">
-              or{" "}
-              <Link
-                to="/signup"
-                className="text-sky-600 dark:text-sky-400 font-semibold hover:underline"
-              >
-                Join PitchNest
-              </Link>
-            </p>
 
             <form className="space-y-4" onSubmit={handleSubmit(onSubmit)}>
               {serverError && (
@@ -376,41 +344,6 @@ export default function LoginPage() {
                 )}
               </button>
             </form>
-
-            <div className="relative my-6">
-              <div className="absolute inset-0 flex items-center">
-                <div className="w-full border-t border-slate-200 dark:border-zinc-800"></div>
-              </div>
-              <div className="relative flex justify-center text-sm text-slate-500 dark:text-zinc-500">
-                <span className="bg-white dark:bg-zinc-900 px-4">or</span>
-              </div>
-            </div>
-
-            <GoogleSignInButton
-              text="signin_with"
-              onCredential={async (credential) => {
-                setServerError("");
-                setGoogleLoading(true);
-                try {
-                  // Clear only auth-related keys — preserve tour flags
-                  localStorage.removeItem("user");
-                  localStorage.removeItem("token");
-                  localStorage.removeItem("pitchnest_onboarding_complete");
-                  localStorage.removeItem("pitchnest_startup_name");
-                  localStorage.removeItem("pitchnest_funding_stage");
-                  const data = await loginWithGoogle(credential, rememberMe);
-                  // New Google users land on onboarding (server decides via
-                  // redirectTo); returning users go to their intended page.
-                  navigate(data?.redirectTo || from, { replace: true });
-                } catch (error: any) {
-                  setServerError(error.message || "Google sign-in failed.");
-                } finally {
-                  setGoogleLoading(false);
-                }
-              }}
-              onError={(message) => setServerError(message)}
-            />
-
             <p className="text-center mt-6 text-xs text-slate-500 dark:text-zinc-500 leading-relaxed px-2">
               By clicking Sign in or Sign in with Google, you agree to
               PitchNest's{" "}
