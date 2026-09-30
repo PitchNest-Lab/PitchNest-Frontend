@@ -37,6 +37,9 @@ import { BillingProvider } from "./contexts/BillingContext";
 import { UpgradeProvider } from "./components/ui/UpgradeModal";
 import BillingReturn from "./pages/BillingReturn";
 import { ErrorBoundary } from "./components/ErrorBoundary";
+import OrganizationDashboard from "./pages/organization/dashbaord/Main";
+import OrganizationLogin from "./pages/organization/auth/Login"
+
 export default function App() {
   return (
     <Router>
@@ -49,6 +52,7 @@ export default function App() {
             {/* Public Routes */}
             <Route path="/" element={<LandingPage />} />
             <Route path="/login" element={<LoginPage />} />
+            <Route path="/organization-login" element={<OrganizationLogin />} />
             <Route path="/signup" element={<SignupPage />} />
             <Route path="/forgot-password" element={<ForgotPassword />} />
             <Route path="/reset-password" element={<ResetPassword />} />
@@ -57,6 +61,7 @@ export default function App() {
             <Route path="/delete-account" element={<DeleteAccount />} />
             <Route path="/support" element={<Support />} />
             <Route path="/pricing" element={<PricingPage />} />
+             <Route path="/organization" element={<OrganizationDashboard />} />
 
             {/* Protected Routes (Wrapped in AppLayout with Sidebar) */}
             <Route

@@ -17,6 +17,7 @@ import * as z from "zod";
 import { cn } from "../lib/utils";
 import { useAuth } from "../contexts/AuthContext";
 import { GoogleSignInButton } from "../components/GoogleSignInButton";
+import Cookies from "js-cookie";
 
 const signupSchema = z
   .object({
@@ -98,7 +99,6 @@ function EmailNotVerifiedPopup({
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
       className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm"
-
     >
       <motion.div
         initial={{ opacity: 0, scale: 0.95, y: 12 }}
@@ -188,6 +188,11 @@ export default function SignupPage() {
   const { signup, loginWithGoogle } = useAuth();
   const navigate = useNavigate();
 
+  const params = new URLSearchParams(window.location.search);
+
+  const referralCode = params.get("referralCode");
+  if (referralCode) Cookies.set("code", referralCode);
+
   useEffect(() => {
     const timer = setInterval(
       () => setCurrentSlide((prev) => (prev + 1) % SLIDES.length),
@@ -227,11 +232,15 @@ export default function SignupPage() {
     } catch (error: any) {
       console.log(error.message);
       // Already registered but email not verified → show popup
-      if (error.message?.toLowerCase().includes("not verified")) {
+      if (
+        error.message?.toLowerCase().includes("not verified") ||
+        error.message?.toLowerCase().includes("already registered") ||
+        error.message?.toLowerCase().includes("already exists")
+      ) {
         setUnverifiedEmail(data.email);
         setShowUnverifiedPopup(true);
       } else {
-        setServerError(error.message || "Signup failed");
+        setServerError(error.message);
       }
     } finally {
       setIsSubmitting(false);
@@ -262,7 +271,9 @@ export default function SignupPage() {
             className="fixed inset-0 z-60 flex flex-col items-center justify-center bg-white/80 dark:bg-zinc-950/80 backdrop-blur-sm"
           >
             <div className="w-12 h-12 border-4 border-sky-500 border-t-transparent rounded-full animate-spin" />
-            <p className="mt-4 text-sm font-semibold text-slate-600 dark:text-zinc-400">Signing up with Google…</p>
+            <p className="mt-4 text-sm font-semibold text-slate-600 dark:text-zinc-400">
+              Signing up with Google…
+            </p>
           </motion.div>
         )}
       </AnimatePresence>
@@ -293,16 +304,8 @@ export default function SignupPage() {
 
             <form className="space-y-4" onSubmit={handleSubmit(onSubmit)}>
               {serverError && (
-                <div className="p-3.5 bg-rose-50 dark:bg-rose-950/30 border border-rose-200 dark:border-rose-900/50 text-rose-600 dark:text-rose-400 rounded-xl text-sm font-semibold flex items-center justify-between gap-3">
-                  <span>{serverError}</span>
-                  {(serverError.toLowerCase().includes("log in") || serverError.toLowerCase().includes("already exists")) && (
-                    <Link
-                      to="/login"
-                      className="px-3 py-1.5 bg-rose-600 text-white rounded-lg text-xs font-bold hover:bg-rose-700 transition-colors shrink-0"
-                    >
-                      Log in →
-                    </Link>
-                  )}
+                <div className="p-3 bg-rose-50 border border-rose-200 text-rose-600 rounded-lg text-sm font-bold">
+                  {serverError}
                 </div>
               )}
 
