@@ -12,11 +12,11 @@ import { SmoothScroll } from '../components/landing/SmoothScroll';
 import { SectionReveal } from '../components/landing/SectionReveal';
 import { HeroWords, heroBlock, heroEase } from '../components/landing/HeroWords';
 import { InvestorMarquee } from '../components/landing/InvestorMarquee';
-import heroImage from '../assets/heroImage.jpeg';
 import { StatsBand } from '../components/landing/StatsBand';
 import { LogoLink, LogoMark } from '../components/Logo';
 import { getPlans } from '../lib/plans';
 import { usePublicPrice } from '../hooks/usePublicPrice';
+const heroImage = '/assets/heroImage.jpeg';
 
 const problems = [
   { icon: Clock, title: "One shot per investor", desc: "Fumble the live Q&A and that lead is gone — you rarely get a second meeting." },
