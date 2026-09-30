@@ -6,7 +6,6 @@ import React, {
   useCallback,
   useRef,
 } from "react";
-import Cookies from "js-cookie";
 
 export type UserRole = "Founder" | "Investor" | "Advisor";
 
@@ -38,11 +37,6 @@ interface AuthContextType {
   user: User | null;
   token: string | null;
   login: (
-    email: string,
-    password: string,
-    rememberMe?: boolean,
-  ) => Promise<void>;
-  orgLogin: (
     email: string,
     password: string,
     rememberMe?: boolean,
@@ -166,26 +160,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       .finally(() => setIsLoading(false));
   }, [refreshSession]);
 
-  const login = async (email: string, password: string, rememberMe = false) => {
-    const res = await fetch("/api/auth/login", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email, password, rememberMe }),
-    });
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.message || "Login failed");
-
-    setUser(data.user);
-    setToken(data.token);
-    localStorage.setItem("user", JSON.stringify(data.user));
-    localStorage.setItem("token", data.token);
-  };
-  const orgLogin = async (
+  const login = async (
     email: string,
     password: string,
     rememberMe = false,
   ) => {
-    const res = await fetch("/api/auth/organization-login", {
+    const res = await fetch("/api/auth/login", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ email, password, rememberMe }),
@@ -204,21 +184,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     email: string,
     password: string,
     role?: UserRole,
-    referralCode?:string
   ) => {
     const res = await fetch("/api/auth/signup", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        name,
-        email,
-        password,
-        role,
-        referralCode: Cookies.get("code") ?? " ",
-      }),
+      body: JSON.stringify({ name, email, password, role }),
     });
     const data = await res.json();
-    if (!res.ok) throw new Error(data.message || data.error || "Signup failed");
+    if (!res.ok) throw new Error(data.message||data.error || "Signup failed");
 
     // Signup no longer logs the user in: the backend requires email
     // verification first and returns NO token (requiresVerification: true).
@@ -347,18 +320,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   return (
     <AuthContext.Provider
-      value={{
-        user,
-        token,
-        login,
-        loginWithGoogle,
-        signup,
-        logout,
-        isLoading,
-        authFetch,
-        refreshUser,
-        orgLogin,
-      }}
+      value={{ user, token, login, loginWithGoogle, signup, logout, isLoading, authFetch, refreshUser }}
     >
       {children}
     </AuthContext.Provider>

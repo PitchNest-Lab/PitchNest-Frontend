@@ -277,19 +277,20 @@ export default function VerifyEmailPage() {
         body: JSON.stringify({ email }),
         headers: { "Content-Type": "application/json" },
       });
+      const data = await res.json().catch(() => ({}));
       if (res.ok) {
         setResent(true);
         setTimer(60);
         setErrorMessage("");
         setStatus("idle"); // reset back to verification input page if error was showing
       } else {
-        // A silent failure here is what makes "I never got the email"
-        // undiagnosable: the button spins, nothing changes, and the user has no
-        // way to tell a delivery problem from a slow inbox.
         setErrorMessage(
-          "We couldn't send the email just now. Please try again in a moment.",
+          data.error || "We couldn't send the email just now. Please try again in a moment.",
         );
         setStatus("idle");
+        if (data.isEmailVerified) {
+          setTimeout(() => navigate("/login", { replace: true }), 2500);
+        }
       }
     } catch {
       setErrorMessage(

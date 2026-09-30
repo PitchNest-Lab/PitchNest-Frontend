@@ -25,7 +25,7 @@ interface UpgradeContextValue {
 }
 
 const UpgradeContext = createContext<UpgradeContextValue>({
-  showUpgrade: () => {},
+  showUpgrade: () => { },
 });
 
 export function useUpgrade() {
@@ -143,7 +143,7 @@ export const UpgradeProvider: React.FC<{ children: React.ReactNode }> = ({ child
                 /* Billing keys aren't configured, so there is no checkout to
                    send anyone to. A mail link is honest; a dead button is not. */
                 <a
-                  href="mailto:support@pitchnest.app?subject=Upgrade%20to%20PitchNest%20Pro"
+                  href="mailto:surpport@pitchnest.app?subject=Upgrade%20to%20PitchNest%20Pro"
                   className="flex flex-1 items-center justify-center rounded-xl bg-sky-500 py-3 text-sm font-bold text-white transition-colors hover:bg-sky-600"
                 >
                   Contact us to upgrade
