@@ -23,6 +23,8 @@ export interface User {
   settings?: Record<string, any>;
   /** Paywall tier. Drives UI affordances only — the server re-checks every gate. */
   plan?: UserPlan;
+  orgCode?: number | string;
+  accountType?: "user" | "organization";
 }
 
 function safeParse<T = any>(value: string | null): T | null {

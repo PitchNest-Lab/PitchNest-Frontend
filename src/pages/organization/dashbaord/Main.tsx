@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import {
   LayoutGrid,
   Users,
@@ -10,8 +11,6 @@ import {
   Search,
   Bell,
   ShieldCheck,
-  Sun,
-  Moon,
   Sparkles,
   TrendingUp,
   TrendingDown,
@@ -37,7 +36,13 @@ import {
   Copy,
   Check,
   ArrowLeft,
+  LogOut,
+  Menu,
+  X,
 } from "lucide-react";
+import { LogoMark } from "../../../components/Logo";
+import { ThemeToggle } from "../../../components/ThemeToggle";
+import { useAuth } from "../../../contexts/AuthContext";
 
 /* ------------------------------------------------------------------ */
 /*  API DATA CONTRACT                                                  */
@@ -341,7 +346,7 @@ const GlassCard: React.FC<React.PropsWithChildren<{ className?: string }>> = ({
   children,
 }) => (
   <div
-    className={`rounded-2xl border border-white/20 dark:border-white/10 bg-white/70 dark:bg-white/[0.04] backdrop-blur-xl shadow-[0_8px_30px_rgb(0,0,0,0.06)] dark:shadow-[0_8px_30px_rgb(0,0,0,0.4)] ${className}`}
+    className={`rounded-2xl border border-slate-200/80 dark:border-zinc-800/80 bg-white dark:bg-[#121215] shadow-sm transition-colors ${className}`}
   >
     {children}
   </div>
@@ -352,7 +357,7 @@ const SectionHeading: React.FC<{ title: string; action?: React.ReactNode }> = ({
   action,
 }) => (
   <div className="flex items-center justify-between mb-4">
-    <h2 className="font-serif text-2xl text-slate-900 dark:text-white">
+    <h2 className="font-display font-semibold text-2xl tracking-tight text-slate-900 dark:text-zinc-100">
       {title}
     </h2>
     {action}
@@ -435,7 +440,7 @@ const Avatar: React.FC<{
     />
   ) : (
     <div
-      className="rounded-full shrink-0 flex items-center justify-center text-white text-xs font-semibold bg-gradient-to-br from-indigo-500 to-blue-500"
+      className="rounded-full shrink-0 flex items-center justify-center text-white text-xs font-semibold bg-gradient-to-br from-indigo-600 to-sky-600 shadow-xs"
       style={{ width: size, height: size }}
     >
       {initials(name)}
@@ -664,26 +669,30 @@ const NAV_ITEMS: { key: NavKey; label: string; icon: React.ReactNode }[] = [
 /* ------------------------------------------------------------------ */
 
 const OrganizationDashboard: React.FC = () => {
+  const { user, logout } = useAuth();
+  const navigate = useNavigate();
   const [data, setData] = useState<OrgDashboardData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [active, setActive] = useState<NavKey>("overview");
-  const [isDark, setIsDark] = useState(true);
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [memberQuery, setMemberQuery] = useState("");
   const [memberFilters, setMemberFilters] = useState<DashboardFilters>(DEFAULT_FILTERS);
   const [founderFilters, setFounderFilters] = useState<DashboardFilters>(DEFAULT_FILTERS);
   const [selectedFounderId, setSelectedFounderId] = useState<string>("");
 
+  const orgId = user?.orgCode ? String(user.orgCode) : (user?.id ? String(user.id) : ORG_ID);
+
   useEffect(() => {
     let cancelled = false;
     setLoading(true);
     Promise.all([
-      fetchOrgDetails(ORG_ID),
-      fetchOverview(ORG_ID),
-      fetchSeatUsage(ORG_ID),
-      fetchActivity(ORG_ID),
-      fetchFounders(ORG_ID),
-      fetchMembers(ORG_ID),
+      fetchOrgDetails(orgId),
+      fetchOverview(orgId),
+      fetchSeatUsage(orgId),
+      fetchActivity(orgId),
+      fetchFounders(orgId),
+      fetchMembers(orgId),
     ])
       .then(([organization, overview, seatUsage, activity, founders, members]) => {
         if (cancelled) return;
@@ -697,7 +706,7 @@ const OrganizationDashboard: React.FC = () => {
       .catch((e) => !cancelled && setError(e.message))
       .finally(() => !cancelled && setLoading(false));
     return () => { cancelled = true; };
-  }, []);
+  }, [orgId]);
 
   const filteredMembers = useMemo(() => {
     if (!data) return [];
@@ -752,110 +761,146 @@ const OrganizationDashboard: React.FC = () => {
   const maxHistory = Math.max(...data.seatUsage.history.map((h) => h.used), 1);
 
   return (
-    <div className={isDark ? "dark" : ""}>
-      <div className="h-screen overflow-hidden bg-slate-50 dark:bg-[#0a0a0f] transition-colors">
-        <div className="flex h-full">
-          {/* ---------------------------------------------------- Sidebar */}
-          <aside
-            className="
-    hidden lg:flex flex-col
-    w-65 shrink-0
-    h-screen
-    sticky top-0
-    border-r border-slate-200/70 dark:border-white/10
-    bg-white/60 dark:bg-white/2
-    backdrop-blur-xl
-    px-4 py-6
-  "
-          >
-            <div className="flex items-center gap-3 px-2 mb-8">
-              <div className="w-9 h-9 rounded-full bg-linear-to-br from-indigo-500 to-blue-500 flex items-center justify-center shadow-lg shadow-indigo-500/30">
-                <ShieldCheck className="w-5 h-5 text-white" />
-              </div>
-              <span className="font-serif text-lg text-slate-900 dark:text-white">
-                PitchNest{" "}
-                <span className="text-slate-400 dark:text-slate-500 font-sans text-sm">
-                  / Org
+    <div className="h-screen overflow-hidden bg-[#FAFBFC] dark:bg-[#09090B] text-slate-900 dark:text-zinc-100 transition-colors font-sans">
+      <div className="flex h-full">
+        {/* Mobile menu backdrop */}
+        {isMobileMenuOpen && (
+          <div
+            className="fixed inset-0 z-40 bg-black/50 backdrop-blur-xs lg:hidden"
+            onClick={() => setIsMobileMenuOpen(false)}
+          />
+        )}
+
+        {/* ---------------------------------------------------- Sidebar */}
+        <aside
+          className={`
+            fixed lg:sticky top-0 left-0 z-50 lg:z-0
+            w-64 shrink-0 h-screen
+            border-r border-slate-200/80 dark:border-zinc-800/80
+            bg-white/95 dark:bg-zinc-950/95 lg:bg-white dark:lg:bg-zinc-950
+            backdrop-blur-xl
+            flex flex-col px-4 py-6
+            transition-transform duration-300 ease-in-out
+            ${isMobileMenuOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"}
+          `}
+        >
+          {/* Brand Logo Header */}
+          <div className="flex items-center justify-between px-2 mb-8">
+            <div className="flex items-center gap-3">
+              <LogoMark size="sm" />
+              <div className="flex items-center gap-2">
+                <span className="font-display font-semibold text-lg tracking-tight text-slate-900 dark:text-zinc-100">
+                  PitchNest
                 </span>
-              </span>
+                <span className="text-[10px] font-semibold uppercase tracking-wider px-1.5 py-0.5 rounded-md bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 border border-indigo-200/50 dark:border-indigo-800/50 font-sans">
+                  Org
+                </span>
+              </div>
             </div>
+            <button
+              type="button"
+              onClick={() => setIsMobileMenuOpen(false)}
+              className="lg:hidden p-1.5 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-zinc-200 hover:bg-slate-100 dark:hover:bg-zinc-800"
+            >
+              <X size={18} />
+            </button>
+          </div>
 
-            <nav className="flex flex-col gap-1 ">
-              {NAV_ITEMS.map((item) => {
-                const isActive = active === item.key;
-                return (
-                  <button
-                    key={item.key}
-                    onClick={() => setActive(item.key)}
-                    className={`group flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm transition-colors text-left ${
-                      isActive
-                        ? "bg-indigo-50 dark:bg-indigo-500/10 text-indigo-600 dark:text-indigo-300 font-semibold"
-                        : "text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-white/5 hover:text-slate-900 dark:hover:text-white"
-                    }`}
-                  >
-                    {item.icon}
-                    {item.label}
-                  </button>
-                );
-              })}
-            </nav>
+          <nav className="flex flex-col gap-1">
+            {NAV_ITEMS.map((item) => {
+              const isActive = active === item.key;
+              return (
+                <button
+                  key={item.key}
+                  onClick={() => {
+                    setActive(item.key);
+                    setIsMobileMenuOpen(false);
+                  }}
+                  className={`group flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm transition-colors text-left ${
+                    isActive
+                      ? "bg-indigo-50 dark:bg-indigo-950/30 text-indigo-600 dark:text-indigo-400 font-semibold"
+                      : "text-slate-500 dark:text-zinc-400 hover:bg-slate-50 dark:hover:bg-zinc-800/50 hover:text-slate-700 dark:hover:text-zinc-200 font-medium"
+                  }`}
+                >
+                  {item.icon}
+                  {item.label}
+                </button>
+              );
+            })}
+          </nav>
 
-            <div className="mt-auto pt-6">
+          <div className="mt-auto pt-4 border-t border-slate-200/80 dark:border-zinc-800/80 flex items-center gap-2">
+            <button
+              onClick={() => {
+                setActive("organization");
+                setIsMobileMenuOpen(false);
+              }}
+              className={`flex-1 min-w-0 flex items-center gap-3 p-2 rounded-xl text-left transition-colors ${
+                active === "organization"
+                  ? "bg-indigo-50 dark:bg-indigo-950/40"
+                  : "hover:bg-slate-100/70 dark:hover:bg-zinc-800/50"
+              }`}
+            >
+              <Avatar name={data.organization.orgName} size={34} />
+              <div className="min-w-0 flex-1">
+                <p className="text-sm font-semibold text-slate-900 dark:text-zinc-100 truncate">
+                  {data.organization.orgName}
+                </p>
+                <p className="text-xs text-slate-500 dark:text-zinc-400 capitalize">
+                  {data.organization.plan} plan
+                </p>
+              </div>
+            </button>
+            <button
+              onClick={() => {
+                logout();
+                navigate("/organization-login");
+              }}
+              title="Sign out"
+              className="p-2.5 rounded-xl text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/30 transition-colors"
+            >
+              <LogOut className="w-4 h-4" />
+            </button>
+          </div>
+        </aside>
+
+        {/* ---------------------------------------------------- Main */}
+        <main className="flex-1 min-w-0 h-full overflow-y-auto overscroll-contain">
+          {/* Top bar */}
+          <header className="flex items-center gap-4 px-6 lg:px-10 py-4 border-b border-slate-200/80 dark:border-zinc-800/80 sticky top-0 z-10 bg-[#FAFBFC]/80 dark:bg-[#09090B]/80 backdrop-blur-xl">
+            <button
+              type="button"
+              onClick={() => setIsMobileMenuOpen(true)}
+              className="lg:hidden p-2 -ml-2 rounded-xl text-slate-600 dark:text-zinc-300 hover:bg-slate-100 dark:hover:bg-zinc-800 transition-colors"
+            >
+              <Menu size={20} />
+            </button>
+
+            <div className="relative flex-1 max-w-md">
+              <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
+              <input
+                placeholder="Search members, founders, reports..."
+                className="w-full pl-10 pr-4 py-2 rounded-xl text-sm bg-white dark:bg-zinc-900 border border-slate-200/80 dark:border-zinc-800 text-slate-900 dark:text-zinc-100 placeholder:text-slate-400 dark:placeholder:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 transition-all"
+              />
+            </div>
+            <div className="ml-auto flex items-center gap-3">
+              <ThemeToggle />
+              <button
+                className="w-9 h-9 grid place-items-center rounded-xl border border-slate-200/80 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-slate-600 dark:text-zinc-300 hover:bg-slate-100 dark:hover:bg-zinc-800 transition-colors relative"
+                aria-label="Notifications"
+              >
+                <Bell className="w-4 h-4" />
+                <span className="absolute top-1.5 right-1.5 w-1.5 h-1.5 rounded-full bg-indigo-500" />
+              </button>
               <button
                 onClick={() => setActive("organization")}
-                className={`w-full flex items-center gap-3 px-2 py-2 rounded-xl text-left transition-colors ${
-                  active === "organization"
-                    ? "bg-indigo-50 dark:bg-indigo-500/10"
-                    : "bg-slate-100/70 dark:bg-white/5 hover:bg-slate-200/70 dark:hover:bg-white/10"
-                }`}
+                className="hidden sm:inline-flex items-center gap-2 px-4 py-2 rounded-xl gradient-brand text-white text-sm font-semibold shadow-xs hover:opacity-95 transition-opacity"
               >
-                <Avatar name={data.organization.orgName} size={34} />
-                <div className="min-w-0 flex-1">
-                  <p className="text-sm font-semibold text-slate-900 dark:text-white truncate">
-                    {data.organization.orgName}
-                  </p>
-                  <p className="text-xs text-slate-500 dark:text-slate-400">
-                    {data.organization.plan} plan
-                  </p>
-                </div>
-                <ChevronRight className="w-4 h-4 text-slate-400 shrink-0" />
+                <ShieldCheck className="w-4 h-4" />
+                View Plan
               </button>
             </div>
-          </aside>
-
-          {/* ---------------------------------------------------- Main */}
-          <main className="flex-1 min-w-0 h-full overflow-y-auto overscroll-contain">
-            {/* Top bar */}
-            <header className="flex items-center gap-4 px-6 lg:px-10 py-5 border-b border-slate-200/70 dark:border-white/10 sticky top-0 z-10 bg-slate-50/80 dark:bg-[#0a0a0f]/80 backdrop-blur-xl">
-              <div className="relative flex-1 max-w-md">
-                <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
-                <input
-                  placeholder="Search members, founders, reports..."
-                  className="w-full pl-10 pr-4 py-2.5 rounded-xl text-sm bg-white dark:bg-white/5 border border-slate-200 dark:border-white/10 text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-400/50"
-                />
-              </div>
-              <div className="ml-auto flex items-center gap-3">
-                <button
-                  onClick={() => setIsDark((d) => !d)}
-                  className="w-9 h-9 grid place-items-center rounded-xl border border-slate-200 dark:border-white/10 bg-white dark:bg-white/5 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-white/10 transition-colors"
-                  aria-label="Toggle theme"
-                >
-                  {isDark ? (
-                    <Sun className="w-4 h-4" />
-                  ) : (
-                    <Moon className="w-4 h-4" />
-                  )}
-                </button>
-                <button className="w-9 h-9 grid place-items-center rounded-xl border border-slate-200 dark:border-white/10 bg-white dark:bg-white/5 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-white/10 transition-colors relative">
-                  <Bell className="w-4 h-4" />
-                  <span className="absolute top-1.5 right-1.5 w-1.5 h-1.5 rounded-full bg-indigo-500" />
-                </button>
-                <button className="hidden sm:flex items-center gap-2 px-4 py-2.5 rounded-xl bg-slate-900 dark:bg-white text-white dark:text-slate-900 text-sm font-semibold shadow-lg">
-                  <ShieldCheck className="w-4 h-4" />
-                  View Plan
-                </button>
-              </div>
-            </header>
+          </header>
 
             <div className="px-6 lg:px-10 py-8 space-y-8">
               {active === "organization" && (
@@ -903,13 +948,12 @@ const OrganizationDashboard: React.FC = () => {
                   cohorts={data.filters.cohorts}
                 />
               )}
-              {active === "reports" && <ReportsTab />}
-              {active === "replays" && <ReplaysTab  />}
+              {active === "reports" && <ReportsTab orgId={orgId} />}
+              {active === "replays" && <ReplaysTab />}
             </div>
           </main>
         </div>
       </div>
-    </div>
   );
 };
 
@@ -984,10 +1028,10 @@ const OrganizationTab: React.FC<{
           <div className="flex items-center gap-4">
             <Avatar name={org.orgName} size={64} />
             <div>
-              <p className="font-serif text-xl text-slate-900 dark:text-white">
+              <p className="font-display font-semibold text-xl text-slate-900 dark:text-zinc-100">
                 {org.orgName}
               </p>
-              <p className="text-sm text-indigo-600 dark:text-indigo-300 font-medium">
+              <p className="text-sm text-indigo-600 dark:text-indigo-400 font-medium">
                 {org.plan} plan · Org #{org.orgCode}
               </p>
             </div>
@@ -1167,16 +1211,17 @@ const OverviewTab: React.FC<{
 
   return (
     <>
-      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-indigo-600 via-indigo-500 to-blue-500 px-8 py-10 shadow-xl shadow-indigo-500/20">
-        <ShieldCheck className="absolute -right-6 -bottom-10 w-56 h-56 text-white/10" />
-        <p className="text-indigo-100 text-sm font-medium mb-2">
+      <div className="relative overflow-hidden rounded-2xl gradient-brand px-8 py-10 shadow-xl shadow-indigo-500/10">
+        <div className="absolute top-0 right-0 w-80 h-80 bg-white/10 rounded-full blur-3xl -mr-20 -mt-20 pointer-events-none" />
+        <Sparkles className="absolute -right-6 -bottom-10 w-56 h-56 text-white/10 pointer-events-none" />
+        <p className="text-indigo-100 text-sm font-medium mb-2 capitalize">
           {data.organization.plan} plan · valid through{" "}
           {formatDate(data.organization.validity)}
         </p>
-        <h1 className="font-serif text-3xl text-white mb-3">
+        <h1 className="font-display font-semibold text-3xl text-white mb-3 tracking-tight">
           {data.organization.orgName}
         </h1>
-        <p className="text-indigo-50 max-w-xl">
+        <p className="text-indigo-50/90 max-w-xl text-sm leading-relaxed">
           {data.overview.activeFoundersThisWeek} founders pitched this week
           across {data.overview.totalPitches} sessions. Average score is
           currently {data.overview.avgPitchScore}/100, up{" "}
@@ -1987,10 +2032,10 @@ const FoundersTab: React.FC<{
                     size={52}
                   />
                   <div>
-                    <p className="font-serif text-xl text-slate-900 dark:text-white">
+                    <p className="font-display font-semibold text-xl text-slate-900 dark:text-zinc-100">
                       {selected.name}
                     </p>
-                    <p className="text-sm text-slate-500 dark:text-slate-400 flex items-center gap-1">
+                    <p className="text-sm text-slate-500 dark:text-zinc-400 flex items-center gap-1">
                       <Mail className="w-3.5 h-3.5" /> {selected.email}
                     </p>
                   </div>
@@ -2137,7 +2182,7 @@ const MiniStat: React.FC<{
 /*  TAB: REPORTS                                                        */
 /* ------------------------------------------------------------------ */
 
-const ReportsTab: React.FC = () => {
+const ReportsTab: React.FC<{ orgId?: string }> = ({ orgId = ORG_ID }) => {
   const [reports, setReports] = useState<any[]>([]);
   const [generating, setGenerating] = useState<"weekly" | "monthly" | null>(
     null,
@@ -2146,7 +2191,7 @@ const ReportsTab: React.FC = () => {
   const runWeekly = async () => {
     setGenerating("weekly");
     try {
-      const r = await generateWeeklyReport(ORG_ID);
+      const r = await generateWeeklyReport(orgId);
       setReports((prev) => [r, ...prev]);
     } finally {
       setGenerating(null);
@@ -2156,7 +2201,7 @@ const ReportsTab: React.FC = () => {
   const runMonthly = async () => {
     setGenerating("monthly");
     try {
-      const r = await generateMonthlyReport(ORG_ID);
+      const r = await generateMonthlyReport(orgId);
       setReports((prev) => [r, ...prev]);
     } finally {
       setGenerating(null);
