@@ -648,7 +648,17 @@ export default function LivePitchRoom() {
   });
 
   const { stream, streamRef, startStream, stopStream } = useMediaRecorder();
-  const { socket, isConnected } = useSocketContext();
+  const { socket, isConnected, status: socketStatus, errorMessage: socketError } = useSocketContext();
+  const brainLinkLabel =
+    socketStatus === "connected" && isConnected
+      ? "Connected"
+      : socketStatus === "waking"
+        ? "Waking up"
+        : socketStatus === "reconnecting"
+          ? "Reconnecting"
+          : socketStatus === "connecting"
+            ? "Connecting"
+            : "Offline";
   const { isCapturing, startCapture, stopCapture, screenStream } =
     useScreenCapture(() => {});
   const { user, authFetch } = useAuth();
@@ -1601,7 +1611,10 @@ export default function LivePitchRoom() {
         JSON.stringify({
           type: "client_ready",
           config: { ...pitchConfig, userId: user?.id },
-          ...(isResumeRef.current
+          // A new socket after one that already sent client_ready is a
+          // mid-session reconnect: resume, so the server rebuilds the session
+          // from the transcript instead of greeting again.
+          ...(isResumeRef.current || sentReadyForSocketRef.current !== null
             ? {
                 resume: true,
                 transcript: messagesRef.current,
@@ -3002,6 +3015,7 @@ export default function LivePitchRoom() {
           <ThemeToggle />
           <div className="h-5 w-px bg-slate-200 dark:bg-white/10 mx-1 hidden sm:block" />
           <div
+            title={socketError || undefined}
             className={cn(
               "flex items-center gap-1.5 px-2 py-1 rounded-full border transition-all",
               isConnected
@@ -3016,7 +3030,7 @@ export default function LivePitchRoom() {
               )}
             />
             <span className="text-[9px] font-bold uppercase tracking-widest hidden sm:inline-block">
-              {isConnected ? "Brain Connected" : "Offline"}
+              {isConnected ? "Brain Connected" : brainLinkLabel}
             </span>
           </div>
 
@@ -3527,7 +3541,7 @@ export default function LivePitchRoom() {
                 {[
                   {
                     label: "Brain Link",
-                    val: isConnected ? "Connected" : "Offline",
+                    val: brainLinkLabel,
                     active: isConnected,
                   },
                   {
@@ -4022,7 +4036,7 @@ export default function LivePitchRoom() {
                 {[
                   {
                     label: "Brain Link",
-                    val: isConnected ? "Connected" : "Offline",
+                    val: brainLinkLabel,
                     active: isConnected,
                   },
                   {
