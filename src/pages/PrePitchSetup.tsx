@@ -15,6 +15,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { useUpgrade } from '../components/ui/UpgradeModal';
 import { Skeleton } from '../components/Skeleton';
 import { useScreenCapture } from '../hooks/useScreenCapture';
+import { prewarmLiveService } from '../contexts/SocketContext';
 
 /**
  * Session lengths offered, in minutes. Free is pinned to the first; Pro gets
@@ -159,6 +160,12 @@ export default function PrePitchSetup() {
   // "Pitch Again": previous session's config + compact previous-attempt context
   // (built by buildRepitchState). When present, it wins over profile prefill.
   const repitch = location.state?.repitch;
+
+  // Wake the live pitch service while the founder fills in setup, so the room
+  // connects immediately instead of waiting on a cold start.
+  useEffect(() => {
+    prewarmLiveService();
+  }, []);
 
   useEffect(() => {
     const fetchInitialData = async () => {
