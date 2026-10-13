@@ -26,33 +26,45 @@ const DURATIONS: Record<UiPlan, number[]> = {
   pro: [10, 20, 30, 40],
 };
 
-export function planDurations(plan: string | null | undefined, isTrial: boolean = true): number[] {
+export function planDurations(plan: string | null | undefined, isTrial: boolean = false): number[] {
   if (isTrial) return DURATIONS.pro;
   return DURATIONS[normalize(plan)];
 }
 
 /** Any paid or active trial tier. */
-export function isPaidPlan(plan: string | null | undefined, isTrial: boolean = true): boolean {
+export function isPaidPlan(plan: string | null | undefined, isTrial: boolean = false): boolean {
   if (isTrial) return true;
   const p = normalize(plan);
   return p === "founder" || p === "prep" || p === "pro";
 }
 
-/** Full downloadable PDF report — unlocked during 30-day free testing period. */
-export function planCanPdf(plan: string | null | undefined, isTrial: boolean = true): boolean {
+/** Full downloadable PDF report — unlocked during the free trial. */
+export function planCanPdf(plan: string | null | undefined, isTrial: boolean = false): boolean {
   if (isTrial) return true;
   return isPaidPlan(plan, false);
 }
 
-/** Live market research in the panel — unlocked during 30-day free testing period. */
-export function planCanResearch(plan: string | null | undefined, isTrial: boolean = true): boolean {
+/** Live market research in the panel — unlocked during the free trial. */
+export function planCanResearch(plan: string | null | undefined, isTrial: boolean = false): boolean {
   if (isTrial) return true;
   return normalize(plan) === "pro";
 }
 
-/** Human label for the current plan. */
-export function planLabel(plan: string | null | undefined, isTrial: boolean = true): string {
-  if (isTrial) return "30-Day Free Trial (Pro Full Access)";
+/**
+ * Human label for the current plan. `trialDaysRemaining` comes from the server
+ * (/api/billing/plan or /me); the trial length itself is server config
+ * (FREE_TRIAL_DAYS), so the label never hardcodes a number of days.
+ */
+export function planLabel(
+  plan: string | null | undefined,
+  isTrial: boolean = false,
+  trialDaysRemaining?: number | null,
+): string {
+  if (isTrial) {
+    const d = typeof trialDaysRemaining === "number" ? Math.max(0, trialDaysRemaining) : null;
+    if (d === null) return "Free Trial (Pro Full Access)";
+    return `Free Trial — ${d} day${d === 1 ? "" : "s"} left (Pro Full Access)`;
+  }
   const p = normalize(plan);
   return p === "pro" ? "Pro Founder" : p === "founder" ? "Founder" : "Free";
 }

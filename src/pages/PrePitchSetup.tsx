@@ -60,7 +60,7 @@ export default function PrePitchSetup() {
   const navigate = useNavigate();
   const { authFetch, user } = useAuth();
   const { showUpgrade } = useUpgrade();
-  const isTrial = (user as any)?.isTrial ?? true;
+  const isTrial = user?.isTrial ?? false;
   const allowedDurations: number[] = planDurations(user?.plan, isTrial);
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);

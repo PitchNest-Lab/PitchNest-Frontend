@@ -25,7 +25,7 @@ export default function PostPitchReport() {
   // gate; these flags only shape what the UI offers.
   //   canPdf      — full PDF report (Prep and Pro)
   //   canResearch — live market research / room-read section (Pro only)
-  const isTrial = (user as any)?.isTrial ?? true;
+  const isTrial = user?.isTrial ?? false;
   const canPdf = planCanPdf(user?.plan, isTrial);
   const canResearch = planCanResearch(user?.plan, isTrial);
   const isPaid = isPaidPlan(user?.plan, isTrial);
