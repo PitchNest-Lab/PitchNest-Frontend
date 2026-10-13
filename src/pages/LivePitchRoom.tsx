@@ -36,7 +36,7 @@ import {
 } from "../components/SlideDeckViewer";
 import { useMediaRecorder } from "../hooks/useMediaRecorder";
 import { useScreenCapture } from "../hooks/useScreenCapture";
-import { useSocketContext } from "../contexts/SocketContext";
+import { useSocketContext, getLiveResumeToken } from "../contexts/SocketContext";
 import { useAuth } from "../contexts/AuthContext";
 import { useUpgrade } from "../components/ui/UpgradeModal";
 import { ThemeToggle } from "../components/ThemeToggle";
@@ -1617,6 +1617,7 @@ export default function LivePitchRoom() {
           ...(isResumeRef.current || sentReadyForSocketRef.current !== null
             ? {
                 resume: true,
+                resumeToken: getLiveResumeToken(),
                 transcript: messagesRef.current,
                 timeLeftSeconds: timeLeftRef.current,
               }

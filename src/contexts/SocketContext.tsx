@@ -38,7 +38,24 @@ const SocketContext = createContext<SocketContextType>({
 export const useSocketContext = () => useContext(SocketContext);
 
 // Server close codes (backend restSocket.ts) that must not be retried.
-const TERMINAL_CLOSE_CODES = new Set([4001, 4002, 4005, 4006]);
+// 4007 = this session was resumed on another connection (e.g. another tab);
+// retrying would take it back and bounce the two tabs forever.
+const TERMINAL_CLOSE_CODES = new Set([4001, 4002, 4005, 4006, 4007]);
+const CLOSE_MESSAGES: Record<number, string> = {
+  4007: 'This pitch continued in another tab or window.',
+};
+
+/** Where the server's resume token is kept (sessionStorage, per tab). */
+export const RESUME_TOKEN_KEY = 'pitchnest_live_resume_token';
+
+/** The resume token from the server's last session_grant, if any. */
+export function getLiveResumeToken(): string | undefined {
+  try {
+    return sessionStorage.getItem(RESUME_TOKEN_KEY) || undefined;
+  } catch {
+    return undefined;
+  }
+}
 // Server error codes that precede a close and must not be retried.
 const TERMINAL_ERROR_CODES = new Set([
   'AUTH_REQUIRED',
@@ -169,6 +186,16 @@ export const SocketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
           if (data?.type === 'error' && TERMINAL_ERROR_CODES.has(data.code)) {
             serverError = { code: data.code, message: data.message };
           }
+          // The server signs a resume token when it admits a session; sending
+          // it back on reconnect lets the resume skip the quota claim on any
+          // server instance.
+          if (data?.type === 'session_grant' && typeof data.resumeToken === 'string') {
+            try {
+              sessionStorage.setItem(RESUME_TOKEN_KEY, data.resumeToken);
+            } catch {
+              // Without storage the server falls back to its in-process grant.
+            }
+          }
         } catch {
           // Non-JSON frames are not ours to inspect.
         }
@@ -185,7 +212,9 @@ export const SocketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         if (disposedRef.current) return;
 
         if (serverError || TERMINAL_CLOSE_CODES.has(ev.code)) {
-          setErrorMessage(serverError?.message || ev.reason || 'The live session was closed by the server.');
+          setErrorMessage(
+            serverError?.message || CLOSE_MESSAGES[ev.code] || ev.reason || 'The live session was closed by the server.',
+          );
           setStatus('failed');
           return;
         }
