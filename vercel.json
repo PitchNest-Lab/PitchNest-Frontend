@@ -1,3 +1,4 @@
+
 {
   "buildCommand": "npm run build",
   "outputDirectory": "dist",
@@ -30,7 +31,13 @@
     }
   ],
   "rewrites": [
-    { "source": "/api/(.*)", "destination": "https://l5isutzx18.execute-api.eu-west-2.amazonaws.com/api/$1" },
-    { "source": "/(.*)", "destination": "/index.html" }
+    {
+      "source": "/api/:path*",
+      "destination": "https://mkrkiditq5.execute-api.eu-west-2.amazonaws.com/api/:path*"
+    },
+    {
+      "source": "/(.*)",
+      "destination": "/index.html"
+    }
   ]
 }
