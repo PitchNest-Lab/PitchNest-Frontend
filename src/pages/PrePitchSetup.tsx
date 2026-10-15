@@ -11,6 +11,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { cn } from '../lib/utils';
 import { planDurations } from '../lib/entitlements';
+import { SPEECH_LOCALE_OPTIONS, defaultSpeechLocale, rememberSpeechLocale } from '../lib/speechLocale';
 import { useAuth } from '../contexts/AuthContext';
 import { useUpgrade } from '../components/ui/UpgradeModal';
 import { Skeleton } from '../components/Skeleton';
@@ -37,6 +38,7 @@ const setupSchema = z.object({
   micEnabled: z.boolean(),
   screenShareEnabled: z.boolean(),
   duration: z.number().min(5).max(60),
+  speechLocale: z.string(),
 });
 
 type SetupFormValues = z.infer<typeof setupSchema>;
@@ -143,6 +145,7 @@ export default function PrePitchSetup() {
       // 10 is the free length and a valid Pro length, so it is the safe
       // default for both tiers. A Pro user picks longer explicitly.
       duration: FREE_DURATION,
+      speechLocale: defaultSpeechLocale(),
     }
   });
 
@@ -217,6 +220,7 @@ export default function PrePitchSetup() {
           if (c.fundingStage) setValue('fundingStage', c.fundingStage);
           if (typeof c.aggressiveness === 'number') setValue('aggressiveness', c.aggressiveness);
           if (typeof c.riskAppetite === 'number') setValue('riskAppetite', c.riskAppetite);
+          if (typeof c.speechLocale === 'string' && SPEECH_LOCALE_OPTIONS.some((o) => o.value === c.speechLocale)) setValue('speechLocale', c.speechLocale);
           // Only restore a duration this user may actually run. A saved config
           // from a Pro session (or from before the tiers existed) would
           // otherwise prefill a locked value and get silently clamped anyway.
@@ -288,6 +292,7 @@ export default function PrePitchSetup() {
       );
       return;
     }
+    rememberSpeechLocale(data.speechLocale);
     setIsSubmitting(true);
     await new Promise(resolve => setTimeout(resolve, 800));
     navigate('/room', {
@@ -438,6 +443,20 @@ export default function PrePitchSetup() {
                     })}
                   </select>
                 </div>
+              </div>
+              <div className="space-y-1.5 col-span-1 md:col-span-3">
+                <label htmlFor="speechLocale" className="block text-xs font-bold text-slate-700 dark:text-zinc-300">
+                  Your accent <span className="font-normal text-slate-500 dark:text-zinc-400">(helps the AI understand you)</span>
+                </label>
+                <select
+                  id="speechLocale"
+                  {...register('speechLocale')}
+                  className="w-full sm:w-72 px-3 py-2 text-sm bg-slate-50 dark:bg-zinc-800 border rounded-xl dark:border-zinc-700 text-slate-700 dark:text-zinc-300 focus:outline-none focus:ring-2 focus:ring-sky-500/20"
+                >
+                  {SPEECH_LOCALE_OPTIONS.map((o) => (
+                    <option key={o.value} value={o.value}>{o.label}</option>
+                  ))}
+                </select>
               </div>
               <div className="space-y-1.5 col-span-1 md:col-span-3">
                 <div className="flex justify-between">
