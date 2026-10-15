@@ -62,7 +62,9 @@ export default function AppLayout() {
   const { logout, user } = useAuth();
   // From context, not the localStorage copy below — a cached user object would
   // keep showing the upsell to someone who just upgraded.
-  const isPaid = isPaidPlan(user?.plan);
+  // Trial users read plan "pro" but haven't paid — keep the Upgrade CTA visible
+  // for them so the upgrade path is there before the trial ends.
+  const isPaid = isPaidPlan(user?.plan) && !user?.isTrial;
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);

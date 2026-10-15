@@ -22,6 +22,9 @@ export interface User {
   settings?: Record<string, any>;
   /** Paywall tier. Drives UI affordances only — the server re-checks every gate. */
   plan?: UserPlan;
+  /** True while the free full-access trial is running (plan reads "pro" then). */
+  isTrial?: boolean;
+  trialDaysRemaining?: number;
 }
 
 function safeParse<T = any>(value: string | null): T | null {

@@ -74,7 +74,9 @@ export default function SettingsPage() {
   };
   const { info: billing, upgrade } = useBilling();
   const currentPlan = billing.plan; // server-authoritative: free | prep | pro
-  const isPaid = currentPlan === "pro" || currentPlan === "prep";
+  // A paid plan always carries an expiry; a trial reads "pro" with none.
+  const onTrial = billing.isTrial && !billing.expiresAt;
+  const isPaid = (currentPlan === "pro" || currentPlan === "prep") && !onTrial;
   // Purchase selector state (only meaningful for a non-paid user).
   const [selPlan, setSelPlan] = useState<"prep" | "pro">("pro");
   const [selTerm, setSelTerm] = useState<"monthly" | "annual">("monthly");
@@ -564,7 +566,7 @@ export default function SettingsPage() {
               <div className="relative z-10 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
                 <div>
                   <span className="text-[10px] font-bold uppercase tracking-widest text-white/70">Current Plan</span>
-                  <h3 className="text-xl font-bold mt-0.5 mb-0.5">{planLabel(currentPlan)}</h3>
+                  <h3 className="text-xl font-bold mt-0.5 mb-0.5">{planLabel(currentPlan, onTrial, billing.trialDaysRemaining)}</h3>
                   <p className="text-white/80 text-xs">
                     {currentPlan === 'pro'
                       ? 'Unlimited sessions, longer durations, full PDF reports'
@@ -587,7 +589,7 @@ export default function SettingsPage() {
               <div className="absolute -right-20 -top-20 w-56 h-56 bg-white/10 rounded-full blur-3xl pointer-events-none" />
             </div>
 
-            {currentPlan === 'pro' ? (
+            {currentPlan === 'pro' && !onTrial ? (
               <div className="p-4 border border-slate-200 dark:border-zinc-800 rounded-2xl bg-slate-50/50 dark:bg-zinc-800/30">
                 <p className="text-sm text-slate-600 dark:text-zinc-400 leading-relaxed">
                   You're on Pro: unlimited pitch sessions, longer pitch durations,
@@ -596,6 +598,12 @@ export default function SettingsPage() {
               </div>
             ) : (
               <div className="space-y-5">
+                {onTrial && (
+                  <p className="text-sm text-slate-600 dark:text-zinc-400">
+                    You have full Pro access during your free trial. When it ends you move to
+                    the Free plan (2 sessions per week, 10 minutes). Upgrade below to keep Pro.
+                  </p>
+                )}
                 {currentPlan === 'prep' && (
                   <p className="text-sm text-slate-600 dark:text-zinc-400">
                     You're on Prep. Renew below, or move up to Pro for unlimited

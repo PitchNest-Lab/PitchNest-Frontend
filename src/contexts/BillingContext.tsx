@@ -36,6 +36,9 @@ interface BillingInfo {
   plan: "free" | "prep" | "pro";
   /** ISO timestamp when the paid period ends, or null if it never expires. */
   expiresAt: string | null;
+  /** True while the free full-access trial is running (plan reads "pro" then). */
+  isTrial: boolean;
+  trialDaysRemaining: number | null;
   /** Whether a real checkout is even possible (FLW keys configured). */
   billingEnabled: boolean;
   /** Headline price (Pro monthly), for single-number surfaces. */
@@ -51,6 +54,8 @@ interface BillingInfo {
 const DEFAULT_INFO: BillingInfo = {
   plan: "free",
   expiresAt: null,
+  isTrial: false,
+  trialDaysRemaining: null,
   billingEnabled: false,
   price: null,
   catalog: [],
@@ -97,6 +102,9 @@ export const BillingProvider: React.FC<{ children: React.ReactNode }> = ({ child
       setInfo({
         plan: body.plan ?? "free",
         expiresAt: body.expiresAt ?? null,
+        isTrial: !!body.isTrial,
+        trialDaysRemaining:
+          typeof body.trialDaysRemaining === "number" ? body.trialDaysRemaining : null,
         billingEnabled: !!body.billingEnabled,
         price: body.price ?? null,
         catalog: Array.isArray(body.catalog) ? body.catalog : [],
