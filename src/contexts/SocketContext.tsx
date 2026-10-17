@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
+import { getAuthToken } from '../lib/authStorage';
 
 interface SocketContextType {
   socket: WebSocket | null;
@@ -37,25 +38,40 @@ export const SocketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     if (explicitWs) {
       WS_URL = explicitWs;
     } else if (isLocal) {
-      // In dev with Vite dev server (e.g. port 5174), route through the proxied /ws endpoint.
-      // If frontend is served directly by Express backend (e.g. port 3000), connect to host directly.
-      WS_URL = window.location.port === '3000'
-        ? `${protocol}//${window.location.host}`
-        : `${protocol}//${window.location.host}/ws`;
+      WS_URL = `${protocol}//${window.location.host}/ws`;
     } else if (onRender) {
-      WS_URL = `${protocol}//${window.location.host}`;
+      WS_URL = `${protocol}//${window.location.host}/ws`;
     } else {
-      WS_URL = 'wss://pitchnest-live.onrender.com';
+      WS_URL = 'wss://pitchnestv1.onrender.com/ws';
     }
 
-    // Append JWT for server-side authentication on the WS connection.
-    const token = localStorage.getItem('token');
-    if (token) {
-      const sep = WS_URL.includes('?') ? '&' : '?';
-      WS_URL += `${sep}token=${encodeURIComponent(token)}`;
+    // The backend accepts upgrades only on /ws. Preserve an explicitly
+    // configured custom path, but normalize bare origins to the protected path.
+    try {
+      const parsed = new URL(WS_URL);
+      const local = ['localhost', '127.0.0.1', '0.0.0.0'].includes(parsed.hostname);
+      if (
+        (parsed.protocol !== 'wss:' && !(local && parsed.protocol === 'ws:')) ||
+        parsed.username ||
+        parsed.password ||
+        parsed.search ||
+        parsed.hash
+      ) {
+        throw new Error('Unsafe WebSocket URL');
+      }
+      if (!parsed.pathname || parsed.pathname === '/') parsed.pathname = '/ws';
+      WS_URL = parsed.toString();
+    } catch {
+      console.error('Invalid VITE_WS_BACKEND_URL');
+      return;
     }
 
-    const ws = new WebSocket(WS_URL);
+    // Browser WebSockets cannot set Authorization. Offer the JWT as a protocol
+    // token so it never appears in the URL, proxy logs or browser history.
+    const token = getAuthToken();
+    if (!token) return;
+
+    const ws = new WebSocket(WS_URL, ['pitchnest-v1', `pitchnest-auth.${token}`]);
 
     ws.onopen = () => {
       console.log('✅ Connected to PitchNest Brain');

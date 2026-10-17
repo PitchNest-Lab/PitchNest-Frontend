@@ -4,11 +4,13 @@ import { AlertTriangle, Loader2, Trash2 } from 'lucide-react';
 import LegalLayout from '../../components/LegalLayout';
 import { useAuth } from '../../contexts/AuthContext';
 import { CONTACT_EMAIL, LEGAL_LAST_UPDATED } from '../../lib/legal';
+import { GoogleSignInButton } from '../../components/GoogleSignInButton';
 
 export default function DeleteAccount() {
   const { user, token, logout, authFetch } = useAuth();
   const navigate = useNavigate();
   const [password, setPassword] = useState('');
+  const [googleCredential, setGoogleCredential] = useState('');
   const [email, setEmail] = useState(user?.email || '');
   const [confirmed, setConfirmed] = useState(false);
   const [error, setError] = useState('');
@@ -23,8 +25,9 @@ export default function DeleteAccount() {
       setError('Please confirm that you understand this action is permanent.');
       return;
     }
-    if (!password) {
-      setError('Password is required to delete your account.');
+    const googleAccount = user?.authProvider === 'google';
+    if (googleAccount ? !googleCredential : (!password && !googleCredential)) {
+      setError(googleAccount ? 'Confirm your Google account first.' : 'Confirm your password or Google account.');
       return;
     }
 
@@ -35,7 +38,7 @@ export default function DeleteAccount() {
         res = await authFetch('/api/auth/account', {
           method: 'DELETE',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ password }),
+          body: JSON.stringify({ password, googleCredential }),
         });
       } else {
         if (!email) {
@@ -46,7 +49,7 @@ export default function DeleteAccount() {
         res = await fetch('/api/auth/delete-account', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ email, password }),
+          body: JSON.stringify({ email, password, googleCredential }),
         });
       }
 
@@ -68,8 +71,7 @@ export default function DeleteAccount() {
   return (
     <LegalLayout title="Delete Account" lastUpdated={LEGAL_LAST_UPDATED}>
       <p>
-        You can permanently delete your PitchNest account and associated personal data. This page satisfies Apple App
-        Store Guideline 5.1.1(v) and Google Play&apos;s account deletion requirements — it works in a web browser without
+        You can permanently delete your PitchNest account and associated personal data from a web browser without
         reinstalling the app.
       </p>
 
@@ -78,7 +80,8 @@ export default function DeleteAccount() {
         <li>Your account (name, email, password)</li>
         <li>Profile and onboarding data</li>
         <li>Pitch sessions, transcripts, and AI evaluation reports</li>
-        <li>Uploaded pitch decks and session video recordings stored for your account</li>
+        <li>Uploaded pitch decks and session audio recordings stored for your account</li>
+        <li>A business workspace and its published images when it has no other active member</li>
       </ul>
 
       <h2>What may be retained</h2>
@@ -86,16 +89,17 @@ export default function DeleteAccount() {
         <li>Minimal server logs for security and abuse prevention (short retention)</li>
         <li>Data we must keep for legal compliance, if applicable</li>
         <li>Waitlist email if you signed up before creating an account (contact us to remove)</li>
+        <li>Company profile content remains only when another active member shares that business; your membership and public team appearance are removed.</li>
       </ul>
       <p>
-        Deletion is typically completed within <strong>30 days</strong>. You will be signed out immediately after
-        confirmation.
+        Your active account data is removed after successful confirmation and you are signed out immediately. Encrypted
+        backups may retain copies until their normal rotation period ends.
       </p>
 
       <h2>Before you delete</h2>
       <p>
-        If you have an active paid subscription through Apple or Google, cancel it in your device&apos;s subscription
-        settings. Deleting your PitchNest account does not automatically cancel store billing.
+        Deleting your account ends access to any remaining paid period and does not create an automatic refund. Contact{' '}
+        <a href={`mailto:${CONTACT_EMAIL}`}>{CONTACT_EMAIL}</a> first if you need help with a recent Flutterwave payment.
       </p>
 
       {success ? (
@@ -138,9 +142,9 @@ export default function DeleteAccount() {
             </div>
           )}
 
-          <div>
+          {user?.authProvider !== 'google' && <div>
             <label className="block text-sm font-bold text-slate-700 dark:text-zinc-300 mb-1.5">
-              Password (required to confirm)
+              Password
             </label>
             <input
               type="password"
@@ -148,10 +152,32 @@ export default function DeleteAccount() {
               onChange={(e) => setPassword(e.target.value)}
               className="w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-sm"
               placeholder="Your account password"
-              required
+              required={!googleCredential}
               autoComplete="current-password"
             />
-          </div>
+          </div>}
+
+          {(user?.authProvider === 'google' || !token) && (
+            <div className="space-y-2">
+              <p className="text-sm font-bold text-slate-700 dark:text-zinc-300">
+                {googleCredential ? 'Google account confirmed' : 'Confirm with Google'}
+              </p>
+              {googleCredential ? (
+                <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">
+                  Identity confirmed. Submit below to permanently delete the account.
+                </div>
+              ) : (
+                <GoogleSignInButton
+                  text="signin_with"
+                  onCredential={(credential) => {
+                    setGoogleCredential(credential);
+                    setError('');
+                  }}
+                  onError={setError}
+                />
+              )}
+            </div>
+          )}
 
           <label className="flex items-start gap-3 cursor-pointer">
             <input
