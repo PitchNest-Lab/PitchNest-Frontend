@@ -10,8 +10,8 @@
   <meta name="description" content="PitchNest — Practice your startup pitch with an AI investor panel. Built for founders raising their next round." />
 
   <!-- ── Social sharing preview (Open Graph + Twitter Card) ──
-       NOTE: og:image / og:url MUST be absolute URLs. Update the domain below
-       if your production domain changes. -->
+       NOTE: og:image / og:url MUST be absolute URLs (crawlers don't run JS).
+       Update the domain below if the production domain changes. -->
   <meta property="og:type" content="website" />
   <meta property="og:site_name" content="PitchNest" />
   <meta property="og:title" content="PitchNest — AI Investor Pitch Practice" />
@@ -44,15 +44,7 @@
 <body>
   <div id="root"></div>
   <script type="module" src="/src/main.tsx"></script>
-  <script>
-    if ('serviceWorker' in navigator) {
-      window.addEventListener('load', () => {
-        navigator.serviceWorker.register('/sw.js')
-          .then((reg) => console.log('🟢 Service Worker registered successfully:', reg.scope))
-          .catch((err) => console.error('🔴 Service Worker registration failed:', err));
-      });
-    }
-  </script>
+  <script src="/register-sw.js" defer></script>
 </body>
 
 </html>

@@ -16,16 +16,19 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { cn } from "../lib/utils";
 import { useAuth } from "../contexts/AuthContext";
+import { clearAuthSession } from "../lib/authStorage";
 import { GoogleSignInButton } from "../components/GoogleSignInButton";
+import Cookies from "js-cookie";
 
 const signupSchema = z
   .object({
     name: z.string().min(2, "Name must be at least 2 characters"),
     email: z.string().email("Invalid email address"),
-    password: z.string().min(6, "Password must be at least 6 characters"),
+    password: z.string().min(10, "Password must be at least 10 characters").max(72),
     confirmPassword: z
       .string()
-      .min(6, "Confirm password must be at least 6 characters"),
+      .min(10, "Confirm password must be at least 10 characters")
+      .max(72),
     role: z.enum(["Founder", "Investor", "Advisor"]),
   })
   .refine((data) => data.password === data.confirmPassword, {
@@ -38,19 +41,19 @@ type SignupFormValues = z.infer<typeof signupSchema>;
 const SLIDES = [
   {
     image:
-      "https://images.unsplash.com/photo-1542744173-8e7e53415bb0?auto=format&fit=crop&w=800&q=80",
+      "/assets/heroImage.jpeg",
     title: "The AI Pitch Deck Evolution",
     desc: "Join 500+ founders using PitchNest to refine their narratives with real-time AI feedback.",
   },
   {
     image:
-      "https://images.unsplash.com/photo-1542744173-8e7e53415bb0?auto=format&fit=crop&w=800&q=80",
+      "/assets/heroImage.jpeg",
     title: "Nail Your Delivery",
     desc: "Practice with multimodal AI investors that simulate high-pressure venture capital environments.",
   },
   {
     image:
-      "https://images.unsplash.com/photo-1517245386807-bb43f82c33c4?auto=format&fit=crop&w=800&q=80",
+      "/assets/heroImage.jpeg",
     title: "Actionable Insights",
     desc: "Get deep analytics on your pacing, clarity, and scalability after every single session.",
   },
@@ -98,7 +101,6 @@ function EmailNotVerifiedPopup({
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
       className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm"
-
     >
       <motion.div
         initial={{ opacity: 0, scale: 0.95, y: 12 }}
@@ -188,6 +190,22 @@ export default function SignupPage() {
   const { signup, loginWithGoogle } = useAuth();
   const navigate = useNavigate();
 
+  const params = new URLSearchParams(window.location.search);
+
+  const referralCode = params.get("referralCode");
+  const organizationInvite =
+    (referralCode && /^\d{1,18}$/.test(referralCode) ? referralCode : "") ||
+    (Cookies.get("code")?.match(/^\d{1,18}$/)?.[0] ?? "");
+
+  useEffect(() => {
+    if (!referralCode || !/^\d{1,18}$/.test(referralCode)) return;
+    Cookies.set("code", referralCode, {
+      sameSite: "lax",
+      secure: window.location.protocol === "https:",
+      expires: 7,
+    });
+  }, [referralCode]);
+
   useEffect(() => {
     const timer = setInterval(
       () => setCurrentSlide((prev) => (prev + 1) % SLIDES.length),
@@ -210,8 +228,7 @@ export default function SignupPage() {
     setServerError("");
     try {
       // Clear only auth-related keys — preserve tour flags (pn_tour_*)
-      localStorage.removeItem("user");
-      localStorage.removeItem("token");
+      clearAuthSession();
       localStorage.removeItem("pitchnest_onboarding_complete");
       localStorage.removeItem("pitchnest_startup_name");
       localStorage.removeItem("pitchnest_funding_stage");
@@ -225,7 +242,6 @@ export default function SignupPage() {
       sessionStorage.setItem("verifyEmail", data.email);
       navigate("/verify", { state: { email: data.email } });
     } catch (error: any) {
-      console.log(error.message);
       // Already registered but email not verified → show popup
       if (error.message?.toLowerCase().includes("not verified")) {
         setUnverifiedEmail(data.email);
@@ -262,7 +278,9 @@ export default function SignupPage() {
             className="fixed inset-0 z-60 flex flex-col items-center justify-center bg-white/80 dark:bg-zinc-950/80 backdrop-blur-sm"
           >
             <div className="w-12 h-12 border-4 border-sky-500 border-t-transparent rounded-full animate-spin" />
-            <p className="mt-4 text-sm font-semibold text-slate-600 dark:text-zinc-400">Signing up with Google…</p>
+            <p className="mt-4 text-sm font-semibold text-slate-600 dark:text-zinc-400">
+              Signing up with Google…
+            </p>
           </motion.div>
         )}
       </AnimatePresence>
@@ -292,6 +310,14 @@ export default function SignupPage() {
             </h2>
 
             <form className="space-y-4" onSubmit={handleSubmit(onSubmit)}>
+              {organizationInvite && (
+                <div className="rounded-xl border border-sky-200 bg-sky-50 px-4 py-3 text-xs leading-relaxed text-sky-900 dark:border-sky-900/60 dark:bg-sky-950/30 dark:text-sky-200">
+                  You are joining an organization workspace. After you verify your email,
+                  that organization can see your membership and the scores, progress, and
+                  feedback from pitch sessions you run while enrolled. Transcripts, decks,
+                  and recordings are not included in its dashboard.
+                </div>
+              )}
               {serverError && (
                 <div className="p-3.5 bg-rose-50 dark:bg-rose-950/30 border border-rose-200 dark:border-rose-900/50 text-rose-600 dark:text-rose-400 rounded-xl text-sm font-semibold flex items-center justify-between gap-3">
                   <span>{serverError}</span>
@@ -472,8 +498,7 @@ export default function SignupPage() {
                 setGoogleLoading(true);
                 try {
                   // Clear only auth-related keys — preserve tour flags
-                  localStorage.removeItem("user");
-                  localStorage.removeItem("token");
+                  clearAuthSession();
                   localStorage.removeItem("pitchnest_onboarding_complete");
                   localStorage.removeItem("pitchnest_startup_name");
                   localStorage.removeItem("pitchnest_funding_stage");
