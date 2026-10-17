@@ -1,9 +1,12 @@
-/** Canonical backend origin for hosted API calls and server-served media. */
+/**
+ * Backend origin for API calls and server-served media. Empty (the default)
+ * means the frontend's own origin: Vercel forwards /api to the API (see
+ * vercel.json), so requests stay same-origin. Set VITE_API_URL only when the
+ * API has to be called on another origin.
+ */
 function resolveApiOrigin(): string {
-  const raw = (
-    (import.meta.env.VITE_API_URL as string | undefined) ||
-    "https://pitchnestv1.onrender.com"
-  ).trim();
+  const raw = ((import.meta.env.VITE_API_URL as string | undefined) || "").trim();
+  if (!raw) return "";
   let url: URL;
   try {
     url = new URL(raw);

@@ -32,6 +32,5 @@ Disallow: /staff/
 # /pitches is now Pitch Arena: founder-published text pitches, public on purpose.
 # Private practice archives live at /archive and stay behind login.
 
-# No Sitemap line yet: the backend serves /sitemap.xml, but the Cloudflare
-# frontend does not forward that path to it, so the URL would return the app
-# shell instead of a sitemap.
+# The backend generates the sitemap; vercel.json forwards /sitemap.xml to it.
+Sitemap: https://www.pitchnest.app/sitemap.xml

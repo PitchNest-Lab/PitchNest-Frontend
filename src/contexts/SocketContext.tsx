@@ -42,7 +42,8 @@ export const SocketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     } else if (onRender) {
       WS_URL = `${protocol}//${window.location.host}/ws`;
     } else {
-      WS_URL = 'wss://pitchnestv1.onrender.com/ws';
+      // Live pitch sockets run on Render; the REST API is on AWS behind Vercel.
+      WS_URL = 'wss://pitchnest-live.onrender.com/ws';
     }
 
     // The backend accepts upgrades only on /ws. Preserve an explicitly
