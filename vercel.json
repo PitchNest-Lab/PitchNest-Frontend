@@ -36,6 +36,10 @@
       "destination": "https://mkrkiditq5.execute-api.eu-west-2.amazonaws.com/api/:path*"
     },
     {
+      "source": "/sitemap.xml",
+      "destination": "https://mkrkiditq5.execute-api.eu-west-2.amazonaws.com/sitemap.xml"
+    },
+    {
       "source": "/(.*)",
       "destination": "/index.html"
     }

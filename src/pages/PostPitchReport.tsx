@@ -12,7 +12,7 @@ import { getSessionMode, MODE_LABELS, MODE_BADGE_CLASSES, verdictLabel, SENTIMEN
 import { buildRepitchState } from '../lib/repitch';
 import { downloadPdf, PdfDownloadError } from '../lib/downloadFile';
 import { useUpgrade } from '../components/ui/UpgradeModal';
-import { planCanPdf, planCanResearch, isPaidPlan } from '../lib/entitlements';
+import { planCanPdf, planCanResearch } from '../lib/entitlements';
 
 export default function PostPitchReport() {
   const [searchParams] = useSearchParams();
@@ -28,7 +28,6 @@ export default function PostPitchReport() {
   const isTrial = user?.isTrial ?? false;
   const canPdf = planCanPdf(user?.plan, isTrial);
   const canResearch = planCanResearch(user?.plan, isTrial);
-  const isPaid = isPaidPlan(user?.plan, isTrial);
   const location = useLocation();
   const navigate = useNavigate();
   const [session, setSession] = useState<any>(() => location.state?.session || null);
@@ -78,7 +77,13 @@ export default function PostPitchReport() {
           const data = await res.json();
           // If we fetched the array of sessions because no ID was in query params, take the latest one
           if (Array.isArray(data)) {
-            setSession(data[0] || null);
+            const latest = data[0];
+            if (!latest?.id) {
+              setSession(null);
+            } else {
+              const detail = await authFetch(`/api/sessions/${latest.id}`);
+              setSession(detail.ok ? await detail.json() : null);
+            }
           } else {
             setSession(data);
           }
@@ -146,9 +151,74 @@ export default function PostPitchReport() {
   const nextSteps = Array.isArray(report.next_steps) ? report.next_steps : [];
   const sentiments = Array.isArray(report.sentiments) ? report.sentiments : [];
 
-  const dynamicQuestionsAsked = isInsufficientData ? 0 : Math.max(1, risks.length + nextSteps.length + 2);
-  const dynamicConfidenceScore = isInsufficientData ? 0 : Math.min(100, scores.readiness);
-  const dynamicTrend = isInsufficientData ? "N/A" : (scores.delivery >= 70 ? `+${(scores.delivery * 0.15).toFixed(0)}%` : `-${((100 - scores.delivery) / 10).toFixed(0)}%`);
+  // ── Engagement figures ────────────────────────────────────────────────
+  // Every number in the AI Engagement card is counted from the stored
+  // transcript or read from the stored report. None of it is modelled, scaled,
+  // or inferred. This card previously showed `risks.length + nextSteps.length + 2`
+  // as "Questions Asked", `scores.readiness` relabelled as "Confidence Score",
+  // and `delivery * 0.15` presented as a "Sentiment Trend" — three pieces of
+  // arithmetic on unrelated fields, wearing the names of measurements.
+  const transcript = Array.isArray(report.transcript) ? report.transcript : [];
+
+  // The live-turn prompt allows AT MOST ONE question per panel turn
+  // (OUTPUT_RULES in aiService), so a panel turn containing "?" is exactly one
+  // question asked — this counts questions, not question marks.
+  const questionsAsked = isInsufficientData
+    ? 0
+    : transcript.filter(
+        (m: any) =>
+          m && m.type !== "user" && /\?/.test(String(m.fullText || m.text || "")),
+      ).length;
+
+  // Mean of the model-scored topics, computed and rounded server-side. Real, and
+  // until now it was rendered only inside the PDF.
+  const topicsCovered =
+    typeof report.topic_coverage_overall === "number"
+      ? Math.round(report.topic_coverage_overall)
+      : null;
+
+  // How the founder's confidence moved across the session: last point minus
+  // first, from the timeline the evaluation already produces and the PDF already
+  // charts. Absent on older reports, which is why it is nullable rather than 0.
+  const confidencePoints = Array.isArray(report.confidence_timeline)
+    ? report.confidence_timeline.filter(
+        (p: any) => p && typeof p.value === "number",
+      )
+    : [];
+  const confidenceTrend =
+    !isInsufficientData && confidencePoints.length >= 2
+      ? Math.round(
+          confidencePoints[confidencePoints.length - 1].value -
+            confidencePoints[0].value,
+        )
+      : null;
+
+  // Rows are assembled rather than hardcoded so a metric the session never
+  // produced is omitted, instead of appearing as a zero it did not earn.
+  const engagementRows: {
+    label: string;
+    value: string;
+    tone?: "up" | "down" | "flat";
+  }[] = [];
+  if (!isInsufficientData) {
+    engagementRows.push({ label: "Panel questions", value: String(questionsAsked) });
+    if (topicsCovered !== null) {
+      engagementRows.push({ label: "Topics covered", value: `${topicsCovered}%` });
+    }
+    if (confidenceTrend !== null) {
+      engagementRows.push({
+        label: "Confidence over the session",
+        value:
+          confidenceTrend > 0
+            ? `+${confidenceTrend}`
+            : confidenceTrend < 0
+              ? `${confidenceTrend}`
+              : "Held steady",
+        tone:
+          confidenceTrend > 0 ? "up" : confidenceTrend < 0 ? "down" : "flat",
+      });
+    }
+  }
 
   const RADAR_DATA = [
     { subject: 'MARKET FIT', A: scores.scalability, fullMark: 100 },
@@ -166,8 +236,8 @@ export default function PostPitchReport() {
 
   return (
     <div className="max-w-7xl mx-auto pb-20 font-sans text-slate-900 dark:text-zinc-100">
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
-        <div>
+      <div className="flex flex-col xl:flex-row justify-between items-start xl:items-center mb-8 gap-4">
+        <div className="min-w-0">
           <div className="flex items-center gap-2 text-sky-500 font-bold text-[10px] uppercase tracking-widest mb-2">
             <Activity size={14} /> Post-Pitch Report
           </div>
@@ -184,11 +254,13 @@ export default function PostPitchReport() {
             </span>
           </div>
         </div>
-        <div className="flex flex-col md:flex-row md:flex-wrap md:justify-end gap-3 w-full md:w-auto">
+        {/* One straight row from sm up: below xl it sits under the title at
+            full width; at xl it moves beside the title. Never wraps. */}
+        <div className="flex flex-col sm:flex-row gap-3 w-full xl:w-auto shrink-0">
           <button
             onClick={handleDownloadPDF}
             disabled={isDownloading}
-            className="w-full md:w-auto md:flex-none justify-center px-4 md:px-6 py-2.5 bg-sky-500 text-white font-bold rounded-xl hover:bg-sky-600 transition-all flex items-center gap-2 text-sm shadow-md disabled:opacity-50 disabled:cursor-not-allowed"
+            className="w-full sm:w-auto sm:flex-auto xl:flex-none justify-center whitespace-nowrap px-4 md:px-6 py-2.5 bg-sky-500 text-white font-bold rounded-xl hover:bg-sky-600 transition-all flex items-center gap-2 text-sm shadow-md disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {canPdf
               ? <>{isDownloading ? <Loader2 size={16} className="animate-spin" /> : <FileDown size={16} />} {isDownloading ? "Generating..." : "Download Detailed Report"}</>
@@ -196,11 +268,11 @@ export default function PostPitchReport() {
           </button>
           <button
             onClick={() => navigate('/setup', { state: { repitch: buildRepitchState(session) } })}
-            className="w-full md:w-auto md:flex-none justify-center px-4 md:px-6 py-2.5 bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 font-bold rounded-xl hover:bg-slate-50 dark:hover:bg-zinc-700 transition-all flex items-center gap-2 text-sm shadow-sm"
+            className="w-full sm:w-auto sm:flex-auto xl:flex-none justify-center whitespace-nowrap px-4 md:px-6 py-2.5 bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 font-bold rounded-xl hover:bg-slate-50 dark:hover:bg-zinc-700 transition-all flex items-center gap-2 text-sm shadow-sm"
           >
             <RotateCcw size={16} /> Pitch Again
           </button>
-          <Link to="/setup" className="w-full md:w-auto md:flex-none justify-center px-4 md:px-6 py-2.5 bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 font-bold rounded-xl hover:bg-slate-50 transition-all flex items-center gap-2 text-sm shadow-sm">
+          <Link to="/setup" className="w-full sm:w-auto sm:flex-auto xl:flex-none justify-center whitespace-nowrap px-4 md:px-6 py-2.5 bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 font-bold rounded-xl hover:bg-slate-50 transition-all flex items-center gap-2 text-sm shadow-sm">
             <Calendar size={16} /> Start New Session
           </Link>
         </div>
@@ -406,8 +478,9 @@ export default function PostPitchReport() {
                     Your action plan is ready
                   </h3>
                   <p className="mb-5 text-sm leading-relaxed text-slate-500 dark:text-zinc-400">
-                    Upgrade to Pro to see how you read the room, your prioritised next
-                    steps, and to download the full PDF report.
+                    {canPdf
+                      ? "Upgrade to Pro to see how you read the room and your prioritised next steps."
+                      : "Upgrade to Pro to see how you read the room, your prioritised next steps, and to download the full PDF report."}
                   </p>
                   <button
                     type="button"
@@ -425,10 +498,10 @@ export default function PostPitchReport() {
         <div className="space-y-6">
           <div className="bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 rounded-3xl p-6 shadow-sm">
             <h3 className="text-sm font-extrabold flex items-center gap-2 mb-4"><Play className="text-slate-900 dark:text-white" size={16} /> Pitch Replay</h3>
-            {/* Video replay is disabled for now — clean placeholder, no fake player. */}
+            {/* Pitch recordings are audio-only; replay lives on the dedicated screen. */}
             <div className="aspect-video bg-slate-900 rounded-xl overflow-hidden relative mb-4 flex flex-col items-center justify-center gap-2 text-center px-4">
               <Play size={22} className="text-white/30" />
-              <span className="text-white/80 text-xs font-bold">Video replay coming soon</span>
+              <span className="text-white/80 text-xs font-bold">Audio replay is available from My Pitches</span>
             </div>
             {/* MVP: replay coming soon — restore Link to /replay when re-enabled */}
             <div className="w-full py-3 bg-slate-50 dark:bg-zinc-800/50 text-slate-400 dark:text-zinc-500 font-bold rounded-xl text-xs flex items-center justify-center gap-2 border border-slate-100 dark:border-zinc-800 select-none cursor-default">
@@ -438,41 +511,70 @@ export default function PostPitchReport() {
 
           <div className="bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 rounded-3xl p-6 shadow-sm">
             <h3 className="text-sm font-extrabold flex items-center gap-2 mb-6"><Zap className="text-slate-900 dark:text-white" size={16} /> AI Engagement</h3>
-            <div className="space-y-4">
-              <div className="flex justify-between items-center border-b border-slate-100 dark:border-zinc-800 pb-4">
-                <span className="text-sm text-slate-600 dark:text-zinc-400">Questions Asked</span>
-                <span className="text-sm font-extrabold">{dynamicQuestionsAsked}</span>
+            {engagementRows.length === 0 ? (
+              <p className="text-sm text-slate-500 dark:text-zinc-400">
+                Not enough was said this session to measure engagement. Run a fuller pitch and these figures will appear.
+              </p>
+            ) : (
+              <div className="space-y-4">
+                {engagementRows.map((row, i) => (
+                  <div
+                    key={row.label}
+                    className={cn(
+                      "flex justify-between items-center gap-4",
+                      i < engagementRows.length - 1 && "border-b border-slate-100 dark:border-zinc-800 pb-4",
+                    )}
+                  >
+                    <span className="text-sm text-slate-600 dark:text-zinc-400">{row.label}</span>
+                    <span className={cn(
+                      "text-sm font-extrabold shrink-0",
+                      row.tone === "up" ? "text-emerald-500"
+                        : row.tone === "down" ? "text-rose-500"
+                        : row.tone === "flat" ? "text-slate-500 dark:text-zinc-400"
+                        : "text-sky-500",
+                    )}>
+                      {row.value}
+                    </span>
+                  </div>
+                ))}
               </div>
-              <div className="flex justify-between items-center border-b border-slate-100 dark:border-zinc-800 pb-4">
-                <span className="text-sm text-slate-600 dark:text-zinc-400">Confidence Score</span>
-                <span className="text-sm font-extrabold text-sky-500">{dynamicConfidenceScore}%</span>
-              </div>
-              <div className="flex justify-between items-center pb-2">
-                <span className="text-sm text-slate-600 dark:text-zinc-400">Sentiment Trend</span>
-                <span className={cn("text-sm font-extrabold", dynamicTrend.startsWith('+') ? "text-emerald-500" : dynamicTrend === "N/A" ? "text-slate-500" : "text-rose-500")}>{dynamicTrend}</span>
-              </div>
-            </div>
+            )}
           </div>
 
-          <div className={cn("bg-linear-to-br rounded-3xl p-6 text-white shadow-lg relative overflow-hidden", isInsufficientData ? "from-slate-500 to-slate-700" : "from-indigo-500 to-sky-500")}>
-            <div className="relative z-10">
-              <div className="w-10 h-10 bg-white/20 backdrop-blur rounded-full flex items-center justify-center mb-4 absolute right-0 top-0">
-                <Star size={20} fill="currentColor" />
+          {/* Pro upsell — shown only to someone who would actually gain from it.
+              A Pro or trial user already holds these capabilities, so prompting
+              them would be selling what they have.
+              The old copy promised "PitchNest Prime" and "direct intros to
+              tier-1 VCs", neither of which exists anywhere in the product, and
+              told free users to "complete a full 15-minute pitch" when a free
+              session is capped at 10. */}
+          {!canResearch && (
+            <div className={cn("bg-linear-to-br rounded-3xl p-6 text-white shadow-lg relative overflow-hidden", isInsufficientData ? "from-slate-500 to-slate-700" : "from-indigo-500 to-sky-500")}>
+              <div className="relative z-10">
+                <div className="w-10 h-10 bg-white/20 backdrop-blur rounded-full flex items-center justify-center mb-4 absolute right-0 top-0">
+                  <Star size={20} fill="currentColor" />
+                </div>
+                <h3 className="text-lg font-extrabold mb-2 pr-10">
+                  {isInsufficientData ? "Keep practicing" : canPdf ? "Go deeper with Pro" : "Sharpen this before the real room"}
+                </h3>
+                <p className="text-xs text-white/90 leading-relaxed mb-6">
+                  {isInsufficientData
+                    ? "Nothing is scored from a session this short. Pitch for longer and the panel writes you a full report."
+                    : canPdf
+                      ? "You already have the PDF report. Pro adds live market research in the panel and sessions up to 40 minutes."
+                      : "Pro removes the two-a-week limit, stretches sessions to 40 minutes and adds live market research to the panel."}
+                </p>
+                <button
+                  onClick={() => showUpgrade(canPdf ? 'generic' : 'pdf')}
+                  disabled={isInsufficientData}
+                  className="w-full py-3 bg-white text-indigo-600 font-bold rounded-xl text-sm hover:bg-slate-50 transition-colors shadow-md disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {canPdf ? "See what Pro adds" : "Upgrade to Pro"}
+                </button>
               </div>
-              <h3 className="text-lg font-extrabold mb-2 pr-10">{isInsufficientData ? "Keep Practicing" : "Ready for Series A?"}</h3>
-              <p className="text-xs text-white/90 leading-relaxed mb-6">
-                {isInsufficientData ? "Complete a full 15-minute pitch to unlock premium VC insights." : "Your scores qualify you for PitchNest Prime. Get direct intros to tier-1 VCs."}
-              </p>
-              <button
-                onClick={() => showUpgrade(isPaid ? 'generic' : 'pdf')}
-                disabled={isInsufficientData}
-                className="w-full py-3 bg-white text-indigo-600 font-bold rounded-xl text-sm hover:bg-slate-50 transition-colors shadow-md disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                Unlock Premium Insights
-              </button>
+              <div className="absolute -bottom-10 -right-10 w-32 h-32 bg-white/10 rounded-full blur-2xl" />
             </div>
-            <div className="absolute -bottom-10 -right-10 w-32 h-32 bg-white/10 rounded-full blur-2xl" />
-          </div>
+          )}
         </div>
       </div>
 
