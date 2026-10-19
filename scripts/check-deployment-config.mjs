@@ -34,6 +34,10 @@ for (const required of [
   "wss://pitchnest-live.onrender.com",
   "https://accounts.google.com",
   "https://oyztdulmyuklorbudcgb.supabase.co",
+  // DEV: the dev branch builds against the DEV API, live-pitch server and database.
+  "https://l5isutzx18.execute-api.eu-west-2.amazonaws.com",
+  "wss://pitchnest-backend-dev.onrender.com",
+  "https://ueqwulsbbcvnduhepimh.supabase.co",
 ]) {
   assert(csp.includes(required), `Content-Security-Policy is missing: ${required}`);
 }
