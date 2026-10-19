@@ -18,13 +18,15 @@ export interface CatalogItem {
   amount: number;
   currency: string;
   days: number;
+  /** Server-side checkout allow-list; displaying a price does not imply sale. */
+  purchasable: boolean;
 }
 
 export interface PublicPrice {
   amount: number | null;
   currency: string | null;
   days: number | null;
-  /** Every purchasable (plan, term) SKU, from the server. Drives per-tier price display. */
+  /** Every configured (plan, term) SKU; each carries its checkout availability. */
   catalog: CatalogItem[];
   billingEnabled: boolean;
   /** Free months a first subscription gets; 0 when there is no offer. */
@@ -56,7 +58,12 @@ export function usePublicPrice(): PublicPrice {
           amount: body?.price?.amount ?? null,
           currency: body?.price?.currency ?? null,
           days: body?.price?.days ?? null,
-          catalog: Array.isArray(body?.catalog) ? body.catalog : [],
+          catalog: Array.isArray(body?.catalog)
+            ? body.catalog.map((item: any) => ({
+                ...item,
+                purchasable: item?.purchasable === true,
+              }))
+            : [],
           billingEnabled: !!body?.billingEnabled,
           freeMonths: Number.isInteger(body?.offer?.freeMonths) && body.offer.freeMonths > 0 ? body.offer.freeMonths : 0,
           loaded: true,

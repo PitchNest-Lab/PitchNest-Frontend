@@ -301,15 +301,20 @@ export default function LoginPage() {
 
             <form className="space-y-4" onSubmit={handleSubmit(onSubmit)}>
               {serverError && (
-                <div className="p-4 bg-rose-50 border border-rose-200 text-rose-600 rounded-lg text-sm font-bold">
+                <div id="login-server-error" role="alert" className="p-4 bg-rose-50 border border-rose-200 text-rose-600 rounded-lg text-sm font-bold">
                   {serverError}
                 </div>
               )}
 
               <div className="space-y-1.5">
+                <label htmlFor="login-email" className="sr-only">Email address</label>
                 <input
                   {...register("email")}
+                  id="login-email"
                   type="email"
+                  autoComplete="email"
+                  aria-invalid={Boolean(errors.email)}
+                  aria-describedby={errors.email ? "login-email-error" : serverError ? "login-server-error" : undefined}
                   placeholder="Email"
                   className={cn(
                     "w-full px-4 py-3.5 bg-white dark:bg-zinc-900 border rounded-lg focus:outline-none focus:ring-2 transition-all dark:text-zinc-100 placeholder:text-slate-500 dark:placeholder:text-zinc-500",
@@ -319,17 +324,22 @@ export default function LoginPage() {
                   )}
                 />
                 {errors.email && (
-                  <p className="text-xs font-bold text-rose-500">
+                  <p id="login-email-error" role="alert" className="text-xs font-bold text-rose-500">
                     {errors.email.message}
                   </p>
                 )}
               </div>
 
               <div className="space-y-1.5">
+                <label htmlFor="login-password" className="sr-only">Password</label>
                 <div className="relative">
                   <input
                     {...register("password")}
+                    id="login-password"
                     type={showPassword ? "text" : "password"}
+                    autoComplete="current-password"
+                    aria-invalid={Boolean(errors.password)}
+                    aria-describedby={errors.password ? "login-password-error" : serverError ? "login-server-error" : undefined}
                     placeholder="Password"
                     className={cn(
                       "w-full pl-4 pr-12 py-3.5 bg-white dark:bg-zinc-900 border rounded-lg focus:outline-none focus:ring-2 transition-all dark:text-zinc-100 placeholder:text-slate-500 dark:placeholder:text-zinc-500",
@@ -341,13 +351,15 @@ export default function LoginPage() {
                   <button
                     type="button"
                     onClick={() => setShowPassword(!showPassword)}
+                    aria-label={showPassword ? "Hide password" : "Show password"}
+                    aria-pressed={showPassword}
                     className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors outline-none"
                   >
                     {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
                   </button>
                 </div>
                 {errors.password && (
-                  <p className="text-xs font-bold text-rose-500">
+                  <p id="login-password-error" role="alert" className="text-xs font-bold text-rose-500">
                     {errors.password.message}
                   </p>
                 )}
@@ -374,10 +386,11 @@ export default function LoginPage() {
               <button
                 type="submit"
                 disabled={isSubmitting}
+                aria-label={isSubmitting ? "Signing in" : "Sign in"}
                 className="w-full py-3.5 rounded-full bg-sky-600 hover:bg-sky-700 text-white text-base font-semibold flex items-center justify-center transition-colors disabled:opacity-50"
               >
                 {isSubmitting ? (
-                  <Loader2 className="animate-spin" size={18} />
+                  <><Loader2 className="animate-spin" size={18} aria-hidden="true" /><span className="sr-only">Signing in</span></>
                 ) : (
                   "Sign in"
                 )}
@@ -445,7 +458,8 @@ export default function LoginPage() {
                   <img
                     key={i}
                     src={slide.image}
-                    alt="Slide"
+                    alt={slide.title}
+                    aria-hidden={i !== currentSlide}
                     referrerPolicy="no-referrer"
                     className={cn(
                       "absolute inset-0 w-full h-full object-cover transition-opacity duration-1000",
@@ -468,6 +482,8 @@ export default function LoginPage() {
                     key={i}
                     type="button"
                     onClick={() => setCurrentSlide(i)}
+                    aria-label={`Show feature ${i + 1}: ${SLIDES[i].title}`}
+                    aria-current={i === currentSlide ? "true" : undefined}
                     className={cn(
                       "h-2 rounded-full transition-all outline-none",
                       i === currentSlide

@@ -292,6 +292,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       void fetch("/api/auth/logout", {
         method: "POST",
         headers: { Authorization: `Bearer ${currentToken}` },
+        // Let the auth-version revocation reach the server even if logout is
+        // followed immediately by navigation or the tab closing.
+        keepalive: true,
       }).catch(() => undefined);
     }
     setUser(null);

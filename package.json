@@ -11,7 +11,8 @@
     "build": "vite build",
     "preview": "vite preview",
     "typecheck": "tsc --noEmit",
-    "lint": "tsc --noEmit"
+    "lint": "tsc --noEmit",
+    "test:deployment": "node scripts/check-deployment-config.mjs"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.2.2",

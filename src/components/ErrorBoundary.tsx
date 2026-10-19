@@ -31,7 +31,7 @@ export class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoun
 
   handleGoBack = () => {
     this.setState({ hasError: false, error: null });
-    window.location.href = '/dashboard';
+    window.location.href = '/';
   };
 
   handleRetry = () => {
@@ -51,11 +51,11 @@ export class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoun
               Something went wrong
             </h1>
             <p className="text-slate-500 dark:text-zinc-400 mb-8 leading-relaxed">
-              An unexpected error occurred. Don't worry — your data is safe. 
-              You can try again or go back to the dashboard.
+              An unexpected error occurred. You can try this screen again or
+              return to the home page.
             </p>
 
-            {this.state.error && (
+            {import.meta.env.DEV && this.state.error && (
               <div className="mb-6 p-4 bg-slate-100 dark:bg-zinc-900 rounded-xl text-left">
                 <p className="text-xs font-mono text-slate-500 dark:text-zinc-500 break-all">
                   {this.state.error.message}
@@ -74,7 +74,7 @@ export class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoun
                 onClick={this.handleGoBack}
                 className="px-6 py-3 bg-sky-500 text-white font-bold rounded-xl hover:bg-sky-600 transition-colors"
               >
-                Go to Dashboard
+                Return home
               </button>
             </div>
           </div>

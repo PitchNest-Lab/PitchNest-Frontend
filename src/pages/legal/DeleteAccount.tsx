@@ -117,7 +117,7 @@ export default function DeleteAccount() {
           </div>
 
           {error && (
-            <div className="p-3 rounded-xl bg-rose-50 dark:bg-rose-900/20 border border-rose-200 text-rose-700 dark:text-rose-300 text-sm font-medium">
+            <div id="delete-account-error" role="alert" className="p-3 rounded-xl bg-rose-50 dark:bg-rose-900/20 border border-rose-200 text-rose-700 dark:text-rose-300 text-sm font-medium">
               {error}
             </div>
           )}
@@ -128,25 +128,29 @@ export default function DeleteAccount() {
             </p>
           ) : (
             <div>
-              <label className="block text-sm font-bold text-slate-700 dark:text-zinc-300 mb-1.5">
+              <label htmlFor="delete-account-email" className="block text-sm font-bold text-slate-700 dark:text-zinc-300 mb-1.5">
                 Email address
               </label>
               <input
+                id="delete-account-email"
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 className="w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-sm"
                 placeholder="you@startup.com"
+                autoComplete="email"
+                aria-describedby={error ? 'delete-account-error' : undefined}
                 required
               />
             </div>
           )}
 
           {user?.authProvider !== 'google' && <div>
-            <label className="block text-sm font-bold text-slate-700 dark:text-zinc-300 mb-1.5">
+            <label htmlFor="delete-account-password" className="block text-sm font-bold text-slate-700 dark:text-zinc-300 mb-1.5">
               Password
             </label>
             <input
+              id="delete-account-password"
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
@@ -154,6 +158,7 @@ export default function DeleteAccount() {
               placeholder="Your account password"
               required={!googleCredential}
               autoComplete="current-password"
+              aria-describedby={error ? 'delete-account-error' : undefined}
             />
           </div>}
 
@@ -194,10 +199,11 @@ export default function DeleteAccount() {
           <button
             type="submit"
             disabled={isSubmitting}
+            aria-label={isSubmitting ? 'Deleting account' : 'Delete my account permanently'}
             className="w-full py-3.5 bg-rose-600 hover:bg-rose-700 disabled:opacity-50 text-white font-bold rounded-xl flex items-center justify-center gap-2 transition-colors"
           >
             {isSubmitting ? (
-              <Loader2 className="animate-spin" size={18} />
+              <><Loader2 className="animate-spin" size={18} aria-hidden="true" /><span className="sr-only">Deleting account</span></>
             ) : (
               <>
                 <Trash2 size={18} /> Delete my account

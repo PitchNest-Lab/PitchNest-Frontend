@@ -53,24 +53,29 @@ export default function ResetPassword() {
           </div>
         </div>
         {status === 'success' ? (
-          <div className="p-4 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-xl text-sm text-green-700 dark:text-green-400">
+          <div role="status" className="p-4 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-xl text-sm text-green-700 dark:text-green-400">
             Password updated! Redirecting to login...
           </div>
         ) : (
           <form onSubmit={handleSubmit} className="space-y-4">
+            <label htmlFor="new-password" className="sr-only">New password</label>
             <div className="relative">
-              <input type={show ? 'text' : 'password'} value={password} onChange={e => setPassword(e.target.value)}
+              <input id="new-password" type={show ? 'text' : 'password'} value={password} onChange={e => setPassword(e.target.value)}
                 placeholder="New password" minLength={10} maxLength={72}
+                autoComplete="new-password" aria-invalid={status === 'error'} aria-describedby={status === 'error' ? 'reset-password-error' : undefined}
                 className="w-full px-4 py-3 bg-slate-50 dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-sky-500/20 dark:text-white pr-10" required />
-              <button type="button" onClick={() => setShow(s => !s)} className="absolute right-3 top-3 text-slate-400">
+              <button type="button" onClick={() => setShow(s => !s)} aria-label={show ? 'Hide passwords' : 'Show passwords'} aria-pressed={show} className="absolute right-3 top-3 text-slate-400">
                 {show ? <EyeOff size={16} /> : <Eye size={16} />}
               </button>
             </div>
-            <input type={show ? 'text' : 'password'} value={confirm} onChange={e => setConfirm(e.target.value)}
+            <label htmlFor="confirm-new-password" className="sr-only">Confirm new password</label>
+            <input id="confirm-new-password" type={show ? 'text' : 'password'} value={confirm} onChange={e => setConfirm(e.target.value)}
               placeholder="Confirm new password" minLength={10} maxLength={72}
+              autoComplete="new-password" aria-invalid={status === 'error'} aria-describedby={status === 'error' ? 'reset-password-error' : undefined}
               className="w-full px-4 py-3 bg-slate-50 dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-sky-500/20 dark:text-white" required />
-            {status === 'error' && <p className="text-sm text-red-500">{message}</p>}
+            {status === 'error' && <p id="reset-password-error" role="alert" className="text-sm text-red-500">{message}</p>}
             <button type="submit" disabled={status === 'loading'}
+              aria-label={status === 'loading' ? 'Updating password' : 'Update password'}
               className="w-full py-3 bg-sky-500 hover:bg-sky-600 text-white rounded-xl font-semibold text-sm transition-colors disabled:opacity-50">
               {status === 'loading' ? 'Updating...' : 'Update password'}
             </button>

@@ -236,6 +236,17 @@ export default function PostPitchReport() {
 
   return (
     <div className="max-w-7xl mx-auto pb-20 font-sans text-slate-900 dark:text-zinc-100">
+      {session.persistence_failed && (
+        <div role="alert" className="mb-6 flex gap-3 rounded-2xl border border-amber-300 bg-amber-50 p-4 text-amber-950 dark:border-amber-800 dark:bg-amber-950/30 dark:text-amber-200">
+          <AlertTriangle className="mt-0.5 shrink-0" size={20} />
+          <div>
+            <p className="font-bold">This report could not be saved</p>
+            <p className="mt-1 text-sm leading-relaxed">
+              You can read it in this tab now, but it will not appear in your history and its recording or PDF will not be available. Keep this page open if you need to copy anything, then try another session later.
+            </p>
+          </div>
+        </div>
+      )}
       <div className="flex flex-col xl:flex-row justify-between items-start xl:items-center mb-8 gap-4">
         <div className="min-w-0">
           <div className="flex items-center gap-2 text-sky-500 font-bold text-[10px] uppercase tracking-widest mb-2">

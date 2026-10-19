@@ -41,13 +41,16 @@ export default function ForgotPassword() {
           </div>
         </div>
         {status === 'success' ? (
-          <div className="p-4 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-xl text-sm text-green-700 dark:text-green-400">{message}</div>
+          <div role="status" className="p-4 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-xl text-sm text-green-700 dark:text-green-400">{message}</div>
         ) : (
           <form onSubmit={handleSubmit} className="space-y-4">
-            <input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="Your email address"
+            <label htmlFor="forgot-password-email" className="sr-only">Email address</label>
+            <input id="forgot-password-email" type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="Your email address"
+              autoComplete="email" aria-invalid={status === 'error'} aria-describedby={status === 'error' ? 'forgot-password-error' : undefined}
               className="w-full px-4 py-3 bg-slate-50 dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-sky-500/20 dark:text-white" required />
-            {status === 'error' && <p className="text-sm text-red-500">{message}</p>}
+            {status === 'error' && <p id="forgot-password-error" role="alert" className="text-sm text-red-500">{message}</p>}
             <button type="submit" disabled={status === 'loading'}
+              aria-label={status === 'loading' ? 'Sending reset link' : 'Send reset link'}
               className="w-full py-3 bg-sky-500 hover:bg-sky-600 text-white rounded-xl font-semibold text-sm transition-colors disabled:opacity-50">
               {status === 'loading' ? 'Sending...' : 'Send reset link'}
             </button>

@@ -29,6 +29,8 @@ export interface CatalogItem {
   amount: number;
   currency: string;
   days: number;
+  /** True only when the server will currently accept checkout for this SKU. */
+  purchasable: boolean;
 }
 
 /** The auto-renewing subscription behind a paid plan. */
@@ -65,7 +67,7 @@ interface BillingInfo {
     currency: string;
     days: number;
   } | null;
-  /** Every purchasable SKU (plan × term), for the pricing selector. */
+  /** Every configured SKU (plan × term), including checkout availability. */
   catalog: CatalogItem[];
   /** The active subscription, else the most recent one; null if none ever. */
   subscription: SubscriptionInfo | null;
@@ -140,7 +142,12 @@ export const BillingProvider: React.FC<{ children: React.ReactNode }> = ({ child
         trialDaysRemaining: Number(body.trialDaysRemaining) || 0,
         billingEnabled: !!body.billingEnabled,
         price: body.price ?? null,
-        catalog: Array.isArray(body.catalog) ? body.catalog : [],
+        catalog: Array.isArray(body.catalog)
+          ? body.catalog.map((item: any) => ({
+              ...item,
+              purchasable: item?.purchasable === true,
+            }))
+          : [],
         subscription: body.subscription && typeof body.subscription === "object" ? body.subscription : null,
         offer: readOffer(body.offer),
       });

@@ -128,6 +128,7 @@ export default function PricingPage() {
     if (plan.id === "enterprise") return null;
 
     const target = CARD_PLAN[plan.id];
+    const selectedSku = sku(target, term);
     const featured = plan.id === "pro";
     const action = cn(
       buttonBase,
@@ -142,7 +143,7 @@ export default function PricingPage() {
       return <span className={quiet}>Your current plan</span>;
     }
     if (paid && RANK[currentPlan] > RANK[target]) return <span className={quiet}>Included in your plan</span>;
-    if (!billingEnabled) {
+    if (!billingEnabled || selectedSku?.purchasable !== true) {
       return <a href={`mailto:${CONTACT_EMAIL}?subject=Upgrade%20my%20PitchNest%20plan`} className={action}>Contact us to upgrade</a>;
     }
     const switching = Boolean(currentSub && currentSub.plan === target);
@@ -158,7 +159,10 @@ export default function PricingPage() {
     if (plan.id === "free") return { amount: "$0", unit: "/ month" };
     if (plan.id === "enterprise") return { amount: "Custom", unit: "per seat" };
     const item = sku(CARD_PLAN[plan.id], term);
-    if (!item) return { amount: "—", unit: "" };
+    if (!item) {
+      const pricingLoaded = useAccount ? loaded : publicPrice.loaded;
+      return { amount: pricingLoaded ? "Unavailable" : "Loading…", unit: "" };
+    }
     return { amount: formatMoney(item.amount, item.currency), unit: term === "annual" ? "/ year" : "/ month" };
   };
 
@@ -302,11 +306,14 @@ export default function PricingPage() {
 
         {/* Full comparison */}
         <h2 className="mb-3 text-base font-semibold">Compare plans in detail</h2>
+        <p className="mb-2 text-xs text-slate-500 dark:text-zinc-400 sm:hidden">
+          Swipe sideways to compare every plan. Feature names stay pinned on the left.
+        </p>
         <div className="overflow-x-auto rounded-2xl border border-slate-200 bg-white dark:border-zinc-800 dark:bg-zinc-900/60">
-          <table className="w-full min-w-140 text-sm">
+          <table className="w-full min-w-[760px] text-sm">
             <thead>
               <tr className="border-b border-slate-200 bg-slate-50 dark:border-zinc-800 dark:bg-zinc-900/60">
-                <th scope="col" className="px-4 py-3 text-left text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-zinc-400">Feature</th>
+                <th scope="col" className="sticky left-0 z-20 min-w-44 bg-slate-50 px-4 py-3 text-left text-xs font-bold uppercase tracking-wider text-slate-500 dark:bg-zinc-900 dark:text-zinc-400">Feature</th>
                 <th scope="col" className="w-28 px-4 py-3 text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-zinc-400">Free</th>
                 <th scope="col" className="w-28 px-4 py-3 text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-zinc-400">Founder</th>
                 <th scope="col" className="w-32 px-4 py-3 text-xs font-bold uppercase tracking-wider text-indigo-700 dark:text-indigo-300">Pro Founder</th>
@@ -322,7 +329,7 @@ export default function PricingPage() {
                     i % 2 === 1 && "bg-slate-50/40 dark:bg-zinc-900/30",
                   )}
                 >
-                  <th scope="row" className="px-4 py-3 text-left font-medium text-slate-700 dark:text-zinc-300">{row.label}</th>
+                  <th scope="row" className={cn("sticky left-0 z-10 min-w-44 px-4 py-3 text-left font-medium text-slate-700 dark:text-zinc-300", i % 2 === 1 ? "bg-slate-50 dark:bg-zinc-900" : "bg-white dark:bg-zinc-900")}>{row.label}</th>
                   <td className="px-4 py-3 text-center"><Cell value={row.free} /></td>
                   <td className="px-4 py-3 text-center"><Cell value={row.founder} /></td>
                   <td className="bg-indigo-50/40 px-4 py-3 text-center dark:bg-indigo-500/5"><Cell value={row.pro} /></td>

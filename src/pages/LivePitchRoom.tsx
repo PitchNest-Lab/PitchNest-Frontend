@@ -2346,6 +2346,7 @@ export default function LivePitchRoom() {
               evaluation_report: data.data,
               created_at: new Date().toISOString(),
               video_url: "",
+              persistence_failed: data.persisted === false,
             };
             navigate(
               `/report${data.sessionId ? `?session=${data.sessionId}` : ""}`,

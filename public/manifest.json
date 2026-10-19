@@ -1,9 +1,9 @@
 {
-  "id": "/login",
+  "id": "/",
   "name": "PitchNest Live",
   "short_name": "PitchNest",
   "description": "Pitch room sandbox with live AI investors and coaching.",
-  "start_url": "/login",
+  "start_url": "/",
   "scope": "/",
   "display": "standalone",
   "background_color": "#0f172a",

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { Link, replace, useLocation, useNavigate } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import {
   Mail,
   RefreshCw,
@@ -127,8 +127,12 @@ function TokenErrorScreen({
 export default function VerifyEmailPage() {
   const location = useLocation();
   const navigate = useNavigate();
-  const email =
+  const initialEmail =
     location.state?.email || sessionStorage.getItem("verifyEmail") || "";
+  const [email, setEmail] = useState(
+    initialEmail,
+  );
+  const [deliveryConfirmed, setDeliveryConfirmed] = useState(Boolean(initialEmail));
 
   // "idle"      → no token in URL, show email sent/code entry screen
   // "verifying" → token found/submitted, API call in progress
@@ -139,6 +143,9 @@ export default function VerifyEmailPage() {
   const [resent, setResent] = useState(false);
   const [timer, setTimer] = useState(0);
   const [otp, setOtp] = useState<string[]>(new Array(6).fill(""));
+  const cleanEmail = email.trim().toLowerCase();
+  const hasEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(cleanEmail);
+  const isGmail = /@(gmail|googlemail)\.com$/i.test(cleanEmail);
 
   const verifyToken = (token: string, isManual: boolean = false) => {
     setStatus("verifying");
@@ -189,12 +196,16 @@ export default function VerifyEmailPage() {
   // redirect state); without it the server returns a generic error and the user
   // falls back to the email link.
   const verifyOtp = (code: string) => {
+    if (!hasEmail) {
+      setErrorMessage("Enter the email address you used to sign up first.");
+      return;
+    }
     setStatus("verifying");
     setErrorMessage("");
     fetch("/api/auth/verify-email-otp", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email, code }),
+      body: JSON.stringify({ email: cleanEmail, code }),
     })
       .then((r) => r.json().then((data) => ({ ok: r.ok, data })))
       .then(({ ok, data }) => {
@@ -277,15 +288,22 @@ export default function VerifyEmailPage() {
   }, [timer]);
 
   const handleResend = async () => {
+    if (!hasEmail) {
+      setErrorMessage("Enter a valid email address first.");
+      setStatus("idle");
+      return;
+    }
     setResending(true);
+    sessionStorage.setItem("verifyEmail", cleanEmail);
     try {
       const res = await fetch("/api/auth/resend-verification", {
         method: "POST",
-        body: JSON.stringify({ email }),
+        body: JSON.stringify({ email: cleanEmail }),
         headers: { "Content-Type": "application/json" },
       });
       const data = await res.json().catch(() => ({}));
       if (res.ok) {
+        setDeliveryConfirmed(true);
         setResent(true);
         setTimer(60);
         setErrorMessage("");
@@ -334,6 +352,20 @@ export default function VerifyEmailPage() {
     }
   };
 
+  const handleOtpPaste = (event: React.ClipboardEvent<HTMLInputElement>) => {
+    const digits = event.clipboardData.getData("text").replace(/\D/g, "").slice(0, 6);
+    if (!digits) return;
+    event.preventDefault();
+    const nextOtp = new Array(6).fill("");
+    digits.split("").forEach((digit, index) => {
+      nextOtp[index] = digit;
+    });
+    setOtp(nextOtp);
+    setErrorMessage("");
+    document.getElementById(`otp-${Math.min(digits.length, 6) - 1}`)?.focus();
+    if (digits.length === 6) verifyOtp(digits);
+  };
+
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>, index: number) => {
     if (e.key === "Backspace") {
       const newOtp = [...otp];
@@ -379,47 +411,92 @@ export default function VerifyEmailPage() {
               <div className="flex justify-center mb-5">
                 <span className="inline-flex items-center gap-1.5 bg-emerald-50 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 text-xs font-bold rounded-full px-3.5 py-1.5">
                   <CheckCircle size={13} />
-                  Email sent
+                  {deliveryConfirmed
+                    ? "Email sent"
+                    : hasEmail
+                      ? "Email address entered"
+                      : "Email address needed"}
                 </span>
               </div>
 
               {/* Heading */}
               <h2 className="text-3xl font-semibold text-slate-900 dark:text-zinc-100 mb-2 tracking-tight text-center">
-                Check your inbox
+                {deliveryConfirmed
+                  ? "Check your inbox"
+                  : hasEmail
+                    ? "Enter your code"
+                    : "Verify your email"}
               </h2>
               <p className="text-slate-500 dark:text-zinc-500 text-sm text-center mb-1">
-                We sent a verification code to
+                {deliveryConfirmed
+                  ? "We sent a verification code to"
+                  : hasEmail
+                    ? "Use a code you already received, or request a fresh one for"
+                    : "Enter the address you used to sign up, then request a fresh code."}
               </p>
-              <p className="text-sky-500 font-bold text-sm text-center mb-8">
-                {email}
-              </p>
+              {deliveryConfirmed ? (
+                <p className="text-sky-500 font-bold text-sm text-center mb-8">
+                  {cleanEmail}
+                </p>
+              ) : (
+                <div className="mb-6 mt-4">
+                  <label htmlFor="verification-email" className="sr-only">
+                    Email address
+                  </label>
+                  <input
+                    id="verification-email"
+                    type="email"
+                    value={email}
+                    onChange={(event) => {
+                      setEmail(event.target.value);
+                      setDeliveryConfirmed(false);
+                      setErrorMessage("");
+                    }}
+                    autoComplete="email"
+                    placeholder="you@startup.com"
+                    className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-800 outline-none transition focus:border-sky-500 focus:ring-2 focus:ring-sky-500/20 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-100"
+                  />
+                </div>
+              )}
 
               {/* 6-Digit OTP Box UI */}
-              <div className="flex justify-center gap-2 mb-6">
-                {otp.map((digit, index) => (
-                  <input
-                    key={index}
-                    id={`otp-${index}`}
-                    type="text"
-                    maxLength={1}
-                    value={digit}
-                    onChange={(e) => handleOtpChange(e.target.value, index)}
-                    onKeyDown={(e) => handleKeyDown(e, index)}
-                    onFocus={(e) => e.target.select()}
-                    className="w-12 h-12 text-center text-xl font-bold border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 rounded-xl focus:border-sky-500 focus:ring-2 focus:ring-sky-500/20 outline-none text-slate-800 dark:text-zinc-100 transition-all duration-150"
-                  />
-                ))}
-              </div>
+              {hasEmail && (
+                <fieldset className="mb-6">
+                  <legend className="sr-only">Six-digit verification code</legend>
+                  <div className="flex justify-center gap-2">
+                    {otp.map((digit, index) => (
+                      <input
+                        key={index}
+                        id={`otp-${index}`}
+                        type="text"
+                        inputMode="numeric"
+                        pattern="[0-9]*"
+                        autoComplete={index === 0 ? "one-time-code" : "off"}
+                        aria-label={`Verification code digit ${index + 1}`}
+                        aria-describedby={errorMessage ? "verification-error" : undefined}
+                        aria-invalid={Boolean(errorMessage)}
+                        maxLength={1}
+                        value={digit}
+                        onChange={(e) => handleOtpChange(e.target.value, index)}
+                        onKeyDown={(e) => handleKeyDown(e, index)}
+                        onPaste={handleOtpPaste}
+                        onFocus={(e) => e.target.select()}
+                        className="w-11 h-12 sm:w-12 text-center text-xl font-bold border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 rounded-xl focus:border-sky-500 focus:ring-2 focus:ring-sky-500/20 outline-none text-slate-800 dark:text-zinc-100 transition-all duration-150"
+                      />
+                    ))}
+                  </div>
+                </fieldset>
+              )}
 
               {/* Inline Error Message */}
               {errorMessage && (
-                <p className="text-xs text-rose-500 text-center font-semibold mb-6">
+                <p id="verification-error" role="alert" className="text-xs text-rose-500 text-center font-semibold mb-6">
                   {errorMessage}
                 </p>
               )}
 
               {/* Steps */}
-              <div className="bg-slate-50 dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-2xl p-5 mb-6 space-y-4">
+              {hasEmail && <div className="bg-slate-50 dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-2xl p-5 mb-6 space-y-4">
                 {steps.map((s) => (
                   <div key={s.num} className="flex items-start gap-3">
                     <span className="w-6 h-6 min-w-6 rounded-full bg-sky-500 text-white text-[11px] font-bold flex items-center justify-center mt-0.5">
@@ -433,10 +510,10 @@ export default function VerifyEmailPage() {
                     </p>
                   </div>
                 ))}
-              </div>
+              </div>}
 
               {/* Open Gmail */}
-              <a
+              {isGmail && <a
                 href="https://mail.google.com"
                 target="_blank"
                 rel="noopener noreferrer"
@@ -444,16 +521,16 @@ export default function VerifyEmailPage() {
               >
                 <Mail size={15} />
                 Open Gmail
-              </a>
+              </a>}
 
               {/* Divider */}
-              <div className="flex items-center gap-3 mb-4">
+              {isGmail && <div className="flex items-center gap-3 mb-4">
                 <div className="flex-1 h-px bg-slate-200 dark:bg-zinc-700" />
                 <span className="text-[11px] text-slate-400 dark:text-zinc-600">
                   or
                 </span>
                 <div className="flex-1 h-px bg-slate-200 dark:bg-zinc-700" />
-              </div>
+              </div>}
 
               {/* Resend */}
               <button

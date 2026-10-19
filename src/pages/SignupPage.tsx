@@ -319,7 +319,7 @@ export default function SignupPage() {
                 </div>
               )}
               {serverError && (
-                <div className="p-3.5 bg-rose-50 dark:bg-rose-950/30 border border-rose-200 dark:border-rose-900/50 text-rose-600 dark:text-rose-400 rounded-xl text-sm font-semibold flex items-center justify-between gap-3">
+                <div id="signup-server-error" role="alert" className="p-3.5 bg-rose-50 dark:bg-rose-950/30 border border-rose-200 dark:border-rose-900/50 text-rose-600 dark:text-rose-400 rounded-xl text-sm font-semibold flex items-center justify-between gap-3">
                   <span>{serverError}</span>
                   {(serverError.toLowerCase().includes("log in") || serverError.toLowerCase().includes("already exists")) && (
                     <Link
@@ -333,9 +333,14 @@ export default function SignupPage() {
               )}
 
               <div className="space-y-1.5">
+                <label htmlFor="signup-name" className="sr-only">Full name</label>
                 <input
                   {...register("name")}
+                  id="signup-name"
                   type="text"
+                  autoComplete="name"
+                  aria-invalid={Boolean(errors.name)}
+                  aria-describedby={errors.name ? "signup-name-error" : serverError ? "signup-server-error" : undefined}
                   placeholder="Name"
                   className={cn(
                     "w-full px-4 py-3.5 bg-white dark:bg-zinc-900 border rounded-lg focus:outline-none focus:ring-2 transition-all dark:text-zinc-100 placeholder:text-slate-500 dark:placeholder:text-zinc-500",
@@ -345,16 +350,21 @@ export default function SignupPage() {
                   )}
                 />
                 {errors.name && (
-                  <p className="text-xs font-bold text-rose-500">
+                  <p id="signup-name-error" role="alert" className="text-xs font-bold text-rose-500">
                     {errors.name.message}
                   </p>
                 )}
               </div>
 
               <div className="space-y-1.5">
+                <label htmlFor="signup-email" className="sr-only">Email address</label>
                 <input
                   {...register("email")}
+                  id="signup-email"
                   type="email"
+                  autoComplete="email"
+                  aria-invalid={Boolean(errors.email)}
+                  aria-describedby={errors.email ? "signup-email-error" : serverError ? "signup-server-error" : undefined}
                   placeholder="Email"
                   className={cn(
                     "w-full px-4 py-3.5 bg-white dark:bg-zinc-900 border rounded-lg focus:outline-none focus:ring-2 transition-all dark:text-zinc-100 placeholder:text-slate-500 dark:placeholder:text-zinc-500",
@@ -364,17 +374,22 @@ export default function SignupPage() {
                   )}
                 />
                 {errors.email && (
-                  <p className="text-xs font-bold text-rose-500">
+                  <p id="signup-email-error" role="alert" className="text-xs font-bold text-rose-500">
                     {errors.email.message}
                   </p>
                 )}
               </div>
 
               <div className="space-y-1.5">
+                <label htmlFor="signup-password" className="sr-only">Create password</label>
                 <div className="relative">
                   <input
                     {...register("password")}
+                    id="signup-password"
                     type={showPassword ? "text" : "password"}
+                    autoComplete="new-password"
+                    aria-invalid={Boolean(errors.password)}
+                    aria-describedby={errors.password ? "signup-password-error" : undefined}
                     placeholder="Create password"
                     className={cn(
                       "w-full pl-4 pr-12 py-3.5 bg-white dark:bg-zinc-900 border rounded-lg focus:outline-none focus:ring-2 transition-all dark:text-zinc-100 placeholder:text-slate-500 dark:placeholder:text-zinc-500",
@@ -386,23 +401,30 @@ export default function SignupPage() {
                   <button
                     type="button"
                     onClick={() => setShowPassword(!showPassword)}
+                    aria-label={showPassword ? "Hide password" : "Show password"}
+                    aria-pressed={showPassword}
                     className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 outline-none"
                   >
                     {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
                   </button>
                 </div>
                 {errors.password && (
-                  <p className="text-xs font-bold text-rose-500">
+                  <p id="signup-password-error" role="alert" className="text-xs font-bold text-rose-500">
                     {errors.password.message}
                   </p>
                 )}
               </div>
 
               <div className="space-y-1.5">
+                <label htmlFor="signup-confirm-password" className="sr-only">Confirm password</label>
                 <div className="relative">
                   <input
                     {...register("confirmPassword")}
+                    id="signup-confirm-password"
                     type={showConfirmPassword ? "text" : "password"}
+                    autoComplete="new-password"
+                    aria-invalid={Boolean(errors.confirmPassword)}
+                    aria-describedby={errors.confirmPassword ? "signup-confirm-password-error" : undefined}
                     placeholder="Confirm password"
                     className={cn(
                       "w-full pl-4 pr-12 py-3.5 bg-white dark:bg-zinc-900 border rounded-lg focus:outline-none focus:ring-2 transition-all dark:text-zinc-100 placeholder:text-slate-500 dark:placeholder:text-zinc-500",
@@ -414,6 +436,8 @@ export default function SignupPage() {
                   <button
                     type="button"
                     onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                    aria-label={showConfirmPassword ? "Hide confirmed password" : "Show confirmed password"}
+                    aria-pressed={showConfirmPassword}
                     className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 outline-none"
                   >
                     {showConfirmPassword ? (
@@ -424,19 +448,20 @@ export default function SignupPage() {
                   </button>
                 </div>
                 {errors.confirmPassword && (
-                  <p className="text-xs font-bold text-rose-500">
+                  <p id="signup-confirm-password-error" role="alert" className="text-xs font-bold text-rose-500">
                     {errors.confirmPassword.message}
                   </p>
                 )}
               </div>
 
               <div className="space-y-1.5">
-                <label className="text-xs font-bold text-slate-700 dark:text-zinc-300">
+                <label htmlFor="signup-role" className="text-xs font-bold text-slate-700 dark:text-zinc-300">
                   I am a...
                 </label>
                 <div className="relative">
                   <select
                     {...register("role")}
+                    id="signup-role"
                     className="w-full pl-4 pr-10 py-3.5 bg-white dark:bg-zinc-900 border border-slate-400 dark:border-zinc-600 rounded-lg focus:outline-none focus:ring-2 focus:border-sky-500 focus:ring-sky-500/20 transition-all appearance-none cursor-pointer dark:text-zinc-100"
                   >
                     <option value="Founder">Founder</option>
@@ -472,10 +497,11 @@ export default function SignupPage() {
               <button
                 type="submit"
                 disabled={isSubmitting}
+                aria-label={isSubmitting ? "Creating account" : "Sign up"}
                 className="w-full py-3.5 rounded-full bg-sky-600 hover:bg-sky-700 text-white text-base font-semibold flex items-center justify-center transition-colors disabled:opacity-50"
               >
                 {isSubmitting ? (
-                  <Loader2 className="animate-spin" size={18} />
+                  <><Loader2 className="animate-spin" size={18} aria-hidden="true" /><span className="sr-only">Creating account</span></>
                 ) : (
                   "Sign up"
                 )}
@@ -561,6 +587,8 @@ export default function SignupPage() {
                     key={i}
                     type="button"
                     onClick={() => setCurrentSlide(i)}
+                    aria-label={`Show feature ${i + 1}: ${SLIDES[i].title}`}
+                    aria-current={i === currentSlide ? "true" : undefined}
                     className={cn(
                       "h-2 rounded-full transition-all duration-300 outline-none",
                       i === currentSlide

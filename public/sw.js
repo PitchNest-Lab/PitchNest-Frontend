@@ -1,10 +1,12 @@
-// Bumped to v5: local development no longer registers this worker, and only
-// same-origin HTTP(S) requests are eligible for runtime caching.
+// Bumped to v6: local development no longer registers this worker, and only
+// same-origin HTTP(S) requests are eligible for runtime caching. Navigation
+// responses are always stored under /index.html so reset/verification tokens
+// and other query parameters never become persistent Cache Storage keys.
 // The HTML shell (navigations + index.html) is served
 // NETWORK-FIRST so a fresh deploy shows up immediately instead of being masked
 // by a stale cached shell that points at old, content-hashed JS bundles. Other
 // static assets keep stale-while-revalidate (hashed bundles are safe to reuse).
-const CACHE_NAME = 'pitchnest-cache-v5';
+const CACHE_NAME = 'pitchnest-cache-v6';
 const ASSETS_TO_CACHE = [
   '/',
   '/index.html',
@@ -85,15 +87,13 @@ self.addEventListener('fetch', (event) => {
             const copy = networkResponse.clone();
             caches
               .open(CACHE_NAME)
-              .then((cache) => cache.put(event.request, copy))
+              .then((cache) => cache.put('/index.html', copy))
               .catch((err) => console.warn('SW HTML cache update failed:', err));
           }
           return networkResponse;
         })
         .catch(() =>
-          caches.match(event.request).then(async (cached) => {
-            if (cached) return cached;
-            const shell = await caches.match('/index.html');
+          caches.match('/index.html').then(async (shell) => {
             return shell || new Response('Offline', {
               status: 503,
               headers: { 'Content-Type': 'text/plain; charset=utf-8' },

@@ -70,6 +70,7 @@ const OpportunitiesAdmin = lazyPage(() => import("./pages/staff/OpportunitiesAdm
 const StaffAnalytics = lazyPage(() => import("./pages/staff/AnalyticsPage"));
 const PitchArena = lazyPage(() => import("./pages/PitchArena"));
 const Home = lazyPage(() => import("./pages/Home"));
+const NotFound = lazyPage(() => import("./pages/NotFound"));
 
 export default function App() {
   return (
@@ -324,8 +325,9 @@ export default function App() {
             {/* Safety Catch: Redirect old /live links to /room */}
             <Route path="/live" element={<Navigate to="/room" replace />} />
 
-            {/* Fallback */}
-            <Route path="*" element={<Navigate to="/" replace />} />
+            {/* Preserve the bad URL and explain what happened instead of
+                silently redirecting, which looked like a broken link. */}
+            <Route path="*" element={<NotFound />} />
           </Routes>
           </React.Suspense>
           </ErrorBoundary>
