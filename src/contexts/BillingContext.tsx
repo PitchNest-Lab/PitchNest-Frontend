@@ -4,6 +4,7 @@ import React, {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
 } from "react";
 import { useAuth } from "../contexts/AuthContext";
@@ -138,6 +139,9 @@ export const BillingProvider: React.FC<{ children: React.ReactNode }> = ({ child
   const preferredCurrency = usePreferredCurrency();
   const [info, setInfo] = useState<BillingInfo>(DEFAULT_INFO);
   const [loaded, setLoaded] = useState(false);
+  // The account `info` was loaded for. The signed-out defaults (billing off,
+  // no prices) must never stand in for a signed-in account's plan while it loads.
+  const loadedFor = useRef<unknown>(null);
 
   const refresh = useCallback(async () => {
     try {
@@ -180,9 +184,16 @@ export const BillingProvider: React.FC<{ children: React.ReactNode }> = ({ child
   // preferred currency makes a new `refresh`, which re-prices the plan.
   useEffect(() => {
     if (!user?.id) {
+      loadedFor.current = null;
       setInfo(DEFAULT_INFO);
       setLoaded(true);
       return;
+    }
+    if (loadedFor.current !== user.id) {
+      // A sign-in (or a restored session): not loaded until this account's
+      // plan answers. Later refreshes keep showing the plan they replace.
+      loadedFor.current = user.id;
+      setLoaded(false);
     }
     refresh();
   }, [user?.id, user?.plan, refresh]);

@@ -130,6 +130,7 @@ export default function PricingPage() {
       if (!signedIn) {
         return <Link to="/signup" className={cn(buttonBase, "border border-slate-200 bg-white text-slate-800 hover:bg-slate-50 dark:border-zinc-700 dark:bg-transparent dark:text-zinc-100 dark:hover:bg-zinc-800")}>Start free</Link>;
       }
+      if (!loaded) return <span className={quiet}>Loading…</span>;
       return <span className={quiet}>{currentPlan === "free" ? "Your current plan" : "Included"}</span>;
     }
     if (plan.id === "enterprise") return null;
@@ -146,6 +147,8 @@ export default function PricingPage() {
     const label = freeMonths > 0 ? `Claim ${freeMonthsLabel(freeMonths)}` : plan.id === "pro" ? "Upgrade to Pro Founder" : "Get Founder";
 
     if (!signedIn) return <Link to="/signup" className={action}>{label}</Link>;
+    // Until this account's plan answers, no button can say what it would do.
+    if (!loaded) return <span className={quiet}>Loading…</span>;
     if (currentSub && currentSub.plan === target && currentSub.term === term) {
       return <span className={quiet}>Your current plan</span>;
     }
