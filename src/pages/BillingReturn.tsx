@@ -12,12 +12,14 @@ import { PRICING_PATH, SUBSCRIPTION_TAB_PATH } from "../lib/routes";
  *
  * ⚠️ THE QUERY PARAMS HERE ARE NOT PROOF OF PAYMENT. This is an ordinary
  * browser navigation — anyone can type ?status=successful. Nothing on this page
- * grants anything. Access is granted server-side by the verified webhook; this
- * screen only polls our own API until that lands and then reports what it sees.
+ * grants anything. The page passes Flutterwave's transaction id to our API once;
+ * the server verifies it with Flutterwave, checks it is this user's checkout and
+ * settles it. The verified webhook does the same as a backup. The screen then
+ * polls our own API and reports what it sees.
  *
- * The webhook usually arrives within a second or two, but it is asynchronous and
- * Flutterwave retries on failure, so a short poll with an honest "still
- * processing" ending is better than either a spinner forever or a false success.
+ * Settling can still lag (a slow bank, or the webhook alone), so a short poll
+ * with an honest "still processing" ending is better than either a spinner
+ * forever or a false success.
  */
 
 const POLL_INTERVAL_MS = 2000;
@@ -40,6 +42,30 @@ export default function BillingReturn() {
   );
   const [planLabel, setPlanLabel] = useState("your new plan");
   const pollsRef = useRef(0);
+
+  // Ask the server to settle this checkout now. It verifies the id with
+  // Flutterwave itself; a failure here just leaves the poll below to wait for
+  // the webhook.
+  const transactionId = params.get("transaction_id") || "";
+  const confirmSentRef = useRef(false);
+  useEffect(() => {
+    if (confirmSentRef.current || claimedStatus === "cancelled" || !/^\d{1,15}$/.test(transactionId)) return;
+    confirmSentRef.current = true;
+    const token = getAuthToken();
+    fetch("/api/billing/confirm", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+      body: JSON.stringify({ transactionId: Number(transactionId) }),
+    })
+      .then((res) => res.json().catch(() => null))
+      .then((body) => {
+        if (body?.status === "failed") setOutcome("failed");
+      })
+      .catch(() => undefined);
+  }, [claimedStatus, transactionId]);
 
   useEffect(() => {
     if (outcome !== "checking") return;
