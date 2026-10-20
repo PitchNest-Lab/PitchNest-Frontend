@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { ArrowBigUp, MapPin, MessageSquare } from "lucide-react";
 import { Link } from "react-router-dom";
 import type { PublicBusinessSummary } from "../../api/publicBusinesses";
+import { ExampleBadge } from "./ExampleBadge";
 
 /**
  * Ranked list rows for Discover and Home: number, initials, name, tagline,
@@ -123,14 +124,17 @@ export function BusinessRow({
       )}
       <BusinessLogo name={business.name} slug={business.slug} logoUrl={business.logoUrl} />
       <div className="min-w-0 flex-1">
-        <Heading className="truncate font-sans text-sm font-extrabold text-slate-950 dark:text-white">
-          <Link
-            to={`/businesses/${encodeURIComponent(business.slug)}`}
-            className="outline-none after:absolute after:inset-0 after:content-[''] group-hover:text-indigo-600 focus-visible:underline dark:group-hover:text-indigo-300"
-          >
-            {business.name}
-          </Link>
-        </Heading>
+        <div className="flex min-w-0 items-center gap-1.5">
+          <Heading className="truncate font-sans text-sm font-extrabold text-slate-950 dark:text-white">
+            <Link
+              to={`/businesses/${encodeURIComponent(business.slug)}`}
+              className="outline-none after:absolute after:inset-0 after:content-[''] group-hover:text-indigo-600 focus-visible:underline dark:group-hover:text-indigo-300"
+            >
+              {business.name}
+            </Link>
+          </Heading>
+          {business.isExample && <ExampleBadge />}
+        </div>
         <p className="mt-0.5 truncate text-xs text-slate-500 dark:text-zinc-400">
           {business.tagline || "Founder-approved business profile."}
         </p>

@@ -17,6 +17,8 @@ export interface PublicBusinessSummary {
   logoUrl: string | null;
   coverUrl: string | null;
   publishedAt: string | null;
+  /** A sample profile that shows what a complete business page looks like. */
+  isExample?: boolean;
   /** Present only while Discover engagement is enabled on the server. */
   engagement?: { supportCount: number; commentCount: number };
 }

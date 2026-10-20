@@ -60,7 +60,7 @@ export interface PitchSummary {
   feedbackAsk: string;
   publishedAt: string | null;
   feedbackCount: number;
-  business: { slug: string; name: string; tagline: string; industry: string; region: string };
+  business: { slug: string; name: string; tagline: string; industry: string; region: string; isExample?: boolean };
 }
 
 async function read<T>(response: Response): Promise<T> {

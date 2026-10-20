@@ -36,6 +36,7 @@ import { createPracticeDraft } from "../api/practice";
 import { BusinessDiscussion, type ComposeRequest } from "../components/discover/BusinessDiscussion";
 import { PublicPitchSection } from "../components/discover/PublicPitchSection";
 import { BusinessLogo } from "../components/discover/BusinessRow";
+import { ExampleBadge } from "../components/discover/ExampleBadge";
 import { UserAvatar } from "../components/ui/UserAvatar";
 
 /** A consenting member's photo, or their initials if they have none. */
@@ -202,7 +203,8 @@ export default function PublicBusinessProfile() {
     title: business ? `${business.name} — PitchNest` : status === "missing" ? "Business not found — PitchNest" : "Business profile — PitchNest",
     description: business?.tagline || business?.description || "Explore a founder-approved business profile on PitchNest.",
     path: `/businesses/${encodeURIComponent(slug)}`,
-    robots: status === "ready" ? "index, follow" : "noindex, follow",
+    // Example profiles are illustrations, not businesses to send searchers to.
+    robots: status === "ready" && !business?.isExample ? "index, follow" : "noindex, follow",
   });
 
   useEffect(() => {
@@ -234,7 +236,8 @@ export default function PublicBusinessProfile() {
   }, [slug]);
 
   useEffect(() => {
-    if (!business) return;
+    // An example is not an organization, so it gets no structured data.
+    if (!business || business.isExample) return;
     const script = document.createElement("script");
     script.type = "application/ld+json";
     script.setAttribute("data-business-profile", "true");
@@ -330,9 +333,13 @@ export default function PublicBusinessProfile() {
           <div className="min-w-0 flex-1">
             <div className="flex flex-wrap items-center gap-2">
               <h1 className="text-2xl font-extrabold tracking-tight text-slate-950 dark:text-white sm:text-3xl">{business.name}</h1>
-              <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-1 text-[10px] font-bold text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-300">
-                <CheckCircle2 size={11} /> Founder published
-              </span>
+              {business.isExample ? (
+                <ExampleBadge className="px-2.5 py-1" />
+              ) : (
+                <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-1 text-[10px] font-bold text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-300">
+                  <CheckCircle2 size={11} /> Founder published
+                </span>
+              )}
               {pitch && (
                 <span className="inline-flex items-center gap-1 rounded-full bg-accent-soft px-2.5 py-1 text-[10px] font-bold text-accent-text dark:bg-accent/10 dark:text-accent">
                   <Presentation size={11} /> Public pitch
@@ -340,6 +347,11 @@ export default function PublicBusinessProfile() {
               )}
             </div>
             <p className="mt-1.5 text-sm leading-relaxed text-slate-600 dark:text-zinc-300 sm:text-base">{business.tagline}</p>
+            {business.isExample && (
+              <p className="mt-2 rounded-lg bg-amber-50 px-3 py-2 text-xs leading-relaxed text-amber-800 dark:bg-amber-500/10 dark:text-amber-200">
+                This is an example profile. It shows what a complete PitchNest business page looks like; the business, its people and its activity are illustrative.
+              </p>
+            )}
             <div className="mt-3 flex flex-wrap items-center gap-2 text-[11px] font-semibold">
               <span className="rounded-md bg-indigo-50 px-2 py-0.5 text-indigo-700 dark:bg-indigo-950/40 dark:text-indigo-300">
                 {titleCase(business.businessType)}
@@ -498,8 +510,17 @@ export default function PublicBusinessProfile() {
               <div className="flex items-start gap-3">
                 <ShieldCheck size={19} className="mt-0.5 shrink-0 text-indigo-600 dark:text-indigo-400" />
                 <div>
-                  <h2 className="text-sm font-bold text-slate-950 dark:text-white">Founder-controlled profile</h2>
-                  <p className="mt-1.5 text-xs leading-relaxed text-slate-600 dark:text-zinc-400">This page contains only business information reviewed and published by an authorized workspace member.</p>
+                  {business.isExample ? (
+                    <>
+                      <h2 className="text-sm font-bold text-slate-950 dark:text-white">Example profile</h2>
+                      <p className="mt-1.5 text-xs leading-relaxed text-slate-600 dark:text-zinc-400">Written by PitchNest to show what a complete business page looks like. Real businesses are listed before examples on Discover.</p>
+                    </>
+                  ) : (
+                    <>
+                      <h2 className="text-sm font-bold text-slate-950 dark:text-white">Founder-controlled profile</h2>
+                      <p className="mt-1.5 text-xs leading-relaxed text-slate-600 dark:text-zinc-400">This page contains only business information reviewed and published by an authorized workspace member.</p>
+                    </>
+                  )}
                 </div>
               </div>
             </section>

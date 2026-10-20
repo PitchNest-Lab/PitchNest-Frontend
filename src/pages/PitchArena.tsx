@@ -8,6 +8,7 @@ import { fetchPitches, type PitchSummary } from "../api/pitches";
 import { trackEvent } from "../lib/analytics";
 import { PageHero, SectionTitle } from "../components/layout/PageHero";
 import { BusinessInitials } from "../components/discover/BusinessRow";
+import { ExampleBadge } from "../components/discover/ExampleBadge";
 
 function formatDate(value: string | null) {
   if (!value) return "";
@@ -156,7 +157,10 @@ export default function PitchArena() {
                   <div className="flex items-center gap-2.5">
                     <BusinessInitials name={pitch.business.name} slug={pitch.business.slug} size="sm" />
                     <div className="min-w-0 flex-1">
-                      <p className="truncate text-xs font-bold text-slate-800 dark:text-zinc-200">{pitch.business.name}</p>
+                      <p className="flex min-w-0 items-center gap-1.5">
+                        <span className="truncate text-xs font-bold text-slate-800 dark:text-zinc-200">{pitch.business.name}</span>
+                        {pitch.business.isExample && <ExampleBadge />}
+                      </p>
                       <p className="flex items-center gap-1 truncate text-[10px] text-slate-400">
                         {pitch.business.industry}
                         {pitch.business.region && <><MapPin size={10} className="ml-1" /> {pitch.business.region}</>}

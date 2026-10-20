@@ -3,6 +3,7 @@ import { ArrowBigUp, ArrowRight, Building2, MapPin, MessageSquare } from "lucide
 import { Link } from "react-router-dom";
 import type { PublicBusinessSummary } from "../../api/publicBusinesses";
 import { BusinessLogo } from "./BusinessRow";
+import { ExampleBadge } from "./ExampleBadge";
 
 /**
  * The public business card used by /discover and the landing page's
@@ -67,9 +68,12 @@ export function BusinessCard({
       </div>
       <div className="flex flex-1 flex-col p-5">
         <div className="flex items-start justify-between gap-3">
-          <Heading className="text-lg font-extrabold text-slate-950 transition group-hover:text-indigo-600 dark:text-white dark:group-hover:text-indigo-300">
-            {business.name}
-          </Heading>
+          <div className="flex min-w-0 flex-wrap items-center gap-2">
+            <Heading className="text-lg font-extrabold text-slate-950 transition group-hover:text-indigo-600 dark:text-white dark:group-hover:text-indigo-300">
+              {business.name}
+            </Heading>
+            {business.isExample && <ExampleBadge />}
+          </div>
           <ArrowRight size={17} className="mt-1 shrink-0 text-slate-300 transition group-hover:translate-x-1 group-hover:text-indigo-500 dark:text-zinc-600" />
         </div>
         <p className="mt-2 line-clamp-3 text-sm leading-relaxed text-slate-500 dark:text-zinc-400">

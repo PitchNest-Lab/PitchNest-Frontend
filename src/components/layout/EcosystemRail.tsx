@@ -7,6 +7,7 @@ import { fetchPublicBusinesses, type PublicBusinessSummary } from "../../api/pub
 import { fetchOpportunities, type Opportunity } from "../../api/opportunities";
 import { fetchPitches, type PitchSummary } from "../../api/pitches";
 import { BusinessLogo } from "../discover/BusinessRow";
+import { ExampleBadge } from "../discover/ExampleBadge";
 
 /**
  * The right-hand column on ecosystem pages (wide screens only). Every card
@@ -96,7 +97,8 @@ export function EcosystemRail({ hide = [] }: { hide?: RailCard[] }) {
     () => fetchOpportunities({}),
   );
 
-  const latestPitch = pitches?.data?.[0] ?? null;
+  // Only a real founder's pitch is news; example pitches never headline here.
+  const latestPitch = pitches?.data?.find((pitch) => !pitch.business.isExample) ?? null;
   const openOpportunities = (opportunities ?? []).filter((item) => item.state !== "closed").slice(0, 3);
 
   return (
@@ -126,8 +128,11 @@ export function EcosystemRail({ hide = [] }: { hide?: RailCard[] }) {
                   <Link to={`/businesses/${encodeURIComponent(business.slug)}`} className="group flex items-center gap-2.5">
                     <BusinessLogo name={business.name} slug={business.slug} logoUrl={business.logoUrl} size="sm" />
                     <span className="min-w-0 flex-1">
-                      <span className="block truncate text-xs font-bold text-slate-900 group-hover:text-indigo-600 dark:text-zinc-100 dark:group-hover:text-indigo-300">
-                        {business.name}
+                      <span className="flex min-w-0 items-center gap-1.5">
+                        <span className="truncate text-xs font-bold text-slate-900 group-hover:text-indigo-600 dark:text-zinc-100 dark:group-hover:text-indigo-300">
+                          {business.name}
+                        </span>
+                        {business.isExample && <ExampleBadge />}
                       </span>
                       <span className="block truncate text-[10px] text-slate-400">
                         {[business.industry, business.region].filter(Boolean).join(" · ") || "Founder-approved profile"}
