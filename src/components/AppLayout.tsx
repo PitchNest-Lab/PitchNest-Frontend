@@ -26,6 +26,7 @@ import {
   Handshake,
   Rocket,
   Briefcase,
+  Mic,
 } from 'lucide-react';
 import { Link, useLocation, Outlet, useNavigate } from 'react-router-dom';
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
@@ -232,34 +233,42 @@ export default function AppLayout() {
     setIsMobileMenuOpen(false);
   }, [location.pathname]);
 
-  const exploreItems: NavItem[] = [
-    { icon: Home, label: 'Home', path: '/home' },
-    { icon: Compass, label: 'Discover', path: '/discover' },
-    ...(ecosystemFeatures.pitchArena ? [{ icon: Presentation, label: 'Pitch Arena', path: '/pitches' }] : []),
-    ...(ecosystemFeatures.community ? [{ icon: MessagesSquare, label: 'Community', path: '/community' }] : []),
-    { icon: CalendarDays, label: 'Opportunities', path: '/opportunities' },
-  ];
+  // Pitch practice is the core product, so the founder's tools lead the menu
+  // and the wider ecosystem follows.
   const toolItems: NavItem[] = [
-    { icon: Briefcase, label: 'My Workspace', path: '/workspace/businesses' },
+    { icon: Home, label: 'Home', path: '/home' },
     { icon: LayoutDashboard, label: 'Practice dashboard', path: '/dashboard' },
     { icon: PlusCircle, label: 'Pre-Pitch Room', path: '/setup' },
-    { icon: Megaphone, label: 'My Pitches', path: '/archive' },
     { icon: History, label: 'Pitch Replays', path: '/replay' },
+    { icon: Megaphone, label: 'My Pitches', path: '/archive' },
+    { icon: Briefcase, label: 'My Workspace', path: '/workspace/businesses' },
     // MVP: coming soon — remove the tag to re-enable
     { icon: FileSearch, label: 'Deck Check', path: '/deck-check', tag: 'Soon' },
     { icon: Layers, label: 'Pitch Decks', path: '/decks', tag: 'Soon' },
     { icon: Activity, label: 'Analytics', path: '/analytics', tag: 'Soon' },
+  ];
+  const exploreItems: NavItem[] = [
+    { icon: Compass, label: 'Discover', path: '/discover' },
+    ...(ecosystemFeatures.pitchArena ? [{ icon: Presentation, label: 'Pitch Arena', path: '/pitches' }] : []),
+    ...(ecosystemFeatures.community ? [{ icon: MessagesSquare, label: 'Community', path: '/community' }] : []),
+    { icon: CalendarDays, label: 'Opportunities', path: '/opportunities' },
   ];
   const ecosystemItems: NavItem[] = [
     { icon: Landmark, label: 'Organizations', path: '/organizations', tag: 'Later' },
     { icon: Handshake, label: 'Investor discovery', path: '/investors', tag: 'Later' },
   ];
 
+  // Five tabs at most: practice keeps a tab of its own, and the rest of the
+  // ecosystem stays one tap away in the menu.
   const mobileTabs: NavItem[] = [
     { icon: Home, label: 'Home', path: '/home' },
+    { icon: Mic, label: 'Practice', path: '/dashboard' },
     { icon: Compass, label: 'Discover', path: '/discover' },
-    ...(ecosystemFeatures.pitchArena ? [{ icon: Presentation, label: 'Pitches', path: '/pitches' }] : []),
-    ...(ecosystemFeatures.community ? [{ icon: MessagesSquare, label: 'Community', path: '/community' }] : []),
+    ...(ecosystemFeatures.community
+      ? [{ icon: MessagesSquare, label: 'Community', path: '/community' }]
+      : ecosystemFeatures.pitchArena
+        ? [{ icon: Presentation, label: 'Pitches', path: '/pitches' }]
+        : []),
     { icon: Briefcase, label: 'Workspace', path: '/workspace/businesses' },
   ];
 
@@ -412,8 +421,8 @@ export default function AppLayout() {
         </div>
 
         <nav className="custom-scrollbar -mx-1 mt-1 flex-1 overflow-y-auto px-1 pb-2">
-          <NavGroup label="Explore" items={exploreItems} pathname={location.pathname} onNavigate={closeMenu} />
           <NavGroup label="My founder tools" items={toolItems} pathname={location.pathname} onNavigate={closeMenu} />
+          <NavGroup label="Explore" items={exploreItems} pathname={location.pathname} onNavigate={closeMenu} />
           <NavGroup label="Ecosystem" items={ecosystemItems} pathname={location.pathname} onNavigate={closeMenu} />
         </nav>
 

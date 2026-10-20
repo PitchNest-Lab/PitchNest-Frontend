@@ -22,7 +22,7 @@ import { fetchPitches, type PitchSummary } from "../api/pitches";
 import { fetchThreads, TOPIC_LABELS, type ThreadSummary } from "../api/community";
 import { fetchOpportunities, type Opportunity } from "../api/opportunities";
 
-/** The in-app home feed: a little of everything happening on PitchNest. */
+/** The in-app home feed: pitch practice first, then the wider founder ecosystem. */
 export default function Home() {
   const { user, authFetch } = useAuth();
   const founder = user && user.accountType !== "organization" ? user : null;
@@ -35,7 +35,7 @@ export default function Home() {
 
   usePageMetadata({
     title: "Home — PitchNest",
-    description: "Discover founders, give pitch feedback, join founder conversations and find opportunities on PitchNest.",
+    description: "Practise your pitch with an AI investor panel, then discover founders, join conversations and find opportunities on PitchNest.",
     path: "/home",
     // The marketing landing page at "/" is the page to index.
     robots: "noindex, follow",
@@ -86,23 +86,23 @@ export default function Home() {
         <div className="relative grid gap-6 p-6 sm:p-8 md:grid-cols-[minmax(0,1fr)_220px] md:items-center lg:p-10">
           <div>
             <p className="text-[11px] font-bold uppercase tracking-widest text-accent">
-              {firstName ? `Welcome back, ${firstName}` : "The founder ecosystem"}
+              {firstName ? `Welcome back, ${firstName}` : "AI pitch practice"}
             </p>
             <h1 className="mt-3 text-3xl font-extrabold leading-tight tracking-tight sm:text-4xl">
-              Great businesses deserve <span className="text-accent">to be discovered.</span>
+              Practise your pitch <span className="text-accent">before it counts.</span>
             </h1>
             <p className="mt-3 max-w-xl text-sm leading-relaxed text-white/80">
-              Explore businesses beyond software. Share what you're building, grow with other founders, and sharpen your investor pitch with AI.
+              Pitch out loud to an AI investor panel that asks the hard questions, then get a scored report showing exactly what to fix. When you're ready, share your business with other founders.
             </p>
             <div className="mt-6 flex flex-wrap gap-3">
-              <Link to="/discover" className="btn-accent px-5 py-2.5 text-sm">
-                Explore businesses <ArrowRight size={16} />
+              <Link to={founder ? "/setup" : "/signup"} className="btn-accent px-5 py-2.5 text-sm">
+                Start a practice pitch <Mic size={16} />
               </Link>
               <Link
-                to={founder ? "/setup" : "/signup"}
+                to="/discover"
                 className="inline-flex items-center gap-2 rounded-xl border border-white/30 bg-white/10 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-white/20"
               >
-                Practice with AI <Mic size={16} />
+                Explore businesses <ArrowRight size={16} />
               </Link>
             </div>
           </div>
@@ -124,8 +124,8 @@ export default function Home() {
 
       <div className="grid gap-3 sm:grid-cols-3">
         {[
-          { to: "/discover", icon: Compass, title: "Discover founders", text: "Across every industry", tone: "bg-indigo-50 text-indigo-600 dark:bg-indigo-950/40 dark:text-indigo-300" },
           { to: founder ? "/setup" : "/signup", icon: Mic, title: "Prepare with AI", text: "Your private practice room", tone: "bg-accent-soft text-accent-text dark:bg-accent/10 dark:text-accent" },
+          { to: "/discover", icon: Compass, title: "Discover founders", text: "Across every industry", tone: "bg-indigo-50 text-indigo-600 dark:bg-indigo-950/40 dark:text-indigo-300" },
           {
             to: features.community ? "/community" : "/opportunities",
             icon: Users,
