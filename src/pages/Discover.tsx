@@ -19,6 +19,7 @@ import {
   type PublicBusinessSummary,
   type PublicBusinessType,
   type PublicDirectoryFilters,
+  type PublicDirectoryOrder,
 } from "../api/publicBusinesses";
 import { cn } from "../lib/utils";
 import { usePageMetadata } from "../hooks/usePageMetadata";
@@ -56,6 +57,8 @@ export default function Discover() {
   }), [filterKey]);
   const [draft, setDraft] = useState<DraftFilters>(filters as DraftFilters);
   const [businesses, setBusinesses] = useState<PublicBusinessSummary[]>([]);
+  // Unknown until the first page arrives, so the heading never flips.
+  const [order, setOrder] = useState<PublicDirectoryOrder | null>(null);
   const [nextCursor, setNextCursor] = useState<string | null>(null);
   const [status, setStatus] = useState<"loading" | "ready" | "error">("loading");
   const [error, setError] = useState("");
@@ -81,6 +84,7 @@ export default function Discover() {
     fetchPublicBusinesses({ ...filters, limit: 12 }, controller.signal)
       .then((page) => {
         setBusinesses(page.data);
+        setOrder(page.order ?? "newest");
         setNextCursor(page.pagination.nextCursor);
         setStatus("ready");
       })
@@ -221,7 +225,9 @@ export default function Discover() {
 
           <div className="mt-6 flex items-end justify-between gap-4">
             <div>
-              <p className="eyebrow">Recently published</p>
+              <p className="eyebrow">
+                {order === null ? "\u00a0" : order === "most_supported" ? "Most supported" : "Recently published"}
+              </p>
               <h2 className="mt-1 text-xl font-extrabold text-slate-950 dark:text-white">
                 {activeFilterCount ? "Matching businesses" : "Businesses"}
               </h2>

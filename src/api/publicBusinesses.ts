@@ -49,12 +49,17 @@ export interface PublicDirectoryFilters {
   limit?: number;
 }
 
+/** Most supported first while Discover engagement is on, otherwise newest first. */
+export type PublicDirectoryOrder = "most_supported" | "newest";
+
 export interface PublicDirectoryPage {
   data: PublicBusinessSummary[];
   pagination: {
     nextCursor: string | null;
     hasMore: boolean;
   };
+  /** Absent from servers that predate it; those list newest first. */
+  order?: PublicDirectoryOrder;
 }
 
 export class PublicBusinessApiError extends Error {
