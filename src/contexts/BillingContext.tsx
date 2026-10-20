@@ -207,9 +207,13 @@ export const BillingProvider: React.FC<{ children: React.ReactNode }> = ({ child
           window.alert("Couldn't start checkout. Please try again in a moment.");
           return false;
         }
+        // The live site only ever leaves for Flutterwave's live checkout. Local
+        // and DEV builds use Flutterwave's test mode, whose page is hosted
+        // elsewhere, so there any https link from our own API is accepted.
+        const liveSite = /(^|\.)pitchnest\.app$/.test(window.location.hostname);
         if (
           paymentUrl.protocol !== "https:" ||
-          paymentUrl.hostname !== "checkout.flutterwave.com" ||
+          (liveSite && paymentUrl.hostname !== "checkout.flutterwave.com") ||
           paymentUrl.username ||
           paymentUrl.password
         ) {
@@ -219,7 +223,8 @@ export const BillingProvider: React.FC<{ children: React.ReactNode }> = ({ child
         }
 
         // Deliberately NO optimistic upgrade: nothing is paid yet. Pro/Prep is
-        // granted only by the verified webhook, which the return page picks up.
+        // granted only after the server verifies the payment with Flutterwave
+        // (on return, or by the webhook).
         window.location.assign(paymentUrl.toString());
         return true;
       } catch (err) {
