@@ -286,7 +286,7 @@ export default function PricingPage() {
 
                 <p className="mt-6 text-[11px] leading-relaxed text-slate-400 dark:text-zinc-500">
                   {plan.id === "free"
-                    ? "No card needed. New accounts start with 30 days of full Pro access."
+                    ? "No card needed. New accounts start with 3 days of full Pro access."
                     : recurring
                       ? `${freeMonths > 0 ? "The free month applies to your first subscription only. " : ""}Renews at ${formatMoney(recurring.amount, recurring.currency)} ${term === "annual" ? "a year" : "a month"} until you cancel.`
                       : "Renews automatically until you cancel."}
@@ -341,7 +341,7 @@ export default function PricingPage() {
         </div>
 
         <p className="mt-4 text-xs text-slate-400 dark:text-zinc-500">
-          New accounts get 30 days of full Pro access, so every row above reads as included while you trial.
+          New accounts get 3 days of full Pro access, so every row above reads as included while you trial.
           When it ends you keep the Free plan and every report you already generated stays readable — you
           just stop being able to start new sessions beyond two a week. Hubs & Accelerators is priced custom
           per seat or cohort.

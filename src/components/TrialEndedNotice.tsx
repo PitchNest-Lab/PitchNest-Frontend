@@ -46,9 +46,9 @@ export function TrialEndedNotice() {
   const hasRealExpiry =
     trialExpiresAt !== null && Number.isFinite(trialExpiresAt.getTime());
 
-  // "Ended" rather than "never started": the backend fabricates a trialExpiresAt
-  // of now + 30 days for legacy rows that have none, so a real past date is the
-  // only thing that means a trial genuinely ran out.
+  // "Ended" rather than "never started": the backend sends no trialExpiresAt
+  // for legacy rows that have none, so a real past date is the only thing that
+  // means a trial genuinely ran out.
   const trialEnded =
     !dismissed &&
     raw?.isTrial !== true &&
