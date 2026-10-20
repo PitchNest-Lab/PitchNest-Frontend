@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { usePreferredCurrency } from "../lib/currency";
 
 /**
  * Public Pro price, for surfaces that render while logged out (landing page,
@@ -8,6 +9,9 @@ import { useEffect, useState } from "react";
  * USER's plan and lives inside the authenticated providers. Pricing pages need
  * the number without a session, so this hits the unauthenticated
  * /api/billing/price endpoint and holds nothing user-specific.
+ *
+ * Prices come in the visitor's preferred currency when the server offers it,
+ * and in dollars otherwise; every amount carries the currency it is in.
  *
  * Falls back to nulls on failure — the pricing UI renders a neutral "See
  * pricing" rather than inventing an amount that might not match checkout.
@@ -20,6 +24,9 @@ export interface CatalogItem {
   days: number;
   /** Server-side checkout allow-list; displaying a price does not imply sale. */
   purchasable: boolean;
+  /** On a converted price only: the dollar price it was converted from. */
+  baseAmount?: number;
+  baseCurrency?: string;
 }
 
 export interface PublicPrice {
@@ -28,6 +35,8 @@ export interface PublicPrice {
   days: number | null;
   /** Every configured (plan, term) SKU; each carries its checkout availability. */
   catalog: CatalogItem[];
+  /** Currencies the server can price in right now, dollars first. */
+  currencies: string[];
   billingEnabled: boolean;
   /** Free months a first subscription gets; 0 when there is no offer. */
   freeMonths: number;
@@ -39,18 +48,25 @@ const EMPTY: PublicPrice = {
   currency: null,
   days: null,
   catalog: [],
+  currencies: [],
   billingEnabled: false,
   freeMonths: 0,
   loaded: false,
 };
 
+/** The server's currency list, keeping only well-formed codes. */
+export function readCurrencies(raw: unknown): string[] {
+  return Array.isArray(raw) ? raw.filter((code): code is string => typeof code === "string" && /^[A-Z]{3}$/.test(code)) : [];
+}
+
 export function usePublicPrice(): PublicPrice {
   const [state, setState] = useState<PublicPrice>(EMPTY);
+  const preferred = usePreferredCurrency();
 
   useEffect(() => {
     let cancelled = false;
 
-    fetch("/api/billing/price")
+    fetch(`/api/billing/price?currency=${encodeURIComponent(preferred)}`)
       .then((res) => (res.ok ? res.json() : null))
       .then((body) => {
         if (cancelled) return;
@@ -64,6 +80,7 @@ export function usePublicPrice(): PublicPrice {
                 purchasable: item?.purchasable === true,
               }))
             : [],
+          currencies: readCurrencies(body?.currencies),
           billingEnabled: !!body?.billingEnabled,
           freeMonths: Number.isInteger(body?.offer?.freeMonths) && body.offer.freeMonths > 0 ? body.offer.freeMonths : 0,
           loaded: true,
@@ -76,7 +93,7 @@ export function usePublicPrice(): PublicPrice {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [preferred]);
 
   return state;
 }

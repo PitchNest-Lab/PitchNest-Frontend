@@ -29,6 +29,15 @@ export function formatMoney(amount: number, currency: string): string {
   }
 }
 
+/** "Nigerian Naira" for NGN, in the visitor's language; the code itself if unknown. */
+export function currencyName(currency: string): string {
+  try {
+    return new Intl.DisplayNames(undefined, { type: "currency" }).of(currency) ?? currency;
+  } catch {
+    return currency;
+  }
+}
+
 /** "1 month free", "2 months free". */
 export function freeMonthsLabel(months: number): string {
   return `${months} month${months === 1 ? "" : "s"} free`;

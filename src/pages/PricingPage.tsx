@@ -8,7 +8,8 @@ import { getPlans, IN_DEVELOPMENT, type Plan } from "../lib/plans";
 import { usePublicPrice } from "../hooks/usePublicPrice";
 import { useAuth } from "../contexts/AuthContext";
 import { useBilling, type BillingTerm, type PaidPlan } from "../contexts/BillingContext";
-import { formatMoney, freeMonthsLabel, hasPaidPlan } from "../lib/billing";
+import { currencyName, formatMoney, freeMonthsLabel, hasPaidPlan } from "../lib/billing";
+import { setPreferredCurrency } from "../lib/currency";
 import { CONTACT_EMAIL } from "../lib/legal";
 
 /**
@@ -21,7 +22,8 @@ import { CONTACT_EMAIL } from "../lib/legal";
  * Every price and the free-month offer come from the server (the public price
  * endpoint, or the signed-in user's plan endpoint, which also says whether
  * THIS user still qualifies). Nothing here can promise what checkout won't
- * record.
+ * record. Prices are in the visitor's currency when the server offers it, and
+ * checkout pays in the currency of the price on the card.
  */
 
 /**
@@ -81,7 +83,12 @@ export default function PricingPage() {
   const [starting, setStarting] = useState<PaidPlan | null>(null);
 
   const useAccount = signedIn && loaded;
-  const catalog = useAccount && info.catalog.length > 0 ? info.catalog : publicPrice.catalog;
+  const fromAccount = useAccount && info.catalog.length > 0;
+  const catalog = fromAccount ? info.catalog : publicPrice.catalog;
+  const currencies = fromAccount ? info.currencies : publicPrice.currencies;
+  // The currency the server actually priced in, which may not be the one asked for.
+  const shownCurrency = catalog[0]?.currency ?? "USD";
+  const converted = catalog.some((item) => item.baseAmount !== undefined);
   const billingEnabled = useAccount ? info.billingEnabled : publicPrice.billingEnabled;
   // Visitors see the offer as it stands for new subscribers; a signed-in user
   // sees it only while they still qualify.
@@ -110,7 +117,7 @@ export default function PricingPage() {
   const startCheckout = async (plan: PaidPlan) => {
     setStarting(plan);
     // On success the browser leaves for Flutterwave, so only failure clears this.
-    const ok = await upgrade({ plan, term });
+    const ok = await upgrade({ plan, term, currency: sku(plan, term)?.currency });
     if (!ok) setStarting(null);
   };
 
@@ -156,14 +163,18 @@ export default function PricingPage() {
   };
 
   const priceFor = (plan: Plan) => {
-    if (plan.id === "free") return { amount: "$0", unit: "/ month" };
-    if (plan.id === "enterprise") return { amount: "Custom", unit: "per seat" };
+    if (plan.id === "free") return { amount: formatMoney(0, shownCurrency), unit: "/ month", approx: "" };
+    if (plan.id === "enterprise") return { amount: "Custom", unit: "per seat", approx: "" };
     const item = sku(CARD_PLAN[plan.id], term);
     if (!item) {
       const pricingLoaded = useAccount ? loaded : publicPrice.loaded;
-      return { amount: pricingLoaded ? "Unavailable" : "Loading…", unit: "" };
+      return { amount: pricingLoaded ? "Unavailable" : "Loading…", unit: "", approx: "" };
     }
-    return { amount: formatMoney(item.amount, item.currency), unit: term === "annual" ? "/ year" : "/ month" };
+    return {
+      amount: formatMoney(item.amount, item.currency),
+      unit: term === "annual" ? "/ year" : "/ month",
+      approx: item.baseAmount !== undefined && item.baseCurrency ? `≈ ${formatMoney(item.baseAmount, item.baseCurrency)}` : "",
+    };
   };
 
   const cards = plans.filter((p) => p.id !== "enterprise");
@@ -207,8 +218,8 @@ export default function PricingPage() {
           </p>
         </div>
 
-        {/* Billing period */}
-        <div className="mb-10 flex justify-center">
+        {/* Billing period and currency */}
+        <div className="mb-10 flex flex-wrap items-center justify-center gap-3">
           <div role="radiogroup" aria-label="Billing period" className="inline-flex rounded-full border border-slate-200 bg-white/70 p-1 dark:border-zinc-800 dark:bg-zinc-900/70">
             {(["monthly", "annual"] as const).map((option) => (
               <button
@@ -231,6 +242,22 @@ export default function PricingPage() {
               </button>
             ))}
           </div>
+          {currencies.length > 1 && (
+            <label className="inline-flex items-center gap-2 text-sm text-slate-500 dark:text-zinc-400">
+              Currency
+              <select
+                value={shownCurrency}
+                onChange={(event) => setPreferredCurrency(event.target.value)}
+                className="cursor-pointer rounded-full border border-slate-200 bg-white/70 px-3 py-2 text-sm font-medium text-slate-800 dark:border-zinc-800 dark:bg-zinc-900/70 dark:text-zinc-100"
+              >
+                {currencies.map((code) => (
+                  <option key={code} value={code}>
+                    {code} · {currencyName(code)}
+                  </option>
+                ))}
+              </select>
+            </label>
+          )}
         </div>
 
         {/* Plan cards */}
@@ -265,9 +292,10 @@ export default function PricingPage() {
                   {DESCRIPTIONS[plan.id as "free" | "founder" | "pro"]}
                 </p>
 
-                <div className="mt-5 flex items-baseline gap-1.5">
+                <div className="mt-5 flex flex-wrap items-baseline gap-x-1.5">
                   <span className="text-4xl font-semibold tracking-tight">{price.amount}</span>
                   <span className="text-sm text-slate-500 dark:text-zinc-400">{price.unit}</span>
+                  {price.approx && <span className="text-xs text-slate-400 dark:text-zinc-500">{price.approx}</span>}
                 </div>
                 <p className="mt-1 h-5 text-xs font-semibold text-accent-text dark:text-accent">
                   {paidCard && freeMonths > 0 ? `+ ${freeMonthsLabel(freeMonths)} on your first subscription` : ""}
@@ -295,6 +323,13 @@ export default function PricingPage() {
             );
           })}
         </div>
+
+        {converted && (
+          <p className="mx-auto mb-8 max-w-xl text-center text-xs text-slate-500 dark:text-zinc-400">
+            Prices in {currencyName(shownCurrency)} are converted from US dollars at today's exchange rate and rounded up.
+            A plan keeps the amount you subscribed at for as long as it renews.
+          </p>
+        )}
 
         <p className="mb-16 flex flex-wrap items-center justify-center gap-1.5 text-center text-sm text-slate-500 dark:text-zinc-400">
           <Users size={16} className="text-slate-400" />

@@ -1,5 +1,6 @@
 import type { LucideIcon } from "lucide-react";
 import { Sparkles, Rocket, Crown, Building2 } from "lucide-react";
+import { formatMoney } from "./billing";
 
 /**
  * Single source of truth for the public pricing tiers.
@@ -180,8 +181,7 @@ export function formatPrice(
   days: number | null | undefined,
 ): string {
   if (typeof amount === "number" && amount > 0 && currency) {
-    const symbol = currency.toUpperCase() === "USD" ? "$" : `${currency} `;
-    return `${symbol}${amount} /mo`;
+    return `${formatMoney(amount, currency.toUpperCase())} /mo`;
   }
   return "";
 }
@@ -216,6 +216,6 @@ export function getPlans(price: {
     if (p.id === "founder")
       return { ...p, price: formatPrice(founderAmount, founderMo?.currency ?? currency, null) };
     if (p.id === "enterprise") return { ...p, price: "Custom per seat" };
-    return { ...p, price: "$0 /mo" };
+    return { ...p, price: `${formatMoney(0, currency ?? "USD")} /mo` };
   });
 }

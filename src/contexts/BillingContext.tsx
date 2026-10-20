@@ -7,6 +7,8 @@ import React, {
   useState,
 } from "react";
 import { useAuth } from "../contexts/AuthContext";
+import { readCurrencies } from "../hooks/usePublicPrice";
+import { usePreferredCurrency } from "../lib/currency";
 
 /**
  * Loads what the current account is entitled to and wires the "Upgrade" action
@@ -17,6 +19,9 @@ import { useAuth } from "../contexts/AuthContext";
  * Setup, the report page, Settings), and they all need the same behaviour:
  * ask the server to start a checkout for a chosen SKU, redirect to Flutterwave's
  * hosted page, and surface a failure without dumping the user at a dead end.
+ *
+ * Prices are loaded in the visitor's preferred currency (lib/currency), and a
+ * checkout pays in the currency of the price the buyer was shown.
  */
 
 export type PaidPlan = "prep" | "pro";
@@ -31,6 +36,9 @@ export interface CatalogItem {
   days: number;
   /** True only when the server will currently accept checkout for this SKU. */
   purchasable: boolean;
+  /** On a converted price only: the dollar price it was converted from. */
+  baseAmount?: number;
+  baseCurrency?: string;
 }
 
 /** The auto-renewing subscription behind a paid plan. */
@@ -69,6 +77,8 @@ interface BillingInfo {
   } | null;
   /** Every configured SKU (plan × term), including checkout availability. */
   catalog: CatalogItem[];
+  /** Currencies the server can price in right now, dollars first. */
+  currencies: string[];
   /** The active subscription, else the most recent one; null if none ever. */
   subscription: SubscriptionInfo | null;
   offer: OfferInfo;
@@ -82,6 +92,7 @@ const DEFAULT_INFO: BillingInfo = {
   billingEnabled: false,
   price: null,
   catalog: [],
+  currencies: [],
   subscription: null,
   offer: { freeMonths: 0, eligible: false },
 };
@@ -99,11 +110,12 @@ interface BillingContextValue {
   /** True once the plan endpoint has answered (so we never flash "free"). */
   loaded: boolean;
   /**
-   * Starts a purchase. Defaults to the headline Pro monthly; pass a selection to
-   * buy a different SKU. Returns false if it couldn't, having already told the
-   * user why. When true the caller should expect a redirect.
+   * Starts a purchase. Defaults to the headline Pro monthly in dollars; pass a
+   * selection to buy a different SKU, and the currency of the price the buyer
+   * was shown. Returns false if it couldn't, having already told the user why.
+   * When true the caller should expect a redirect.
    */
-  upgrade: (selection?: { plan?: PaidPlan; term?: BillingTerm }) => Promise<boolean>;
+  upgrade: (selection?: { plan?: PaidPlan; term?: BillingTerm; currency?: string }) => Promise<boolean>;
   /** Turns off auto-renew. Paid time already bought is kept. */
   cancelSubscription: () => Promise<{ ok: boolean; message?: string }>;
   refresh: () => Promise<void>;
@@ -123,12 +135,13 @@ export function useBilling() {
 
 export const BillingProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { user, authFetch } = useAuth();
+  const preferredCurrency = usePreferredCurrency();
   const [info, setInfo] = useState<BillingInfo>(DEFAULT_INFO);
   const [loaded, setLoaded] = useState(false);
 
   const refresh = useCallback(async () => {
     try {
-      const res = await authFetch("/api/billing/plan");
+      const res = await authFetch(`/api/billing/plan?currency=${encodeURIComponent(preferredCurrency)}`);
       if (!res.ok) {
         console.warn("billing/plan failed with", res.status);
         setInfo(DEFAULT_INFO);
@@ -148,6 +161,7 @@ export const BillingProvider: React.FC<{ children: React.ReactNode }> = ({ child
               purchasable: item?.purchasable === true,
             }))
           : [],
+        currencies: readCurrencies(body.currencies),
         subscription: body.subscription && typeof body.subscription === "object" ? body.subscription : null,
         offer: readOffer(body.offer),
       });
@@ -157,12 +171,13 @@ export const BillingProvider: React.FC<{ children: React.ReactNode }> = ({ child
     } finally {
       setLoaded(true);
     }
-  }, [authFetch]);
+  }, [authFetch, preferredCurrency]);
 
   // Keep the context in step with /me: the plan changes after checkout, on
   // expiry, and when an admin comps or revokes access. Skipped while logged
   // out — /api/billing/plan is an authenticated route, so an anonymous refresh
-  // could only ever 401 (and did, on every landing-page load).
+  // could only ever 401 (and did, on every landing-page load). A change of
+  // preferred currency makes a new `refresh`, which re-prices the plan.
   useEffect(() => {
     if (!user?.id) {
       setInfo(DEFAULT_INFO);
@@ -173,14 +188,15 @@ export const BillingProvider: React.FC<{ children: React.ReactNode }> = ({ child
   }, [user?.id, user?.plan, refresh]);
 
   const upgrade = useCallback(
-    async (selection?: { plan?: PaidPlan; term?: BillingTerm }): Promise<boolean> => {
+    async (selection?: { plan?: PaidPlan; term?: BillingTerm; currency?: string }): Promise<boolean> => {
       try {
         // Only send keys the caller set; the server defaults the rest to the
-        // headline Pro monthly. The amount is NEVER sent — the server prices the
-        // SKU itself.
+        // headline Pro monthly in dollars. The amount is NEVER sent — the server
+        // prices the SKU itself, in the currency named here.
         const payload: Record<string, string> = {};
         if (selection?.plan) payload.plan = selection.plan;
         if (selection?.term) payload.term = selection.term;
+        if (selection?.currency) payload.currency = selection.currency;
         const hasBody = Object.keys(payload).length > 0;
 
         const res = await authFetch("/api/billing/checkout", {
