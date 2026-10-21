@@ -2,7 +2,7 @@ import React, { createContext, useCallback, useContext, useMemo, useState } from
 import * as Dialog from "@radix-ui/react-dialog";
 import { Sparkles, Check, X, Loader2 } from "lucide-react";
 import { useBilling } from "../../contexts/BillingContext";
-import { formatMoney } from "../../lib/billing";
+import { defaultBillingMode, formatMoney } from "../../lib/billing";
 import { CONTACT_EMAIL } from "../../lib/legal";
 
 /**
@@ -147,8 +147,19 @@ export const UpgradeProvider: React.FC<{ children: React.ReactNode }> = ({ child
                     setStarting(true);
                     // This prompt sells Pro specifically (it fires on Pro-gated
                     // walls); Prep is chosen from the Settings selector instead.
-                    // It pays in the currency of the price on the button.
-                    const ok = await upgrade({ plan: "pro", term: "monthly", currency: info.price?.currency });
+                    // It pays in the currency of the price on the button, on
+                    // that price's default renewal option: some currencies
+                    // offer manual renewal only.
+                    const proMonthly = info.catalog.find((item) => item.plan === "pro" && item.term === "monthly");
+                    const ok = await upgrade({
+                      plan: "pro",
+                      term: "monthly",
+                      currency: info.price?.currency,
+                      billingMode: defaultBillingMode(
+                        proMonthly,
+                        info.subscription?.status === "active" ? info.subscription.billingMode : null,
+                      ),
+                    });
                     if (!ok) setStarting(false);
                   }}
                   className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-sky-500 py-3 text-sm font-bold text-white transition-colors hover:bg-sky-600 disabled:opacity-60"

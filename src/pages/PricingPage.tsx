@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Check, Gift, Hammer, Loader2, Minus, Sparkles, Users, X } from "lucide-react";
 import { cn } from "../lib/utils";
@@ -8,7 +8,7 @@ import { getPlans, IN_DEVELOPMENT, type Plan } from "../lib/plans";
 import { usePublicPrice } from "../hooks/usePublicPrice";
 import { useAuth } from "../contexts/AuthContext";
 import { useBilling, type BillingMode, type BillingTerm, type PaidPlan } from "../contexts/BillingContext";
-import { currencyName, formatMoney, freeMonthsLabel, hasPaidPlan } from "../lib/billing";
+import { currencyName, defaultBillingMode, formatMoney, freeMonthsLabel, hasPaidPlan } from "../lib/billing";
 import { setPreferredCurrency } from "../lib/currency";
 import { CONTACT_EMAIL } from "../lib/legal";
 
@@ -80,7 +80,7 @@ export default function PricingPage() {
   const publicPrice = usePublicPrice();
   const { info, loaded, upgrade } = useBilling();
   const [term, setTerm] = useState<BillingTerm>("monthly");
-  const [billingMode, setBillingMode] = useState<BillingMode>("auto_renew");
+  const [chosenMode, setChosenMode] = useState<BillingMode | null>(null);
   const [starting, setStarting] = useState<PaidPlan | null>(null);
 
   const useAccount = signedIn && loaded;
@@ -111,10 +111,12 @@ export default function PricingPage() {
       : 0;
   const modeSku = sku("pro", term) ?? proMonthly;
   const billingModes = modeSku?.billingModes ?? ["auto_renew", "manual"];
-
-  useEffect(() => {
-    if (!billingModes.includes(billingMode)) setBillingMode(billingModes.includes("manual") ? "manual" : billingModes[0]);
-  }, [billingMode, billingModes]);
+  // The buyer's own pick while it is on offer; until then, the default for
+  // this price (manual for local currencies, automatic for dollars).
+  const billingMode: BillingMode =
+    chosenMode && billingModes.includes(chosenMode)
+      ? chosenMode
+      : defaultBillingMode(modeSku, currentSub?.billingMode);
 
   const close = () => {
     if ((window.history.state?.idx ?? 0) > 0) navigate(-1);
@@ -303,7 +305,7 @@ export default function PricingPage() {
                   type="button"
                   role="radio"
                   aria-checked={billingMode === mode}
-                  onClick={() => setBillingMode(mode)}
+                  onClick={() => setChosenMode(mode)}
                   className={cn(
                     "cursor-pointer rounded-full px-4 py-2 text-sm font-medium transition-colors",
                     billingMode === mode

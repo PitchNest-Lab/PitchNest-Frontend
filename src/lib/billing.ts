@@ -1,9 +1,28 @@
+import type { BillingMode } from "../contexts/BillingContext";
+
 /**
  * Display helpers for plans and prices. Amounts always come from the server;
  * these only decide how to print them.
  */
 
 export type PlanId = "free" | "prep" | "pro";
+
+/**
+ * The renewal option a buyer starts on, among those the price offers: their
+ * current subscription's when it is on offer; otherwise manual renewal for a
+ * local-currency price, where bank transfer and other local methods work and
+ * banks often refuse to save a card for renewals; and automatic card renewal
+ * for dollars.
+ */
+export function defaultBillingMode(
+  item: { billingModes: BillingMode[]; baseAmount?: number } | null | undefined,
+  current?: BillingMode | null,
+): BillingMode {
+  const modes: BillingMode[] = item?.billingModes?.length ? item.billingModes : ["auto_renew"];
+  if (current && modes.includes(current)) return current;
+  if (item?.baseAmount !== undefined && modes.includes("manual")) return "manual";
+  return modes.includes("auto_renew") ? "auto_renew" : "manual";
+}
 
 /** The customer-facing name of a plan as the server reports it. */
 export function planName(plan: string | null | undefined): string {
