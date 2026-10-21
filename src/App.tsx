@@ -50,6 +50,7 @@ const PrivacyPolicy = lazyPage(() => import("./pages/legal/PrivacyPolicy"));
 const TermsOfService = lazyPage(() => import("./pages/legal/TermsOfService"));
 const DeleteAccount = lazyPage(() => import("./pages/legal/DeleteAccount"));
 const Support = lazyPage(() => import("./pages/legal/Support"));
+const RefundPolicy = lazyPage(() => import("./pages/legal/RefundPolicy"));
 const PricingPage = lazyPage(() => import("./pages/PricingPage"));
 // Public, unauthenticated: a founder's shared pitch report, addressed by a
 // revocable share id. Deliberately outside ProtectedRoute — the recipient is an
@@ -97,6 +98,7 @@ export default function App() {
             <Route path="/terms" element={<TermsOfService />} />
             <Route path="/delete-account" element={<DeleteAccount />} />
             <Route path="/support" element={<Support />} />
+        <Route path="/refunds" element={<RefundPolicy />} />
             <Route path="/pricing" element={<PricingPage />} />
             {/* Shared pitch report — see pages/PublicPitch.tsx. Must be declared
                 above the "*" catch-all below or it would redirect to "/". */}

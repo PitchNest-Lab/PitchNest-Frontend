@@ -1,11 +1,11 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import LegalLayout from '../../components/LegalLayout';
-import { CONTACT_EMAIL, MIN_AGE, LEGAL_LAST_UPDATED } from '../../lib/legal';
+import { CONTACT_EMAIL, MIN_AGE, TERMS_LAST_UPDATED } from '../../lib/legal';
 
 export default function TermsOfService() {
   return (
-    <LegalLayout title="Terms of Service" lastUpdated={LEGAL_LAST_UPDATED}>
+    <LegalLayout title="Terms of Service" lastUpdated={TERMS_LAST_UPDATED}>
       <p>
         These Terms of Service (&quot;Terms&quot;) govern your use of PitchNest. By creating an account or using the
         service, you agree to these Terms and our{' '}
@@ -66,9 +66,11 @@ export default function TermsOfService() {
       <h2>7. Subscriptions and payments</h2>
       <p>
         Paid access periods, prices, currencies, and durations are shown before purchase and processed through
-        Flutterwave&apos;s hosted checkout. Card details are handled by Flutterwave rather than PitchNest. Deleting an
-        account ends access to any remaining paid period and does not itself create a refund; contact support for payment
-        questions.
+        Flutterwave&apos;s hosted checkout. Card details are handled by Flutterwave rather than PitchNest. A plan on
+        automatic renewal is charged each period until you cancel it in Settings, under Billing; a plan on manual renewal
+        is charged only when you pay. Cancelling, refunds and mistaken charges are covered by our{' '}
+        <Link to="/refunds">Refunds &amp; Cancellations</Link> policy. Deleting an account ends access to any remaining
+        paid period and does not itself create a refund; contact support for payment questions.
       </p>
 
       <h2>8. Intellectual property</h2>

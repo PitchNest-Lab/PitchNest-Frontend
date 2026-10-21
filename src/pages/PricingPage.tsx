@@ -481,6 +481,7 @@ export default function PricingPage() {
           <div className="flex gap-4">
             <Link to="/privacy" className="hover:text-sky-600 dark:hover:text-sky-400">Privacy</Link>
             <Link to="/terms" className="hover:text-sky-600 dark:hover:text-sky-400">Terms</Link>
+            <Link to="/refunds" className="hover:text-sky-600 dark:hover:text-sky-400">Refunds</Link>
             <Link to="/support" className="hover:text-sky-600 dark:hover:text-sky-400">Support</Link>
           </div>
         </div>

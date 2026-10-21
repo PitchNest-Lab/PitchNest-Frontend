@@ -29,6 +29,7 @@ export default function Support() {
           <Link to="/delete-account">Delete Account</Link> page.</li>
         <li><strong>Privacy:</strong> see our <Link to="/privacy">Privacy Policy</Link>.</li>
         <li><strong>Terms:</strong> see our <Link to="/terms">Terms of Service</Link>.</li>
+        <li><strong>Refunds and cancelling:</strong> see our <Link to="/refunds">Refunds &amp; Cancellations</Link> policy.</li>
         <li><strong>AI feedback:</strong> all investor personas and scores are AI-generated—not real VCs or financial advice.</li>
       </ul>
 

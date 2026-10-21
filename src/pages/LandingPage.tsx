@@ -576,6 +576,7 @@ export default function LandingPage() {
               <ul className="space-y-2.5 text-sm text-slate-500 dark:text-zinc-400">
                 <li><Link to="/privacy" className="hover:text-sky-600 dark:hover:text-sky-400">Privacy Policy</Link></li>
                 <li><Link to="/terms" className="hover:text-sky-600 dark:hover:text-sky-400">Terms of Service</Link></li>
+                <li><Link to="/refunds" className="hover:text-sky-600 dark:hover:text-sky-400">Refunds &amp; Cancellations</Link></li>
                 <li><Link to="/delete-account" className="hover:text-sky-600 dark:hover:text-sky-400">Delete Account</Link></li>
                 <li><Link to="/support" className="hover:text-sky-600 dark:hover:text-sky-400">Support</Link></li>
               </ul>

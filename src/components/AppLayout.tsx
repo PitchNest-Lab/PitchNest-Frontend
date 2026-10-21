@@ -549,6 +549,7 @@ export default function AppLayout() {
               <Link to="/pricing" className="hover:text-slate-600 dark:hover:text-zinc-300">Pricing</Link>
               <Link to="/privacy" className="hover:text-slate-600 dark:hover:text-zinc-300">Privacy</Link>
               <Link to="/terms" className="hover:text-slate-600 dark:hover:text-zinc-300">Terms</Link>
+              <Link to="/refunds" className="hover:text-slate-600 dark:hover:text-zinc-300">Refunds</Link>
               <Link to="/support" className="hover:text-slate-600 dark:hover:text-zinc-300">Support</Link>
             </nav>
           </div>

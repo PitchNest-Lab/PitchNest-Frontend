@@ -6,6 +6,7 @@ import { LogoLink } from './Logo';
 const LEGAL_LINKS = [
   { to: '/privacy', label: 'Privacy Policy' },
   { to: '/terms', label: 'Terms of Service' },
+  { to: '/refunds', label: 'Refunds & Cancellations' },
   { to: '/delete-account', label: 'Delete Account' },
   { to: '/support', label: 'Support' },
 ];
