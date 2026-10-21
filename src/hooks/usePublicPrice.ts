@@ -24,6 +24,7 @@ export interface CatalogItem {
   days: number;
   /** Server-side checkout allow-list; displaying a price does not imply sale. */
   purchasable: boolean;
+  billingModes: Array<"auto_renew" | "manual">;
   /** On a converted price only: the dollar price it was converted from. */
   baseAmount?: number;
   baseCurrency?: string;
@@ -59,6 +60,12 @@ export function readCurrencies(raw: unknown): string[] {
   return Array.isArray(raw) ? raw.filter((code): code is string => typeof code === "string" && /^[A-Z]{3}$/.test(code)) : [];
 }
 
+export function readBillingModes(raw: unknown): Array<"auto_renew" | "manual"> {
+  if (!Array.isArray(raw)) return ["auto_renew"];
+  const modes = raw.filter((mode): mode is "auto_renew" | "manual" => mode === "auto_renew" || mode === "manual");
+  return modes.length > 0 ? [...new Set(modes)] : ["auto_renew"];
+}
+
 export function usePublicPrice(): PublicPrice {
   const [state, setState] = useState<PublicPrice>(EMPTY);
   const preferred = usePreferredCurrency();
@@ -78,6 +85,7 @@ export function usePublicPrice(): PublicPrice {
             ? body.catalog.map((item: any) => ({
                 ...item,
                 purchasable: item?.purchasable === true,
+                billingModes: readBillingModes(item?.billingModes),
               }))
             : [],
           currencies: readCurrencies(body?.currencies),

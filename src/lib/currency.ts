@@ -16,12 +16,45 @@ const ZONE_CURRENCY: Record<string, string> = {
   "Africa/Nairobi": "KES",
   "Africa/Accra": "GHS",
   "Africa/Johannesburg": "ZAR",
+  "Europe/London": "GBP",
+};
+const REGION_CURRENCY: Record<string, string> = {
+  NG: "NGN",
+  KE: "KES",
+  GH: "GHS",
+  ZA: "ZAR",
+  GB: "GBP",
+  UG: "UGX",
+  RW: "RWF",
+  TZ: "TZS",
+  MW: "MWK",
+  EG: "EGP",
+  DE: "EUR",
+  FR: "EUR",
+  IT: "EUR",
+  ES: "EUR",
+  NL: "EUR",
+  BE: "EUR",
+  PT: "EUR",
+  IE: "EUR",
+  AT: "EUR",
+  FI: "EUR",
+  GR: "EUR",
 };
 const CODE = /^[A-Z]{3}$/;
 
+function guessFromLocale(): string | null {
+  try {
+    const region = new Intl.Locale(navigator.language || "").region;
+    return region ? REGION_CURRENCY[region] ?? null : null;
+  } catch {
+    return null;
+  }
+}
+
 function guessFromTimeZone(): string {
   try {
-    return ZONE_CURRENCY[Intl.DateTimeFormat().resolvedOptions().timeZone] ?? "USD";
+    return ZONE_CURRENCY[Intl.DateTimeFormat().resolvedOptions().timeZone] ?? guessFromLocale() ?? "USD";
   } catch {
     return "USD";
   }

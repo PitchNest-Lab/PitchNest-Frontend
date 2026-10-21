@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Check, Gift, Hammer, Loader2, Minus, Sparkles, Users, X } from "lucide-react";
 import { cn } from "../lib/utils";
@@ -7,7 +7,7 @@ import { LogoLink } from "../components/Logo";
 import { getPlans, IN_DEVELOPMENT, type Plan } from "../lib/plans";
 import { usePublicPrice } from "../hooks/usePublicPrice";
 import { useAuth } from "../contexts/AuthContext";
-import { useBilling, type BillingTerm, type PaidPlan } from "../contexts/BillingContext";
+import { useBilling, type BillingMode, type BillingTerm, type PaidPlan } from "../contexts/BillingContext";
 import { currencyName, formatMoney, freeMonthsLabel, hasPaidPlan } from "../lib/billing";
 import { setPreferredCurrency } from "../lib/currency";
 import { CONTACT_EMAIL } from "../lib/legal";
@@ -80,6 +80,7 @@ export default function PricingPage() {
   const publicPrice = usePublicPrice();
   const { info, loaded, upgrade } = useBilling();
   const [term, setTerm] = useState<BillingTerm>("monthly");
+  const [billingMode, setBillingMode] = useState<BillingMode>("auto_renew");
   const [starting, setStarting] = useState<PaidPlan | null>(null);
 
   const useAccount = signedIn && loaded;
@@ -97,7 +98,7 @@ export default function PricingPage() {
     : publicPrice.freeMonths;
   const paid = useAccount && hasPaidPlan(info);
   const currentPlan = paid ? info.plan : "free";
-  const currentSub = useAccount && info.subscription?.autoRenew ? info.subscription : null;
+  const currentSub = useAccount && info.subscription?.status === "active" ? info.subscription : null;
 
   const plans = useMemo(() => getPlans({ amount: null, currency: null, days: null }), []);
   const sku = (plan: PaidPlan, t: BillingTerm) => catalog.find((c) => c.plan === plan && c.term === t) ?? null;
@@ -108,6 +109,12 @@ export default function PricingPage() {
     proMonthly && proAnnual && proAnnual.amount < proMonthly.amount * 12
       ? Math.round((1 - proAnnual.amount / (proMonthly.amount * 12)) * 100)
       : 0;
+  const modeSku = sku("pro", term) ?? proMonthly;
+  const billingModes = modeSku?.billingModes ?? ["auto_renew", "manual"];
+
+  useEffect(() => {
+    if (!billingModes.includes(billingMode)) setBillingMode(billingModes.includes("manual") ? "manual" : billingModes[0]);
+  }, [billingMode, billingModes]);
 
   const close = () => {
     if ((window.history.state?.idx ?? 0) > 0) navigate(-1);
@@ -117,7 +124,7 @@ export default function PricingPage() {
   const startCheckout = async (plan: PaidPlan) => {
     setStarting(plan);
     // On success the browser leaves for Flutterwave, so only failure clears this.
-    const ok = await upgrade({ plan, term, currency: sku(plan, term)?.currency });
+    const ok = await upgrade({ plan, term, currency: sku(plan, term)?.currency, billingMode });
     if (!ok) setStarting(null);
   };
 
@@ -149,7 +156,14 @@ export default function PricingPage() {
     if (!signedIn) return <Link to="/signup" className={action}>{label}</Link>;
     // Until this account's plan answers, no button can say what it would do.
     if (!loaded) return <span className={quiet}>Loading…</span>;
-    if (currentSub && currentSub.plan === target && currentSub.term === term) {
+    const sameSubscriptionChoice =
+      currentSub &&
+      currentSub.plan === target &&
+      currentSub.term === term &&
+      currentSub.currency === selectedSku?.currency &&
+      currentSub.billingMode === billingMode &&
+      billingMode !== "manual";
+    if (sameSubscriptionChoice) {
       return <span className={quiet}>Your current plan</span>;
     }
     if (paid && RANK[currentPlan] > RANK[target]) return <span className={quiet}>Included in your plan</span>;
@@ -157,10 +171,30 @@ export default function PricingPage() {
       return <a href={`mailto:${CONTACT_EMAIL}?subject=Upgrade%20my%20PitchNest%20plan`} className={action}>Contact us to upgrade</a>;
     }
     const switching = Boolean(currentSub && currentSub.plan === target);
+    const sameManualRenewal = Boolean(
+      currentSub &&
+      currentSub.billingMode === "manual" &&
+      currentSub.plan === target &&
+      currentSub.term === term &&
+      currentSub.currency === selectedSku?.currency &&
+      billingMode === "manual",
+    );
+    const modeAvailable = selectedSku?.billingModes.includes(billingMode) ?? false;
+    if (!modeAvailable) {
+      return <span className={quiet}>Choose another renewal option</span>;
+    }
     return (
       <button type="button" onClick={() => void startCheckout(target)} disabled={starting !== null} className={cn(action, "cursor-pointer disabled:opacity-60")}>
         {starting === target && <Loader2 size={15} className="animate-spin" />}
-        {switching ? `Switch to ${term === "annual" ? "yearly" : "monthly"}` : label}
+        {switching
+          ? sameManualRenewal
+            ? "Renew now"
+            : currentSub?.currency !== selectedSku?.currency
+            ? `Switch to ${selectedSku?.currency}`
+            : currentSub?.billingMode !== billingMode
+              ? billingMode === "manual" ? "Switch to manual renewal" : "Turn on automatic renewal"
+              : `Switch to ${term === "annual" ? "yearly" : "monthly"}`
+          : label}
       </button>
     );
   };
@@ -216,8 +250,8 @@ export default function PricingPage() {
           </h1>
           <p className="mx-auto mt-3 max-w-xl text-sm text-slate-500 dark:text-zinc-400 sm:text-base">
             {freeMonths > 0
-              ? `Subscribe to any plan and we add ${freeMonthsLabel(freeMonths).replace(" free", "")} on top. Plans renew automatically and you can cancel any time.`
-              : "Plans renew automatically and you can cancel any time."}
+              ? `Subscribe to any plan and we add ${freeMonthsLabel(freeMonths).replace(" free", "")} on top. Choose automatic renewal or a one-time payment.`
+              : "Choose automatic renewal by card or a one-time payment. You can renew manually whenever you are ready."}
           </p>
         </div>
 
@@ -261,7 +295,33 @@ export default function PricingPage() {
               </select>
             </label>
           )}
+          {billingModes.length > 1 && (
+            <div role="radiogroup" aria-label="Renewal option" className="inline-flex rounded-full border border-slate-200 bg-white/70 p-1 dark:border-zinc-800 dark:bg-zinc-900/70">
+              {billingModes.map((mode) => (
+                <button
+                  key={mode}
+                  type="button"
+                  role="radio"
+                  aria-checked={billingMode === mode}
+                  onClick={() => setBillingMode(mode)}
+                  className={cn(
+                    "cursor-pointer rounded-full px-4 py-2 text-sm font-medium transition-colors",
+                    billingMode === mode
+                      ? "bg-indigo-50 font-semibold text-indigo-700 shadow-sm dark:bg-indigo-500/20 dark:text-indigo-100"
+                      : "text-slate-500 hover:text-slate-800 dark:text-zinc-400 dark:hover:text-zinc-200",
+                  )}
+                >
+                  {mode === "auto_renew" ? "Automatic renewal" : "Manual renewal"}
+                </button>
+              ))}
+            </div>
+          )}
         </div>
+        <p className="mx-auto -mt-5 mb-8 max-w-xl text-center text-xs text-slate-500 dark:text-zinc-400">
+          {billingMode === "auto_renew"
+            ? "Automatic renewal is card-based on Flutterwave; you can cancel before the next charge."
+            : "Manual renewal is a one-time checkout. Nothing is charged again without you starting another payment."}
+        </p>
 
         {/* Plan cards */}
         <div className="mx-auto mb-10 grid max-w-5xl items-stretch gap-5 md:grid-cols-3">
@@ -319,8 +379,10 @@ export default function PricingPage() {
                   {plan.id === "free"
                     ? "No card needed. New accounts start with 3 days of full Pro access."
                     : recurring
-                      ? `${freeMonths > 0 ? "The free month applies to your first subscription only. " : ""}Renews at ${formatMoney(recurring.amount, recurring.currency)} ${term === "annual" ? "a year" : "a month"} until you cancel.`
-                      : "Renews automatically until you cancel."}
+                      ? billingMode === "auto_renew"
+                        ? `${freeMonths > 0 ? "The free month applies to your first subscription only. " : ""}Renews at ${formatMoney(recurring.amount, recurring.currency)} ${term === "annual" ? "a year" : "a month"} until you cancel.`
+                        : `${freeMonths > 0 ? "The free month applies to your first subscription only. " : ""}One-time payment. Renew manually when your paid period ends.`
+                      : billingMode === "auto_renew" ? "Renews automatically until you cancel." : "One-time payment. Renew manually when you are ready."}
                 </p>
               </div>
             );

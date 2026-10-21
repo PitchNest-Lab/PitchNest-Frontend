@@ -41,6 +41,7 @@ export default function BillingReturn() {
     claimedStatus === "cancelled" ? "failed" : "checking",
   );
   const [planLabel, setPlanLabel] = useState("your new plan");
+  const [billingMode, setBillingMode] = useState<"auto_renew" | "manual">("auto_renew");
   const pollsRef = useRef(0);
 
   // Ask the server to settle this checkout now. It verifies the id with
@@ -90,8 +91,9 @@ export default function BillingReturn() {
         // A paid plan with a live subscription. Plan alone is not enough: the
         // free trial also reports "pro".
         const paidPlan = body?.plan === "pro" || body?.plan === "prep";
-        if (paidPlan && body?.expiresAt && body?.subscription?.autoRenew) {
+        if (paidPlan && body?.expiresAt && body?.subscription?.status === "active") {
           setPlanLabel(planName(body.plan));
+          setBillingMode(body?.subscription?.billingMode === "manual" ? "manual" : "auto_renew");
           setOutcome("success");
           return;
         }
@@ -137,8 +139,9 @@ export default function BillingReturn() {
               You're on {planLabel}
             </h1>
             <p className="mb-6 text-sm leading-relaxed text-slate-500 dark:text-zinc-400">
-              Your plan renews automatically. You can see it or cancel any time in
-              Settings, under Billing.
+              {billingMode === "auto_renew"
+                ? "Your plan renews automatically by card. You can see it or cancel any time in Settings, under Billing."
+                : "This is a one-time payment. Renew manually before your paid period ends in Settings, under Billing."}
             </p>
             <button
               type="button"

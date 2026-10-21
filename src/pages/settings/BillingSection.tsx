@@ -53,6 +53,8 @@ export default function BillingSection() {
   if (paid && sub && sub.autoRenew) {
     const price = `${formatMoney(sub.amount, sub.currency)} a ${sub.term === 'annual' ? 'year' : 'month'}`;
     status = `Renews automatically at ${price}.${sub.nextChargeAt ? ` Next payment around ${formatDate(sub.nextChargeAt)}.` : ''}`;
+  } else if (paid && sub && sub.billingMode === 'manual') {
+    status = `Manual renewal. Renew before ${formatDate(info.expiresAt)} to keep access.`;
   } else if (paid && sub && !sub.autoRenew) {
     status = `Auto-renew is off. You keep this plan until ${formatDate(info.expiresAt)}, then move to Free.`;
   } else if (paid) {
@@ -63,7 +65,7 @@ export default function BillingSection() {
     status = '2 live sessions a week, 10 minutes each.';
   }
 
-  const badge = renewing ? 'Active' : paid && sub ? 'Ends soon' : paid ? 'Active' : info.isTrial ? 'Trial' : null;
+  const badge = renewing ? 'Active' : paid && sub?.billingMode === 'manual' ? 'Manual renewal' : paid && sub ? 'Ends soon' : paid ? 'Active' : info.isTrial ? 'Trial' : null;
 
   return (
     <>
@@ -99,6 +101,11 @@ export default function BillingSection() {
             )}
           </div>
           <p className="mt-1 text-sm text-slate-600 dark:text-zinc-400">{status}</p>
+          {sub?.lastPaymentStatus === 'failed' && sub.autoRenew && (
+            <p className="mt-2 text-sm text-amber-600 dark:text-amber-400">
+              The latest renewal attempt was declined. Flutterwave may retry automatically; update your card or contact support if it continues.
+            </p>
+          )}
           {paid && info.expiresAt && renewing && (
             <p className="mt-1 text-xs text-slate-400 dark:text-zinc-500">Paid through {formatDate(info.expiresAt)}.</p>
           )}
@@ -138,8 +145,8 @@ export default function BillingSection() {
       </SettingsGroup>
 
       <p className="px-1 text-xs leading-relaxed text-slate-400 dark:text-zinc-500">
-        Payments are handled by Flutterwave. Plans renew automatically until you cancel; cancelling stops future
-        payments and you keep what you've paid for.
+        Payments are handled by Flutterwave. Automatic plans renew by card until you cancel; manual plans never
+        charge again without your approval. Either way, you keep what you've paid for.
       </p>
 
       {confirming && (

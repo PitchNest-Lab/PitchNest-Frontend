@@ -8,7 +8,7 @@ import React, {
   useState,
 } from "react";
 import { useAuth } from "../contexts/AuthContext";
-import { readCurrencies } from "../hooks/usePublicPrice";
+import { readBillingModes, readCurrencies } from "../hooks/usePublicPrice";
 import { usePreferredCurrency } from "../lib/currency";
 
 /**
@@ -27,6 +27,7 @@ import { usePreferredCurrency } from "../lib/currency";
 
 export type PaidPlan = "prep" | "pro";
 export type BillingTerm = "monthly" | "annual";
+export type BillingMode = "auto_renew" | "manual";
 
 /** One purchasable SKU, priced server-side. */
 export interface CatalogItem {
@@ -37,6 +38,7 @@ export interface CatalogItem {
   days: number;
   /** True only when the server will currently accept checkout for this SKU. */
   purchasable: boolean;
+  billingModes: BillingMode[];
   /** On a converted price only: the dollar price it was converted from. */
   baseAmount?: number;
   baseCurrency?: string;
@@ -48,6 +50,10 @@ export interface SubscriptionInfo {
   term: BillingTerm;
   amount: number;
   currency: string;
+  status: "active" | "cancelled";
+  billingMode: BillingMode;
+  lastPaymentStatus: "pending" | "successful" | "failed" | null;
+  renewalFailureCount: number;
   /** True while Flutterwave will keep charging. */
   autoRenew: boolean;
   nextChargeAt: string | null;
@@ -116,7 +122,7 @@ interface BillingContextValue {
    * was shown. Returns false if it couldn't, having already told the user why.
    * When true the caller should expect a redirect.
    */
-  upgrade: (selection?: { plan?: PaidPlan; term?: BillingTerm; currency?: string }) => Promise<boolean>;
+  upgrade: (selection?: { plan?: PaidPlan; term?: BillingTerm; currency?: string; billingMode?: BillingMode }) => Promise<boolean>;
   /** Turns off auto-renew. Paid time already bought is kept. */
   cancelSubscription: () => Promise<{ ok: boolean; message?: string }>;
   refresh: () => Promise<void>;
@@ -163,10 +169,23 @@ export const BillingProvider: React.FC<{ children: React.ReactNode }> = ({ child
           ? body.catalog.map((item: any) => ({
               ...item,
               purchasable: item?.purchasable === true,
+              billingModes: readBillingModes(item?.billingModes),
             }))
           : [],
         currencies: readCurrencies(body.currencies),
-        subscription: body.subscription && typeof body.subscription === "object" ? body.subscription : null,
+        subscription:
+          body.subscription && typeof body.subscription === "object"
+            ? {
+                ...body.subscription,
+                status: body.subscription.status === "cancelled" ? "cancelled" : "active",
+                billingMode: body.subscription.billingMode === "manual" ? "manual" : "auto_renew",
+                lastPaymentStatus:
+                  body.subscription.lastPaymentStatus === "failed" || body.subscription.lastPaymentStatus === "pending"
+                    ? body.subscription.lastPaymentStatus
+                    : body.subscription.lastPaymentStatus === "successful" ? "successful" : null,
+                renewalFailureCount: Number(body.subscription.renewalFailureCount) || 0,
+              }
+            : null,
         offer: readOffer(body.offer),
       });
     } catch (err) {
@@ -199,7 +218,7 @@ export const BillingProvider: React.FC<{ children: React.ReactNode }> = ({ child
   }, [user?.id, user?.plan, refresh]);
 
   const upgrade = useCallback(
-    async (selection?: { plan?: PaidPlan; term?: BillingTerm; currency?: string }): Promise<boolean> => {
+    async (selection?: { plan?: PaidPlan; term?: BillingTerm; currency?: string; billingMode?: BillingMode }): Promise<boolean> => {
       try {
         // Only send keys the caller set; the server defaults the rest to the
         // headline Pro monthly in dollars. The amount is NEVER sent — the server
@@ -208,6 +227,7 @@ export const BillingProvider: React.FC<{ children: React.ReactNode }> = ({ child
         if (selection?.plan) payload.plan = selection.plan;
         if (selection?.term) payload.term = selection.term;
         if (selection?.currency) payload.currency = selection.currency;
+        if (selection?.billingMode) payload.billingMode = selection.billingMode;
         const hasBody = Object.keys(payload).length > 0;
 
         const res = await authFetch("/api/billing/checkout", {
