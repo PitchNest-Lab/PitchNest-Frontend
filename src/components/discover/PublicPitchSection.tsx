@@ -31,7 +31,7 @@ export function PublicPitchSection({
     <section
       id="pitch"
       aria-labelledby="pitch-heading"
-      className="scroll-mt-24 rounded-2xl border border-indigo-200 bg-white p-6 shadow-sm dark:border-indigo-900/50 dark:bg-zinc-900 sm:p-7"
+      className="min-w-0 scroll-mt-24 rounded-2xl border border-indigo-200 bg-white p-6 shadow-sm dark:border-indigo-900/50 dark:bg-zinc-900 sm:p-7"
     >
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="eyebrow">
@@ -55,7 +55,7 @@ export function PublicPitchSection({
           <p className="text-[10px] font-bold uppercase tracking-wider text-amber-700 dark:text-amber-300">
             {businessName} wants feedback on
           </p>
-          <p className="mt-1 text-sm font-medium text-slate-800 dark:text-zinc-200">{pitch.feedbackAsk}</p>
+      <p className="mt-1 break-words text-sm font-medium text-slate-800 dark:text-zinc-200">{pitch.feedbackAsk}</p>
         </div>
       )}
 

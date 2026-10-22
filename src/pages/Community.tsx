@@ -203,7 +203,7 @@ export default function Community() {
       </PageHero>
 
       <section>
-          <div className="flex gap-2 overflow-x-auto pb-2" role="tablist" aria-label="Topics">
+          <div className="custom-scrollbar flex gap-2 overflow-x-auto overscroll-x-contain pb-2" role="tablist" aria-label="Topics">
             {(["", ...COMMUNITY_TOPICS] as Array<CommunityTopic | "">).map((value) => (
               <button
                 key={value || "all"}

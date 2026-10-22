@@ -169,7 +169,7 @@ export default function Discover() {
       </PageHero>
 
       <section>
-          <div className="flex items-center gap-2 overflow-x-auto pb-2">
+          <div className="custom-scrollbar flex items-center gap-2 overflow-x-auto overscroll-x-contain pb-2">
             {businessTypes.map((type) => (
               <button
                 key={type.value || "all"}

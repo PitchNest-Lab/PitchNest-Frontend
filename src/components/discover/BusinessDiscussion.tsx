@@ -191,7 +191,7 @@ export function BusinessDiscussion({
       ref={sectionRef}
       id="discussion"
       aria-labelledby="discussion-heading"
-      className="rounded-2xl border border-slate-200 bg-white p-6 dark:border-zinc-800 dark:bg-zinc-900 sm:p-7"
+      className="min-w-0 rounded-2xl border border-slate-200 bg-white p-6 dark:border-zinc-800 dark:bg-zinc-900 sm:p-7"
     >
       <div className="eyebrow">
         <MessageSquare size={15} />
@@ -200,7 +200,7 @@ export function BusinessDiscussion({
       <h2 id="discussion-heading" className="mt-3 text-xl font-extrabold text-slate-950 dark:text-white">
         Questions and feedback
       </h2>
-      <p className="mt-1.5 text-sm leading-relaxed text-slate-500 dark:text-zinc-400">
+      <p className="mt-1.5 break-words text-sm leading-relaxed text-slate-500 dark:text-zinc-400">
         Ask {businessName} a specific question or share practical feedback. Keep it constructive.
       </p>
 

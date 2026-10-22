@@ -159,17 +159,17 @@ function Modal({
         aria-modal="true"
         aria-labelledby="business-modal-title"
         className={cn(
-          "flex max-h-[94vh] w-full flex-col overflow-hidden rounded-t-3xl border border-slate-200 bg-white shadow-2xl dark:border-zinc-800 dark:bg-zinc-950 sm:rounded-3xl",
+          "flex max-h-[94vh] w-full max-w-full min-w-0 flex-col overflow-hidden rounded-t-3xl border border-slate-200 bg-white shadow-2xl dark:border-zinc-800 dark:bg-zinc-950 sm:rounded-3xl",
           width,
         )}
       >
         <div className="flex items-start justify-between gap-4 border-b border-slate-100 px-5 py-4 dark:border-zinc-800 sm:px-7 sm:py-5">
-          <div>
-            <h2 id="business-modal-title" className="text-xl font-bold text-slate-950 dark:text-white">
+          <div className="min-w-0">
+            <h2 id="business-modal-title" className="break-words text-xl font-bold text-slate-950 dark:text-white">
               {title}
             </h2>
             {description && (
-              <p className="mt-1 text-sm text-slate-500 dark:text-zinc-400">{description}</p>
+              <p className="mt-1 break-words text-sm text-slate-500 dark:text-zinc-400">{description}</p>
             )}
           </div>
           <button
@@ -927,8 +927,8 @@ export default function BusinessWorkspace() {
       </header>
 
       {notice && (
-        <div className="flex items-center justify-between gap-3 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-700 dark:border-emerald-900/50 dark:bg-emerald-950/25 dark:text-emerald-300" role="status">
-          <span className="flex items-center gap-2"><CheckCircle2 size={17} /> {notice}</span>
+        <div className="flex items-start justify-between gap-3 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-700 dark:border-emerald-900/50 dark:bg-emerald-950/25 dark:text-emerald-300" role="status">
+          <span className="flex min-w-0 items-start gap-2"><CheckCircle2 size={17} className="mt-0.5 shrink-0" /> <span className="break-words">{notice}</span></span>
           <button type="button" onClick={() => setNotice("")} className="p-1" aria-label="Dismiss"><X size={15} /></button>
         </div>
       )}
@@ -1034,7 +1034,7 @@ export default function BusinessWorkspace() {
                     )}
                     <div className="min-w-0">
                       <div className="flex flex-wrap items-center gap-2">
-                        <h2 className="truncate text-xl font-extrabold text-slate-950 dark:text-white sm:text-2xl">{selected.name}</h2>
+                        <h2 className="min-w-0 break-words text-xl font-extrabold text-slate-950 dark:text-white sm:text-2xl">{selected.name}</h2>
                         <span className={cn(
                           "inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider",
                           isPublished

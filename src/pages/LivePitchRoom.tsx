@@ -2874,8 +2874,8 @@ export default function LivePitchRoom() {
       </AnimatePresence>
 
       {/* Header */}
-      <header className="px-3 md:px-6 py-2 md:py-3 flex justify-between items-center border-b border-slate-200 dark:border-white/5 bg-white/80 dark:bg-zinc-950/50 backdrop-blur-md shrink-0 z-20 transition-colors">
-        <div className="flex items-center gap-2 md:gap-4">
+      <header className="flex shrink-0 items-center justify-between gap-2 border-b border-slate-200 bg-white/80 px-3 py-2 backdrop-blur-md transition-colors dark:border-white/5 dark:bg-zinc-950/50 md:px-6 md:py-3">
+        <div className="flex min-w-0 items-center gap-2 md:gap-4">
           <LogoMark size="sm" />
           <span className="text-sm md:text-lg font-bold tracking-tight text-slate-900 dark:text-white hidden xs:inline-block">
             PitchNest
@@ -2913,7 +2913,7 @@ export default function LivePitchRoom() {
 
         <div
           className={cn(
-            "flex items-center gap-1 px-2.5 py-1.5 rounded-full font-mono text-xs md:text-sm font-bold border transition-colors",
+            "flex shrink-0 items-center gap-1 rounded-full border px-2.5 py-1.5 font-mono text-xs font-bold transition-colors md:text-sm",
             timeLeft < 180
               ? "bg-rose-500/20 text-rose-500 border-rose-500/50 animate-pulse"
               : "bg-slate-100 dark:bg-zinc-900 text-slate-800 dark:text-white border-slate-200 dark:border-zinc-850",
@@ -2923,7 +2923,7 @@ export default function LivePitchRoom() {
           <span className="text-xs">{formatTime(timeLeft)}</span>
         </div>
 
-        <div className="flex items-center gap-2 md:gap-3 pl-2 md:pl-6 border-l border-slate-200 dark:border-white/10">
+        <div className="flex shrink-0 items-center gap-2 border-l border-slate-200 pl-2 dark:border-white/10 md:gap-3 md:pl-6">
           <div className="text-right hidden md:block">
             <p className="text-sm font-bold text-slate-800 dark:text-white truncate max-w-30">
               {userData.name}

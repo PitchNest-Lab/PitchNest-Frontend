@@ -81,7 +81,7 @@ export function AccountMenu({
             side="top"
             align="start"
             sideOffset={8}
-            className="z-[60] w-[var(--radix-dropdown-menu-trigger-width)] min-w-60 rounded-2xl border border-slate-200 bg-white p-1.5 shadow-xl outline-none dark:border-zinc-800 dark:bg-zinc-900"
+            className="z-[60] w-[min(var(--radix-dropdown-menu-trigger-width),calc(100vw-1rem))] max-w-[calc(100vw-1rem)] min-w-0 rounded-2xl border border-slate-200 bg-white p-1.5 shadow-xl outline-none dark:border-zinc-800 dark:bg-zinc-900"
           >
             <div className="flex items-center gap-2.5 px-2.5 pb-2.5 pt-2">
               <UserAvatar name={name} avatarUrl={avatarUrl} size={36} />

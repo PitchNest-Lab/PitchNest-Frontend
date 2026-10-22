@@ -307,7 +307,7 @@ export default function PublicBusinessProfile() {
   const panelClass = (tab: Tab) => (activeTab === tab ? "" : "hidden");
 
   return (
-    <div className="mx-auto w-full max-w-5xl space-y-5">
+    <div className="mx-auto w-full max-w-5xl min-w-0 space-y-5">
       <Link
         to="/discover"
         className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-600 transition hover:text-slate-900 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-300 dark:hover:text-white"
@@ -315,7 +315,7 @@ export default function PublicBusinessProfile() {
         <ArrowLeft size={14} /> Back to Discover
       </Link>
 
-      <section className="overflow-hidden rounded-3xl border border-slate-200 bg-white dark:border-zinc-800 dark:bg-zinc-900">
+      <section className="min-w-0 overflow-hidden rounded-3xl border border-slate-200 bg-white dark:border-zinc-800 dark:bg-zinc-900">
         {business.coverUrl && (
           <div className="h-36 bg-slate-100 dark:bg-zinc-800 sm:h-52">
             <img src={business.coverUrl} alt="" decoding="async" className="h-full w-full object-cover" />
@@ -332,7 +332,7 @@ export default function PublicBusinessProfile() {
           />
           <div className="min-w-0 flex-1">
             <div className="flex flex-wrap items-center gap-2">
-              <h1 className="text-2xl font-extrabold tracking-tight text-slate-950 dark:text-white sm:text-3xl">{business.name}</h1>
+              <h1 className="min-w-0 break-words text-2xl font-extrabold tracking-tight text-slate-950 dark:text-white sm:text-3xl">{business.name}</h1>
               {business.isExample ? (
                 <ExampleBadge className="px-2.5 py-1" />
               ) : (
@@ -346,9 +346,9 @@ export default function PublicBusinessProfile() {
                 </span>
               )}
             </div>
-            <p className="mt-1.5 text-sm leading-relaxed text-slate-600 dark:text-zinc-300 sm:text-base">{business.tagline}</p>
+            <p className="mt-1.5 break-words text-sm leading-relaxed text-slate-600 dark:text-zinc-300 sm:text-base">{business.tagline}</p>
             {business.isExample && (
-              <p className="mt-2 rounded-lg bg-amber-50 px-3 py-2 text-xs leading-relaxed text-amber-800 dark:bg-amber-500/10 dark:text-amber-200">
+              <p className="mt-2 break-words rounded-lg bg-amber-50 px-3 py-2 text-xs leading-relaxed text-amber-800 dark:bg-amber-500/10 dark:text-amber-200">
                 This is an example profile. It shows what a complete PitchNest business page looks like; the business, its people and its activity are illustrative.
               </p>
             )}
@@ -415,7 +415,7 @@ export default function PublicBusinessProfile() {
           id="profile-tabs"
           role="tablist"
           aria-label="Profile sections"
-          className="flex scroll-mt-24 gap-1 overflow-x-auto border-b border-slate-200 dark:border-zinc-800"
+          className="custom-scrollbar -mx-1 flex scroll-mt-24 gap-1 overflow-x-auto overscroll-x-contain border-b border-slate-200 px-1 dark:border-zinc-800"
         >
           {tabs.map((tab) => {
             const active = tab.id === activeTab;
@@ -609,10 +609,10 @@ function ProfileSection({
   compact?: boolean;
 }) {
   return (
-    <section className="rounded-2xl border border-slate-200 bg-white p-6 dark:border-zinc-800 dark:bg-zinc-900">
+    <section className="min-w-0 rounded-2xl border border-slate-200 bg-white p-6 dark:border-zinc-800 dark:bg-zinc-900">
       <p className="eyebrow"><Icon size={14} /> {eyebrow}</p>
       <h2 className="mt-2.5 text-lg font-extrabold text-slate-950 dark:text-white">{title}</h2>
-      <p className={`mt-2.5 whitespace-pre-wrap text-sm leading-7 ${value ? "text-slate-600 dark:text-zinc-300" : "italic text-slate-400 dark:text-zinc-600"}`}>
+      <p className={`mt-2.5 whitespace-pre-wrap break-words text-sm leading-7 ${value ? "text-slate-600 dark:text-zinc-300" : "italic text-slate-400 dark:text-zinc-600"}`}>
         {value || (compact ? "Not shared yet." : "This business has not shared this part of its story yet.")}
       </p>
     </section>
@@ -621,9 +621,9 @@ function ProfileSection({
 
 function Detail({ label, value }: { label: string; value: string }) {
   return (
-    <div className="flex items-start justify-between gap-4 border-b border-slate-100 pb-3 last:border-0 last:pb-0 dark:border-zinc-800">
-      <dt className="text-xs font-medium text-slate-400">{label}</dt>
-      <dd className="text-right text-xs font-bold text-slate-700 dark:text-zinc-200">{value || "Not shared"}</dd>
+    <div className="flex items-start justify-between gap-3 border-b border-slate-100 pb-3 last:border-0 last:pb-0 dark:border-zinc-800">
+      <dt className="shrink-0 text-xs font-medium text-slate-400">{label}</dt>
+      <dd className="min-w-0 max-w-[68%] break-words text-right text-xs font-bold text-slate-700 dark:text-zinc-200">{value || "Not shared"}</dd>
     </div>
   );
 }

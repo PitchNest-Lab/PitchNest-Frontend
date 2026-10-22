@@ -31,7 +31,7 @@ export default function VoiceSection() {
             aria-label="Recognition language"
             value={locale ?? 'auto'}
             onChange={(e) => change(e.target.value)}
-            className="min-w-56 cursor-pointer rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 outline-none focus:ring-2 focus:ring-sky-500/20 dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-200"
+            className="w-full min-w-0 cursor-pointer rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 outline-none focus:ring-2 focus:ring-sky-500/20 dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-200 sm:w-auto sm:min-w-56"
           >
             <option value="auto">Automatic (recommended)</option>
             {TRANSCRIPTION_LOCALES.map((l) => (

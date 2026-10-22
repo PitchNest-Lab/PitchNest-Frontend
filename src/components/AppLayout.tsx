@@ -387,7 +387,7 @@ export default function AppLayout() {
   );
 
   return (
-    <div className="min-h-screen overflow-x-clip bg-bg-main font-sans transition-colors duration-300 dark:bg-[#09090B]">
+    <div className="min-h-screen bg-bg-main font-sans transition-colors duration-300 dark:bg-[#09090B]">
 
       {/* Mobile drawer overlay */}
       <div
@@ -468,7 +468,7 @@ export default function AppLayout() {
       {/* Main column */}
       <div className="flex min-h-screen min-w-0 flex-col lg:pl-64">
         <header className="sticky top-0 z-30 border-b border-slate-200/80 bg-white/85 backdrop-blur-xl dark:border-zinc-800/80 dark:bg-zinc-950/85">
-          <div className="flex h-16 items-center gap-3 px-4 md:px-8">
+          <div className="flex min-w-0 h-16 items-center gap-3 px-4 md:px-8">
             <button
               onClick={() => setIsMobileMenuOpen(true)}
               className="flex shrink-0 cursor-pointer items-center justify-center rounded-xl border border-slate-200 p-2 text-slate-600 transition-colors hover:bg-slate-100 dark:border-zinc-800 dark:text-zinc-300 dark:hover:bg-zinc-900 lg:hidden"
@@ -484,7 +484,7 @@ export default function AppLayout() {
               <span className="hidden truncate text-xs font-medium text-slate-400 md:inline">{pageArea}</span>
             </div>
 
-            <div className="ml-auto flex shrink-0 items-center gap-2">
+            <div className="ml-auto flex min-w-0 shrink-0 items-center gap-2">
               <form onSubmit={submitSearch} className="relative hidden w-56 md:block xl:w-72" role="search">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 dark:text-zinc-500" size={15} />
                 <input
@@ -570,7 +570,7 @@ export default function AppLayout() {
               to={tab.path}
               aria-current={active ? 'page' : undefined}
               className={cn(
-                'relative flex min-w-[56px] flex-col items-center gap-0.5 rounded-xl px-2 py-1.5 text-[10px] font-semibold transition-colors',
+                'relative flex min-w-[56px] flex-1 flex-col items-center gap-0.5 rounded-xl px-1 py-1.5 text-[10px] font-semibold transition-colors',
                 active ? 'text-slate-950 dark:text-white' : 'text-slate-400 dark:text-zinc-500',
               )}
             >
