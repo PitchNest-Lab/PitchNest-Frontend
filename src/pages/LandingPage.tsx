@@ -81,8 +81,13 @@ const faqs = [
   { q: "If I publish my business, is my practice still private?", a: "Yes. Decks, recordings, transcripts and reports never appear on your public profile. Someone else can see a report only if you turn on its share link, and you can turn that off again whenever you like." },
 ];
 
-const navLinks = [
+type LandingNavLink =
+  | { href: string; label: string; to?: never }
+  | { href?: never; label: string; to: string };
+
+const navLinks: LandingNavLink[] = [
   { href: "#room", label: "The panel" },
+  { to: "/discover", label: "Discover" },
   { href: "#how-it-works", label: "How it works" },
   { href: "#your-report", label: "Your report" },
   { href: "#pricing", label: "Pricing" },
@@ -127,15 +132,25 @@ export default function LandingPage() {
             <LogoLink showText size="md" />
 
             <div className="hidden lg:flex items-center gap-7">
-              {navLinks.map(link => (
-                <a
-                  key={link.href}
-                  href={link.href}
-                  className="text-sm font-medium transition-colors text-slate-500 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-100"
-                >
-                  {link.label}
-                </a>
-              ))}
+              {navLinks.map(link =>
+                link.to ? (
+                  <Link
+                    key={link.to}
+                    to={link.to}
+                    className="text-sm font-medium transition-colors text-slate-500 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-100"
+                  >
+                    {link.label}
+                  </Link>
+                ) : (
+                  <a
+                    key={link.href}
+                    href={link.href}
+                    className="text-sm font-medium transition-colors text-slate-500 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-100"
+                  >
+                    {link.label}
+                  </a>
+                ),
+              )}
             </div>
 
             <div className="flex items-center gap-3">
@@ -166,16 +181,27 @@ export default function LandingPage() {
 
         {isMobileMenuOpen && (
           <div className="lg:hidden fixed top-16 left-0 right-0 nav-glass nav-glass-scrolled z-40 p-5 flex flex-col gap-1 shadow-lg">
-            {navLinks.map(link => (
-              <a
-                key={link.href}
-                href={link.href}
-                onClick={() => setIsMobileMenuOpen(false)}
-                className="py-3 text-base font-medium text-slate-600 dark:text-zinc-400 border-b border-slate-100 dark:border-zinc-800/50"
-              >
-                {link.label}
-              </a>
-            ))}
+            {navLinks.map(link =>
+              link.to ? (
+                <Link
+                  key={link.to}
+                  to={link.to}
+                  onClick={() => setIsMobileMenuOpen(false)}
+                  className="py-3 text-base font-medium text-slate-600 dark:text-zinc-400 border-b border-slate-100 dark:border-zinc-800/50"
+                >
+                  {link.label}
+                </Link>
+              ) : (
+                <a
+                  key={link.href}
+                  href={link.href}
+                  onClick={() => setIsMobileMenuOpen(false)}
+                  className="py-3 text-base font-medium text-slate-600 dark:text-zinc-400 border-b border-slate-100 dark:border-zinc-800/50"
+                >
+                  {link.label}
+                </a>
+              ),
+            )}
             <div className="flex flex-col gap-3 pt-4">
               {isLoggedIn ? (
                 <Link to="/dashboard" onClick={() => setIsMobileMenuOpen(false)} className="btn-primary w-full text-center">Dashboard</Link>

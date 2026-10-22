@@ -38,6 +38,10 @@ for (const required of [
   "https://l5isutzx18.execute-api.eu-west-2.amazonaws.com",
   "wss://pitchnest-backend-dev.onrender.com",
   "https://ueqwulsbbcvnduhepimh.supabase.co",
+  // Vercel injects its feedback toolbar on preview deployments.
+  "https://vercel.live",
+  "wss://ws-us3.pusher.com",
+  "https://assets.vercel.com",
 ]) {
   assert(csp.includes(required), `Content-Security-Policy is missing: ${required}`);
 }
