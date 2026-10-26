@@ -29,10 +29,12 @@ export const MODE_BADGE_CLASSES: Record<SessionMode, string> = {
  * invest/pass terms — Coach and Solo are practice, so their "verdict" is a
  * readiness read, never a funding decision. This mirrors the backend, where the
  * coach/solo evaluation prompt is explicitly forbidden from using invest/pass/fund.
+ * The panel's lowest band reads "Not Yet — Keep Building" rather than a flat
+ * decline, matching the PDF (backend pdfService getVerdict).
  */
 export function verdictLabel(mode: SessionMode, score: number): string {
   if (mode === "panel") {
-    return score >= 80 ? "Strong Buy (Invest)" : score >= 60 ? "Consideration (Follow Up)" : "Decline to Invest";
+    return score >= 80 ? "Strong Buy (Invest)" : score >= 60 ? "Consideration (Follow Up)" : "Not Yet — Keep Building";
   }
   // coach + solo — readiness framing
   return score >= 80 ? "Pitch-Ready" : score >= 60 ? "Nearly There" : "Keep Practicing";
