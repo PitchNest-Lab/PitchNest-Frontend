@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { Download, Share, X, Plus } from "lucide-react";
+import { useCookieBannerOpen } from "../lib/adsConsent";
 
 const DISMISS_KEY = "pn_install_dismissed";
 
@@ -28,6 +29,7 @@ export function InstallPrompt() {
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
   const [visible, setVisible] = useState(false);
   const [showIosSteps, setShowIosSteps] = useState(false);
+  const cookieBannerOpen = useCookieBannerOpen();
 
   useEffect(() => {
     if (isStandalone()) return;
@@ -75,7 +77,8 @@ export function InstallPrompt() {
     dismiss();
   };
 
-  if (!visible) return null;
+  // Waits for the cookie banner, which sits in the same corner on phones.
+  if (!visible || cookieBannerOpen) return null;
 
   return (
     // Sits above the phone tab bar in AppLayout.

@@ -22,6 +22,7 @@ import { ThemeProvider } from "./contexts/ThemeContext";
 import { BillingProvider } from "./contexts/BillingContext";
 import { UpgradeProvider } from "./components/ui/UpgradeModal";
 import { ErrorBoundary } from "./components/ErrorBoundary";
+import { CookieConsent } from "./components/CookieConsent";
 
 const AppLayout = lazyPage(() => import("./components/AppLayout"));
 const LoginPage = lazyPage(() => import("./pages/LoginPage"));
@@ -81,6 +82,7 @@ export default function App() {
           <BillingProvider>
           <UpgradeProvider>
           <VercelAnalytics />
+          <CookieConsent />
           {/* Outer boundaries for on-demand pages. Pages inside the sidebar
               layout have their own Suspense around the Outlet (AppLayout), so
               moving between app pages keeps the sidebar on screen. */}

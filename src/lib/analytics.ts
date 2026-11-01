@@ -15,7 +15,8 @@ export type ClientEvent =
   | { name: "opportunity_link_opened"; properties: { kind: string } }
   | { name: "pitch_arena_viewed"; properties?: Record<string, never> };
 
-function trackingAllowed(): boolean {
+/** False when the browser sends Do Not Track or Global Privacy Control. */
+export function trackingAllowed(): boolean {
   try {
     const nav = navigator as Navigator & { globalPrivacyControl?: boolean; msDoNotTrack?: string };
     const win = window as Window & { doNotTrack?: string };

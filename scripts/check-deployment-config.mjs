@@ -50,6 +50,11 @@ const scriptPolicy = csp
   .map((directive) => directive.trim())
   .find((directive) => directive.startsWith("script-src")) || "";
 assert(!scriptPolicy.includes("'unsafe-inline'"), "script-src must not allow inline JavaScript");
+// src/lib/adsConsent.ts loads gtag.js after the visitor accepts ad cookies.
+assert(
+  scriptPolicy.includes("https://www.googletagmanager.com"),
+  "script-src must allow the Google Ads tag (https://www.googletagmanager.com)",
+);
 
 assert.equal(headers.get("x-content-type-options"), "nosniff");
 assert.equal(headers.get("x-frame-options"), "SAMEORIGIN");

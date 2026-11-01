@@ -1,11 +1,12 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import LegalLayout from '../../components/LegalLayout';
-import { CONTACT_EMAIL, MIN_AGE, LEGAL_LAST_UPDATED } from '../../lib/legal';
+import { CONTACT_EMAIL, MIN_AGE, PRIVACY_LAST_UPDATED } from '../../lib/legal';
+import { adsChoiceAvailable, openCookieChoices } from '../../lib/adsConsent';
 
 export default function PrivacyPolicy() {
   return (
-    <LegalLayout title="Privacy Policy" lastUpdated={LEGAL_LAST_UPDATED}>
+    <LegalLayout title="Privacy Policy" lastUpdated={PRIVACY_LAST_UPDATED}>
       <p>
         PitchNest (&quot;we,&quot; &quot;us,&quot; or &quot;our&quot;) operates the PitchNest platform — a web and mobile
         application that helps startup founders practice pitches with AI-generated investor personas. This Privacy Policy
@@ -29,6 +30,7 @@ export default function PrivacyPolicy() {
         <li>If you join through an organization invitation, provide that organization with membership, pitch scores, progress, and feedback. Organization dashboards do not receive your transcripts, decks, or recordings.</li>
         <li>Respond to support requests and legal obligations.</li>
         <li>Send service-related communications (e.g., password reset) and trial/plan reminders you can disable in Settings.</li>
+        <li>With your consent, measure which of our ads bring visitors to our website (see section 8).</li>
       </ul>
 
       <h2>3. AI processing disclosure</h2>
@@ -54,6 +56,12 @@ export default function PrivacyPolicy() {
         <li><strong>Resend</strong> — account verification, password reset, and trial lifecycle email.</li>
         <li><strong>Flutterwave</strong> — hosted payment checkout and payment verification.</li>
         <li><strong>Google</strong> — optional Google Identity sign-in and hosted web fonts.</li>
+        <li><strong>Google Ads</strong> — on our website only, and only if you accept advertising cookies: measures which
+          of our ads bring visitors to PitchNest and lets Google show our ads to people who have visited. Google uses this
+          data under its own policies; see{' '}
+          <a href="https://policies.google.com/technologies/partner-sites" target="_blank" rel="noopener noreferrer">
+            how Google uses information from sites that use its services
+          </a>.</li>
         <li><strong>Tavily or Serper</strong> — optional market research using business descriptions and industry terms when research is enabled.</li>
         <li><strong>Hosting providers</strong> — Amazon Web Services and Render (backend), Vercel (frontend).</li>
       </ul>
@@ -93,9 +101,26 @@ export default function PrivacyPolicy() {
       <h2>8. Cookies and local storage</h2>
       <p>
         Ordinary sign-ins use browser session storage; choosing &quot;Keep me logged in&quot; stores the session token and
-        profile in persistent local storage. Organization invitation links use a short-lived first-party cookie. We do not
-        use third-party advertising cookies. Sign out to clear authentication data from this browser.
+        profile in persistent local storage. Organization invitation links use a short-lived first-party cookie. Sign out
+        to clear authentication data from this browser.
       </p>
+      <p>
+        On our website (not in the mobile app), we use Google Ads advertising cookies only if you choose &quot;Accept&quot;
+        in the cookie banner. Until you accept, Google Ads is not loaded at all, and it is never loaded when your browser
+        sends Do Not Track or Global Privacy Control. We remember your choice in this browser&apos;s local storage. If you
+        change your mind, choosing &quot;Decline&quot; switches Google Ads off and deletes its cookies on our domain.
+      </p>
+      {adsChoiceAvailable() && (
+        <p>
+          <button
+            type="button"
+            onClick={openCookieChoices}
+            className="font-medium text-sky-600 dark:text-sky-400 hover:underline"
+          >
+            Change your cookie choice
+          </button>
+        </p>
+      )}
 
       <h2>9. Content and age</h2>
       <p>
