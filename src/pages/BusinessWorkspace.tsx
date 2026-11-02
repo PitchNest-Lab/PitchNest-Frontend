@@ -69,7 +69,12 @@ const publicationFields = [
   { key: "industry", label: "Industry" },
   { key: "stage", label: "Stage" },
   { key: "region", label: "Region" },
+  { key: "problem", label: "Problem" },
+  { key: "solution", label: "Solution" },
 ] as const;
+
+// Matches the server's limit for each pitch-story answer.
+const PITCH_STORY_MAX = 500;
 
 const emptyForm: BusinessInput = {
   name: "",
@@ -190,11 +195,14 @@ function Modal({
 function Field({
   label,
   hint,
+  count,
   children,
   className,
 }: {
   label: string;
   hint?: string;
+  /** A live "used / max" counter beside the hint. */
+  count?: { length: number; max: number };
   children: React.ReactNode;
   className?: string;
 }) {
@@ -204,7 +212,25 @@ function Field({
         {label}
       </span>
       {children}
-      {hint && <span className="mt-1.5 block text-[11px] text-slate-400">{hint}</span>}
+      {(hint || count) && (
+        <span className="mt-1.5 flex items-start justify-between gap-3 text-[11px] text-slate-400">
+          <span>{hint}</span>
+          {count && (
+            // The hint states the limit for screen readers; this only tracks it.
+            <span
+              aria-hidden="true"
+              className={cn(
+                "shrink-0 tabular-nums",
+                count.length > count.max
+                  ? "font-semibold text-rose-500"
+                  : count.length >= count.max * 0.9 && "text-amber-600 dark:text-amber-400",
+              )}
+            >
+              {count.length} / {count.max}
+            </span>
+          )}
+        </span>
+      )}
     </label>
   );
 }
@@ -357,20 +383,28 @@ function BusinessFormModal({
                 <h3 className="text-sm font-bold text-slate-900 dark:text-zinc-100">Pitch story</h3>
               </div>
               <div className="grid gap-4 sm:grid-cols-2">
-                <Field label="Problem">
+                <Field
+                  label="Problem"
+                  hint={`Required before publication · ${PITCH_STORY_MAX} characters max`}
+                  count={{ length: form.problem.length, max: PITCH_STORY_MAX }}
+                >
                   <textarea
                     rows={4}
-                    maxLength={1500}
+                    maxLength={PITCH_STORY_MAX}
                     value={form.problem}
                     onChange={(event) => setField("problem", event.target.value)}
                     className={cn(inputClass, "resize-y")}
                     placeholder="What painful problem are you solving?"
                   />
                 </Field>
-                <Field label="Solution">
+                <Field
+                  label="Solution"
+                  hint={`Required before publication · ${PITCH_STORY_MAX} characters max`}
+                  count={{ length: form.solution.length, max: PITCH_STORY_MAX }}
+                >
                   <textarea
                     rows={4}
-                    maxLength={1500}
+                    maxLength={PITCH_STORY_MAX}
                     value={form.solution}
                     onChange={(event) => setField("solution", event.target.value)}
                     className={cn(inputClass, "resize-y")}
