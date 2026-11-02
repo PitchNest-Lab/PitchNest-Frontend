@@ -29,9 +29,25 @@
       "headers": [
         { "key": "Content-Type", "value": "application/manifest+json" }
       ]
+    },
+    {
+      "source": "/businesses/:slug",
+      "has": [
+        { "type": "header", "key": "user-agent", "value": "(^WhatsApp/.*)|(.*(facebookexternalhit|Facebot|Twitterbot|LinkedInBot|Slackbot|Discordbot|TelegramBot|SkypeUriPreview|MicrosoftPreview|Pinterestbot|redditbot|Embedly|Iframely|vkShare|Mastodon/|Bluesky Cardyb|Snap URL Preview|Google-PageRenderer).*)" }
+      ],
+      "headers": [
+        { "key": "x-vercel-enable-rewrite-caching", "value": "0" }
+      ]
     }
   ],
   "rewrites": [
+    {
+      "source": "/businesses/:slug",
+      "has": [
+        { "type": "header", "key": "user-agent", "value": "(^WhatsApp/.*)|(.*(facebookexternalhit|Facebot|Twitterbot|LinkedInBot|Slackbot|Discordbot|TelegramBot|SkypeUriPreview|MicrosoftPreview|Pinterestbot|redditbot|Embedly|Iframely|vkShare|Mastodon/|Bluesky Cardyb|Snap URL Preview|Google-PageRenderer).*)" }
+      ],
+      "destination": "https://mkrkiditq5.execute-api.eu-west-2.amazonaws.com/api/public/businesses/:slug/share-html"
+    },
     {
       "source": "/api/:path*",
       "destination": "https://mkrkiditq5.execute-api.eu-west-2.amazonaws.com/api/:path*"

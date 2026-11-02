@@ -56,6 +56,55 @@ assert(
   "script-src must allow the Google Ads tag (https://www.googletagmanager.com)",
 );
 
+// Link previews: crawlers on a business page get the backend's share document
+// (PitchNest-Backend publicBusinessMetadata.ts); everyone else gets the app.
+// The CDN never caches it, so a crawler's copy can never reach a visitor.
+const previewRewrite = vercel.rewrites?.find((rule) => rule.source === "/businesses/:slug");
+assert(previewRewrite, "vercel.json must forward link-preview crawlers on /businesses/:slug");
+assert.match(previewRewrite.destination, /^https:\/\/[^/]+\/api\/public\/businesses\/:slug\/share-html$/);
+assert(
+  vercel.rewrites.indexOf(previewRewrite) < vercel.rewrites.findIndex((rule) => rule.source === "/(.*)"),
+  "the crawler rewrite must come before the app fallback",
+);
+const crawlerAgents = previewRewrite.has?.find(
+  (condition) => condition.type === "header" && condition.key === "user-agent",
+)?.value;
+assert(crawlerAgents, "the crawler rewrite must be limited by user agent");
+const previewHeaders = vercel.headers.find((rule) => rule.source === "/businesses/:slug");
+assert.equal(previewHeaders?.has?.[0]?.value, crawlerAgents, "the no-cache rule must cover the same user agents");
+assert(
+  previewHeaders.headers.some((header) => header.key === "x-vercel-enable-rewrite-caching" && header.value === "0"),
+  "crawler responses must not be cached on the CDN",
+);
+// Whether Vercel anchors the pattern or searches with it, crawlers match and people do not.
+for (const pattern of [new RegExp(`^(?:${crawlerAgents})$`), new RegExp(crawlerAgents)]) {
+  for (const agent of [
+    "WhatsApp/2.23.20.0 A",
+    "facebookexternalhit/1.1 (+http://www.facebook.com/externalhit_uatext.php)",
+    // iMessage
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_11_1) AppleWebKit/601.2.4 (KHTML, like Gecko) Version/9.0.1 Safari/601.2.4 facebookexternalhit/1.1 Facebot Twitterbot/1.0",
+    "LinkedInBot/1.0 (compatible; Mozilla/5.0; Apache-HttpClient +http://www.linkedin.com)",
+    "Twitterbot/1.0",
+    "Slackbot-LinkExpanding 1.0 (+https://api.slack.com/robots)",
+    "TelegramBot (like TwitterBot)",
+    "Mozilla/5.0 (compatible; Discordbot/2.0; +https://discordapp.com)",
+  ]) {
+    assert.match(agent, pattern, `crawler not forwarded: ${agent}`);
+  }
+  for (const agent of [
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36 Edg/130.0.0.0",
+    // In-app browsers are people, even when the app's name is in the user agent.
+    "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15E148 WhatsApp/2.23.20.0",
+    "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15E148 [FBAN/FBIOS;FBAV/440.0]",
+    "Mozilla/5.0 (Linux; Android 14) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0 Mobile Safari/537.36 LinkedInApp/9.29",
+    "Mozilla/5.0 (Linux; Android 14) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0 Mobile Safari/537.36 Telegram-Android/11.2",
+    "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15E148 Snapchat/12.90",
+    "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15E148 [Pinterest/iOS]",
+  ]) {
+    assert.doesNotMatch(agent, pattern, `person sent the crawler page: ${agent}`);
+  }
+}
+
 assert.equal(headers.get("x-content-type-options"), "nosniff");
 assert.equal(headers.get("x-frame-options"), "SAMEORIGIN");
 assert.equal(headers.get("x-xss-protection"), "0");
