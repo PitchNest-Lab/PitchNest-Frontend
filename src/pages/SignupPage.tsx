@@ -309,7 +309,7 @@ export default function SignupPage() {
               Join PitchNest
             </h2>
 
-            <form className="space-y-4" onSubmit={handleSubmit(onSubmit)}>
+            <div className="space-y-4">
               {organizationInvite && (
                 <div className="rounded-xl border border-sky-200 bg-sky-50 px-4 py-3 text-xs leading-relaxed text-sky-900 dark:border-sky-900/60 dark:bg-sky-950/30 dark:text-sky-200">
                   You are joining an organization workspace. After you verify your email,
@@ -332,6 +332,41 @@ export default function SignupPage() {
                 </div>
               )}
 
+              <GoogleSignInButton
+                text="signup_with"
+                onCredential={async (credential) => {
+                  setServerError("");
+                  setGoogleLoading(true);
+                  try {
+                    // Clear only auth-related keys — preserve tour flags
+                    clearAuthSession();
+                    localStorage.removeItem("pitchnest_onboarding_complete");
+                    localStorage.removeItem("pitchnest_startup_name");
+                    localStorage.removeItem("pitchnest_funding_stage");
+                    const data = await loginWithGoogle(credential);
+                    // New Google users land on onboarding (server decides via
+                    // redirectTo); returning users go to the dashboard.
+                    navigate(data?.redirectTo || "/dashboard", { replace: true });
+                  } catch (error: any) {
+                    setServerError(error.message || "Google sign-up failed.");
+                  } finally {
+                    setGoogleLoading(false);
+                  }
+                }}
+                onError={(message) => setServerError(message)}
+              />
+            </div>
+
+            <div className="relative my-6">
+              <div className="absolute inset-0 flex items-center">
+                <div className="w-full border-t border-slate-200 dark:border-zinc-800"></div>
+              </div>
+              <div className="relative flex justify-center text-sm text-slate-500 dark:text-zinc-500">
+                <span className="bg-white dark:bg-zinc-900 px-4">or</span>
+              </div>
+            </div>
+
+            <form className="space-y-4" onSubmit={handleSubmit(onSubmit)}>
               <div className="space-y-1.5">
                 <label htmlFor="signup-name" className="sr-only">Full name</label>
                 <input
@@ -507,39 +542,6 @@ export default function SignupPage() {
                 )}
               </button>
             </form>
-
-            <div className="relative my-6">
-              <div className="absolute inset-0 flex items-center">
-                <div className="w-full border-t border-slate-200 dark:border-zinc-800"></div>
-              </div>
-              <div className="relative flex justify-center text-sm text-slate-500 dark:text-zinc-500">
-                <span className="bg-white dark:bg-zinc-900 px-4">or</span>
-              </div>
-            </div>
-
-            <GoogleSignInButton
-              text="signup_with"
-              onCredential={async (credential) => {
-                setServerError("");
-                setGoogleLoading(true);
-                try {
-                  // Clear only auth-related keys — preserve tour flags
-                  clearAuthSession();
-                  localStorage.removeItem("pitchnest_onboarding_complete");
-                  localStorage.removeItem("pitchnest_startup_name");
-                  localStorage.removeItem("pitchnest_funding_stage");
-                  const data = await loginWithGoogle(credential);
-                  // New Google users land on onboarding (server decides via
-                  // redirectTo); returning users go to the dashboard.
-                  navigate(data?.redirectTo || "/dashboard", { replace: true });
-                } catch (error: any) {
-                  setServerError(error.message || "Google sign-up failed.");
-                } finally {
-                  setGoogleLoading(false);
-                }
-              }}
-              onError={(message) => setServerError(message)}
-            />
 
             <p className="text-center mt-6 text-sm text-slate-500 dark:text-zinc-500">
               Already on PitchNest?{" "}

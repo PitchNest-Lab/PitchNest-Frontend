@@ -3,14 +3,14 @@ import { useEffect, useRef } from "react";
 // Configured via frontend env: VITE_GOOGLE_CLIENT_ID (the OAuth 2.0 Web client
 // id from Google Cloud Console). When it's absent, we render a disabled
 // placeholder so the layout is preserved but no broken flow is offered.
-const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID as
+export const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID as
   | string
   | undefined;
 const GSI_SRC = "https://accounts.google.com/gsi/client";
 
 let gsiScriptPromise: Promise<void> | null = null;
 
-function loadGsiScript(): Promise<void> {
+export function loadGsiScript(): Promise<void> {
   if ((window as any).google?.accounts?.id) return Promise.resolve();
   if (gsiScriptPromise) return gsiScriptPromise;
 

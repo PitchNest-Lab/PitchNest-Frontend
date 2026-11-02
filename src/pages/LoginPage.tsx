@@ -299,13 +299,48 @@ export default function LoginPage() {
               </Link>
             </p>
 
-            <form className="space-y-4" onSubmit={handleSubmit(onSubmit)}>
+            <div className="space-y-4">
               {serverError && (
                 <div id="login-server-error" role="alert" className="p-4 bg-rose-50 border border-rose-200 text-rose-600 rounded-lg text-sm font-bold">
                   {serverError}
                 </div>
               )}
 
+              <GoogleSignInButton
+                text="signin_with"
+                onCredential={async (credential) => {
+                  setServerError("");
+                  setGoogleLoading(true);
+                  try {
+                    // Clear only auth-related keys — preserve tour flags
+                    clearAuthSession();
+                    localStorage.removeItem("pitchnest_onboarding_complete");
+                    localStorage.removeItem("pitchnest_startup_name");
+                    localStorage.removeItem("pitchnest_funding_stage");
+                    const data = await loginWithGoogle(credential, rememberMe);
+                    // New Google users land on onboarding (server decides via
+                    // redirectTo); returning users go to their intended page.
+                    navigate(data?.redirectTo || from, { replace: true });
+                  } catch (error: any) {
+                    setServerError(error.message || "Google sign-in failed.");
+                  } finally {
+                    setGoogleLoading(false);
+                  }
+                }}
+                onError={(message) => setServerError(message)}
+              />
+            </div>
+
+            <div className="relative my-6">
+              <div className="absolute inset-0 flex items-center">
+                <div className="w-full border-t border-slate-200 dark:border-zinc-800"></div>
+              </div>
+              <div className="relative flex justify-center text-sm text-slate-500 dark:text-zinc-500">
+                <span className="bg-white dark:bg-zinc-900 px-4">or</span>
+              </div>
+            </div>
+
+            <form className="space-y-4" onSubmit={handleSubmit(onSubmit)}>
               <div className="space-y-1.5">
                 <label htmlFor="login-email" className="sr-only">Email address</label>
                 <input
@@ -396,39 +431,6 @@ export default function LoginPage() {
                 )}
               </button>
             </form>
-
-            <div className="relative my-6">
-              <div className="absolute inset-0 flex items-center">
-                <div className="w-full border-t border-slate-200 dark:border-zinc-800"></div>
-              </div>
-              <div className="relative flex justify-center text-sm text-slate-500 dark:text-zinc-500">
-                <span className="bg-white dark:bg-zinc-900 px-4">or</span>
-              </div>
-            </div>
-
-            <GoogleSignInButton
-              text="signin_with"
-              onCredential={async (credential) => {
-                setServerError("");
-                setGoogleLoading(true);
-                try {
-                  // Clear only auth-related keys — preserve tour flags
-                  clearAuthSession();
-                  localStorage.removeItem("pitchnest_onboarding_complete");
-                  localStorage.removeItem("pitchnest_startup_name");
-                  localStorage.removeItem("pitchnest_funding_stage");
-                  const data = await loginWithGoogle(credential, rememberMe);
-                  // New Google users land on onboarding (server decides via
-                  // redirectTo); returning users go to their intended page.
-                  navigate(data?.redirectTo || from, { replace: true });
-                } catch (error: any) {
-                  setServerError(error.message || "Google sign-in failed.");
-                } finally {
-                  setGoogleLoading(false);
-                }
-              }}
-              onError={(message) => setServerError(message)}
-            />
 
             <p className="text-center mt-6 text-xs text-slate-500 dark:text-zinc-500 leading-relaxed px-2">
               By clicking Sign in or Sign in with Google, you agree to

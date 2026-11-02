@@ -23,6 +23,7 @@ import { BillingProvider } from "./contexts/BillingContext";
 import { UpgradeProvider } from "./components/ui/UpgradeModal";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 import { CookieConsent } from "./components/CookieConsent";
+import { GoogleOneTap } from "./components/GoogleOneTap";
 
 const AppLayout = lazyPage(() => import("./components/AppLayout"));
 const LoginPage = lazyPage(() => import("./pages/LoginPage"));
@@ -83,6 +84,7 @@ export default function App() {
           <UpgradeProvider>
           <VercelAnalytics />
           <CookieConsent />
+          <GoogleOneTap />
           {/* Outer boundaries for on-demand pages. Pages inside the sidebar
               layout have their own Suspense around the Outlet (AppLayout), so
               moving between app pages keeps the sidebar on screen. */}
