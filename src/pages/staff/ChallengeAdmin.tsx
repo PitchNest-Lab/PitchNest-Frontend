@@ -746,7 +746,13 @@ function EntriesTab({ challenge, onChanged }: { challenge: StaffChallenge; onCha
   const exportCsv = () => {
     const header = ["Name", "Email", "Joined", "Subscription", "Sessions", "Best score", "Business", "Post", "Status", "Eligible", "Profile score", "Final score", "Place"];
     const lines = shown.map((r) => [r.name, r.email, r.joinedAt, r.subscription, r.completedSessions, r.bestScore ?? "", r.business?.name ?? "", r.socialPostUrl ?? "", r.status, r.eligible ? "yes" : "no", r.profileScore ?? "", r.finalScore ?? "", r.placement ?? ""]);
-    const csv = [header, ...lines].map((line) => line.map((v) => `"${String(v).replace(/"/g, '""')}"`).join(",")).join("\n");
+    // Founders write their names and business names. A cell that starts like a
+    // formula gets a leading ' so a spreadsheet shows it as text, never runs it.
+    const cell = (v: unknown) => {
+      const text = String(v);
+      return `"${(/^[=+\-@\t\r\n]/.test(text) ? `'${text}` : text).replace(/"/g, '""')}"`;
+    };
+    const csv = [header, ...lines].map((line) => line.map(cell).join(",")).join("\n");
     const url = URL.createObjectURL(new Blob([csv], { type: "text/csv" }));
     const a = document.createElement("a");
     a.href = url;
