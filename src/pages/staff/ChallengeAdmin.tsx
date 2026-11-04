@@ -256,7 +256,10 @@ function SetupTab({ challenge, onSaved }: { challenge: StaffChallenge; onSaved: 
       });
       onSaved(updated);
       const stale = updated.confirmations.filter((c) => c.stale).map((c) => c.item);
-      setMessage({ tone: "ok", text: stale.length ? `Saved. These parts changed after you confirmed them, so confirm them again: ${stale.join(", ")}.` : "Saved." });
+      const visibilityMessage = updated.status === "draft"
+        ? "Saved as a draft. It won't appear publicly until every Launch checklist item is confirmed and you publish it."
+        : "Saved. Public challenge details updated.";
+      setMessage({ tone: "ok", text: stale.length ? `${visibilityMessage} Confirm these changed parts again: ${stale.join(", ")}.` : visibilityMessage });
     } catch (err: any) {
       setMessage({ tone: "error", text: err?.message || "Couldn't save." });
     } finally {

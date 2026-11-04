@@ -85,6 +85,8 @@ export default function PricingPage() {
   const [term, setTerm] = useState<BillingTerm>("monthly");
   const [chosenMode, setChosenMode] = useState<BillingMode | null>(null);
   const [starting, setStarting] = useState<PaidPlan | null>(null);
+  const linkedPlan = searchParams.get("plan");
+  const [discountPlan, setDiscountPlan] = useState<PaidPlan>(linkedPlan === "pro" ? "pro" : "prep");
   // A discount code, from ?code= (the challenge page links here with it) or typed in.
   const linkedCode = (searchParams.get("code") || "").trim().toUpperCase().slice(0, 32);
   const [codeInput, setCodeInput] = useState(linkedCode);
@@ -119,10 +121,11 @@ export default function PricingPage() {
     proMonthly && proAnnual && proAnnual.amount < proMonthly.amount * 12
       ? Math.round((1 - proAnnual.amount / (proMonthly.amount * 12)) * 100)
       : 0;
-  const modeSku = sku("pro", term) ?? proMonthly;
+  const modeSku = sku(discountPlan, term) ?? sku(discountPlan, "monthly");
+  const discountPlanLabel = discountPlan === "prep" ? "Founder" : "Pro Founder";
 
   // The server prices the code for THIS account, term and currency; what it
-  // says is what checkout charges. Codes apply to Pro Founder.
+  // says is what checkout charges. The selected plan determines where it applies.
   useEffect(() => {
     if (!appliedCode || !signedIn || !loaded || !modeSku) {
       setQuote(null);
@@ -131,7 +134,7 @@ export default function PricingPage() {
     let cancelled = false;
     setCheckingCode(true);
     setCodeError("");
-    previewDiscount(authFetch, { code: appliedCode, plan: "pro", term, currency: modeSku.currency })
+    previewDiscount(authFetch, { code: appliedCode, plan: discountPlan, term, currency: modeSku.currency })
       .then((result) => {
         if (!cancelled) setQuote(result);
       })
@@ -146,9 +149,9 @@ export default function PricingPage() {
     return () => {
       cancelled = true;
     };
-  }, [appliedCode, signedIn, loaded, term, modeSku?.currency, modeSku?.amount, authFetch]);
+  }, [appliedCode, signedIn, loaded, term, discountPlan, modeSku?.currency, modeSku?.amount, authFetch]);
 
-  const codeApplies = Boolean(quote && quote.term === term && quote.currency === modeSku?.currency);
+  const codeApplies = Boolean(quote && quote.plan === discountPlan && quote.term === term && quote.currency === modeSku?.currency);
   const billingModes = codeApplies ? (["manual"] as BillingMode[]) : modeSku?.billingModes ?? ["auto_renew", "manual"];
   // The buyer's own pick while it is on offer; until then, the default for
   // this price (manual for local currencies, automatic for dollars). A code
@@ -167,7 +170,7 @@ export default function PricingPage() {
 
   const startCheckout = async (plan: PaidPlan) => {
     setStarting(plan);
-    const withCode = plan === "pro" && codeApplies && quote ? quote.code : undefined;
+    const withCode = plan === discountPlan && codeApplies && quote ? quote.code : undefined;
     // On success the browser leaves for Flutterwave, so only failure clears this.
     const ok = await upgrade({ plan, term, currency: sku(plan, term)?.currency, billingMode, discountCode: withCode });
     if (!ok) setStarting(null);
@@ -189,6 +192,7 @@ export default function PricingPage() {
 
     const target = CARD_PLAN[plan.id];
     const selectedSku = sku(target, term);
+    const withCode = target === discountPlan && codeApplies && quote !== null;
     const featured = plan.id === "pro";
     const action = cn(
       buttonBase,
@@ -197,7 +201,7 @@ export default function PricingPage() {
         : "border border-indigo-200 bg-white text-indigo-700 hover:bg-indigo-50 dark:border-indigo-500/40 dark:bg-transparent dark:text-indigo-200 dark:hover:bg-indigo-500/10",
     );
     const label =
-      plan.id === "pro" && codeApplies && quote
+      withCode && quote
         ? `Pay ${formatMoney(quote.amount, quote.currency)} with ${quote.code}`
         : freeMonths > 0 ? `Claim ${freeMonthsLabel(freeMonths)}` : plan.id === "pro" ? "Upgrade to Pro Founder" : "Get Founder";
 
@@ -255,7 +259,7 @@ export default function PricingPage() {
       const pricingLoaded = useAccount ? loaded : publicPrice.loaded;
       return { amount: pricingLoaded ? "Unavailable" : "Loading…", unit: "", approx: "" };
     }
-    if (plan.id === "pro" && codeApplies && quote) {
+    if (CARD_PLAN[plan.id] === discountPlan && codeApplies && quote) {
       return {
         amount: formatMoney(quote.amount, quote.currency),
         unit: `first ${term === "annual" ? "year" : "month"}`,
@@ -334,6 +338,19 @@ export default function PricingPage() {
               {checkingCode && <Loader2 size={14} className="animate-spin" />} Apply
             </button>
           </form>
+          {appliedCode && (
+            <label className="mt-3 flex items-center gap-2 text-xs font-semibold text-slate-600 dark:text-zinc-300">
+              Apply code to
+              <select
+                value={discountPlan}
+                onChange={(event) => setDiscountPlan(event.target.value as PaidPlan)}
+                className="cursor-pointer rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs dark:border-zinc-700 dark:bg-zinc-900"
+              >
+                <option value="prep">Founder</option>
+                <option value="pro">Pro Founder</option>
+              </select>
+            </label>
+          )}
           {!signedIn && appliedCode && (
             <p className="mt-2 text-xs text-slate-600 dark:text-zinc-300">
               <Link to="/login" state={{ from: location }} className="font-bold text-indigo-600 underline-offset-2 hover:underline dark:text-indigo-400">Log in</Link>
@@ -344,7 +361,7 @@ export default function PricingPage() {
           )}
           {signedIn && codeApplies && quote && (
             <p className="mt-2 text-xs font-semibold text-emerald-700 dark:text-emerald-400">
-              {quote.code}: {quote.percentOff}% off your first {term === "annual" ? "year" : "month"} of Pro Founder,{" "}
+              {quote.code}: {quote.percentOff}% off your first {term === "annual" ? "year" : "month"} of {discountPlanLabel},{" "}
               {formatMoney(quote.amount, quote.currency)} instead of {formatMoney(quote.listAmount, quote.currency)}. It is a one-time
               payment; you renew manually at the normal price.
               {freeMonths > 0 && !quote.combineWithOffer ? " The code replaces the free-month offer." : ""}
@@ -430,7 +447,7 @@ export default function PricingPage() {
             const price = priceFor(plan);
             const paidCard = plan.id === "founder" || plan.id === "pro";
             const recurring = paidCard ? sku(CARD_PLAN[plan.id as "founder" | "pro"], term) : null;
-            const withCode = plan.id === "pro" && codeApplies && quote !== null;
+            const withCode = paidCard && CARD_PLAN[plan.id as "founder" | "pro"] === discountPlan && codeApplies && quote !== null;
             // A code that doesn't combine with the offer takes the free months' place.
             const cardFreeMonths = withCode && !quote!.combineWithOffer ? 0 : freeMonths;
             return (
@@ -447,7 +464,7 @@ export default function PricingPage() {
               >
                 <div className="flex h-6 items-center justify-between gap-2">
                   <p className="text-sm font-medium text-slate-700 dark:text-zinc-300">{plan.name}</p>
-                  {featured && (
+                  {(featured || withCode) && (
                     <span className="inline-flex items-center gap-1 rounded-full bg-accent px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-accent-ink">
                       {withCode ? <><Tag size={11} /> {quote!.percentOff}% off</> : cardFreeMonths > 0 ? <><Gift size={11} /> {freeMonthsLabel(cardFreeMonths)}</> : "Most popular"}
                     </span>

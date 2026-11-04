@@ -107,7 +107,9 @@ export function ChallengeEntryPanel({
   const selected = entry.businesses.find((b) => b.id === entry.businessId) ?? null;
   const subscription = entry.subscription;
   const discount = challenge.discount;
-  const pricingLink = `/pricing?plan=pro${discount?.active ? `&code=${encodeURIComponent(discount.code)}` : ""}`;
+  const requiredPlanLabel = challenge.requiredPlan === "prep" ? "Founder" : "Pro Founder";
+  const pricingPlan = challenge.requiredPlan === "prep" ? "founder" : "pro";
+  const pricingLink = `/pricing?plan=${pricingPlan}${discount?.active ? `&code=${encodeURIComponent(discount.code)}` : ""}`;
   const socialDirty = (platform || null) !== entry.social.platform || (postUrl.trim() || null) !== entry.social.url || captionConfirmed !== entry.profileLinkConfirmed;
 
   return (
@@ -169,7 +171,7 @@ export function ChallengeEntryPanel({
           )}
         </div>
         <div className="rounded-2xl bg-slate-50 p-4 dark:bg-zinc-800/60">
-          <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Pro Founder plan</p>
+          <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400">{requiredPlanLabel} plan</p>
           <p className="mt-1 text-sm font-extrabold text-slate-950 dark:text-white">
             {subscription.state === "verified" ? "Verified"
               : subscription.state === "not_required" ? "Not required"
@@ -187,7 +189,7 @@ export function ChallengeEntryPanel({
               onClick={() => rememberChallengeReturn(location.pathname)}
               className="btn-accent mt-2 px-3 py-1.5 text-xs"
             >
-              {discount?.active ? `Subscribe with ${discount.code}` : "Subscribe to Pro Founder"}
+              {discount?.active ? `Subscribe with ${discount.code}` : `Subscribe to ${requiredPlanLabel}`}
             </Link>
           )}
         </div>

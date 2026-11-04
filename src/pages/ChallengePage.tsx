@@ -203,7 +203,9 @@ export default function ChallengePage() {
   const joined = entry?.joined === true ? (entry as ChallengeEntry) : null;
   const open = challenge.phase === "open";
   const discount = challenge.discount;
-  const pricingLink = `/pricing?plan=pro${discount?.active ? `&code=${encodeURIComponent(discount.code)}` : ""}`;
+  const requiredPlanLabel = challenge.requiredPlan === "prep" ? "Founder" : "Pro Founder";
+  const pricingPlan = challenge.requiredPlan === "prep" ? "founder" : "pro";
+  const pricingLink = `/pricing?plan=${pricingPlan}${discount?.active ? `&code=${encodeURIComponent(discount.code)}` : ""}`;
   const firstHandle = challenge.socialHandles[0]?.handle;
 
   const cta = (() => {
@@ -241,10 +243,10 @@ export default function ChallengePage() {
   const steps = [
     {
       icon: Crown,
-      title: "Subscribe to Pro Founder",
+      title: `Subscribe to ${requiredPlanLabel}`,
       body: discount ? (
         <>
-          Subscribe to PitchNest Pro Founder with code{" "}
+          Subscribe to PitchNest {requiredPlanLabel} with code{" "}
           <button
             type="button"
             onClick={() => void copyCode(discount.code)}
@@ -257,7 +259,7 @@ export default function ChallengePage() {
           {!discount.active && " The code isn't active yet."}
         </>
       ) : (
-        "Subscribe to PitchNest Pro Founder. The free trial doesn't count."
+        `Subscribe to PitchNest ${requiredPlanLabel}. The Free plan doesn't count.`
       ),
       action: founder && joined?.subscription.state === "missing" && joined.editable ? (
         <Link to={pricingLink} onClick={() => rememberChallengeReturn(location.pathname)} className="btn-accent px-4 py-2 text-xs">
