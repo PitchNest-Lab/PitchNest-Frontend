@@ -136,6 +136,7 @@ export default function ModerationPage() {
           </p>
         </div>
         <div className="flex gap-2">
+          <Link to="/staff/challenges" className="btn-secondary px-4 py-2 text-sm">Challenges</Link>
           <Link to="/staff/opportunities" className="btn-secondary px-4 py-2 text-sm">Opportunities</Link>
           <Link to="/staff/analytics" className="btn-secondary px-4 py-2 text-sm">Analytics</Link>
           <button

@@ -6,6 +6,7 @@ import { useBilling } from "../contexts/BillingContext";
 import { getAuthToken } from "../lib/authStorage";
 import { planName } from "../lib/billing";
 import { PRICING_PATH, SUBSCRIPTION_TAB_PATH } from "../lib/routes";
+import { peekChallengeReturn, takeChallengeReturn } from "../lib/challengeReturn";
 
 /**
  * Where Flutterwave sends the user after the hosted checkout.
@@ -43,6 +44,9 @@ export default function BillingReturn() {
   const [planLabel, setPlanLabel] = useState("your new plan");
   const [billingMode, setBillingMode] = useState<"auto_renew" | "manual">("auto_renew");
   const pollsRef = useRef(0);
+  // Paying for a challenge's plan: offer the way back to the challenge.
+  const [challengePath] = useState(() => peekChallengeReturn());
+  const backToChallenge = () => navigate(takeChallengeReturn() ?? "/opportunities", { replace: true });
 
   // Ask the server to settle this checkout now. It verifies the id with
   // Flutterwave itself; a failure here just leaves the poll below to wait for
@@ -143,10 +147,21 @@ export default function BillingReturn() {
                 ? "Your plan renews automatically by card. You can see it or cancel any time in Settings, under Billing."
                 : "This is a one-time payment. Renew manually before your paid period ends in Settings, under Billing."}
             </p>
+            {challengePath && (
+              <button
+                type="button"
+                onClick={backToChallenge}
+                className="mb-3 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-indigo-600 py-3 text-sm font-bold text-white transition-colors hover:bg-indigo-700"
+              >
+                Continue the challenge <ArrowRight size={16} />
+              </button>
+            )}
             <button
               type="button"
               onClick={() => navigate("/setup", { replace: true })}
-              className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-sky-500 py-3 text-sm font-bold text-white transition-colors hover:bg-sky-600"
+              className={challengePath
+                ? "inline-flex w-full items-center justify-center gap-2 rounded-xl border border-slate-200 py-3 text-sm font-bold text-slate-700 transition-colors hover:bg-slate-50 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-800"
+                : "inline-flex w-full items-center justify-center gap-2 rounded-xl bg-sky-500 py-3 text-sm font-bold text-white transition-colors hover:bg-sky-600"}
             >
               Start a pitch <ArrowRight size={16} />
             </button>
@@ -166,6 +181,15 @@ export default function BillingReturn() {
               will activate automatically — you don't need to pay again. Check Billing
               in a few minutes, and contact us if it hasn't appeared.
             </p>
+            {challengePath && (
+              <button
+                type="button"
+                onClick={backToChallenge}
+                className="mb-3 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-indigo-600 py-3 text-sm font-bold text-white transition-colors hover:bg-indigo-700"
+              >
+                Back to the challenge <ArrowRight size={16} />
+              </button>
+            )}
             <Link
               to={SUBSCRIPTION_TAB_PATH}
               className="inline-flex w-full items-center justify-center rounded-xl border border-slate-200 py-3 text-sm font-bold text-slate-700 transition-colors hover:bg-slate-50 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-800"

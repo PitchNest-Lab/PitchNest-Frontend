@@ -122,7 +122,7 @@ interface BillingContextValue {
    * was shown. Returns false if it couldn't, having already told the user why.
    * When true the caller should expect a redirect.
    */
-  upgrade: (selection?: { plan?: PaidPlan; term?: BillingTerm; currency?: string; billingMode?: BillingMode }) => Promise<boolean>;
+  upgrade: (selection?: { plan?: PaidPlan; term?: BillingTerm; currency?: string; billingMode?: BillingMode; discountCode?: string }) => Promise<boolean>;
   /** Turns off auto-renew. Paid time already bought is kept. */
   cancelSubscription: () => Promise<{ ok: boolean; message?: string }>;
   refresh: () => Promise<void>;
@@ -218,7 +218,7 @@ export const BillingProvider: React.FC<{ children: React.ReactNode }> = ({ child
   }, [user?.id, user?.plan, refresh]);
 
   const upgrade = useCallback(
-    async (selection?: { plan?: PaidPlan; term?: BillingTerm; currency?: string; billingMode?: BillingMode }): Promise<boolean> => {
+    async (selection?: { plan?: PaidPlan; term?: BillingTerm; currency?: string; billingMode?: BillingMode; discountCode?: string }): Promise<boolean> => {
       try {
         // Only send keys the caller set; the server defaults the rest to the
         // headline Pro monthly in dollars. The amount is NEVER sent — the server
@@ -228,6 +228,9 @@ export const BillingProvider: React.FC<{ children: React.ReactNode }> = ({ child
         if (selection?.term) payload.term = selection.term;
         if (selection?.currency) payload.currency = selection.currency;
         if (selection?.billingMode) payload.billingMode = selection.billingMode;
+        // A code is priced and checked again on the server; it makes the
+        // checkout a one-time payment.
+        if (selection?.discountCode) payload.discountCode = selection.discountCode;
         const hasBody = Object.keys(payload).length > 0;
 
         const res = await authFetch("/api/billing/checkout", {

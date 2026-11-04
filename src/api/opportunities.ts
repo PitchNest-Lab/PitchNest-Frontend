@@ -41,6 +41,27 @@ export interface Opportunity {
   lastCheckedAt: string | null;
   state: OpportunityState;
   daysLeft: number | null;
+  /**
+   * "external": listed by PitchNest, run by the organizer on their own site.
+   * "pitchnest": a challenge PitchNest hosts, entered on PitchNest itself.
+   */
+  source?: "external" | "pitchnest";
+  challenge?: {
+    slug: string;
+    tagline: string;
+    phase: "upcoming" | "open" | "closed" | "judging" | "completed" | "cancelled" | "draft";
+    prizePool: number;
+    prizeCurrency: string;
+    submissionDeadline: string | null;
+    imageUrl: string | null;
+  };
+}
+
+/** A challenge PitchNest hosts, with what its card needs. */
+export type HostedOpportunity = Opportunity & { source: "pitchnest"; challenge: NonNullable<Opportunity["challenge"]> };
+
+export function isHostedChallenge(item: Opportunity): item is HostedOpportunity {
+  return item.source === "pitchnest" && Boolean(item.challenge?.slug);
 }
 
 export interface StaffOpportunity extends Opportunity {

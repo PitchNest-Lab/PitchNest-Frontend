@@ -27,6 +27,7 @@ import {
   Rocket,
   Briefcase,
   Mic,
+  Trophy,
 } from 'lucide-react';
 import { Link, useLocation, Outlet, useNavigate } from 'react-router-dom';
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
@@ -87,6 +88,7 @@ const PAGE_INFO: Array<{ test: (pathname: string) => boolean; title: string; are
   { test: (p) => p.startsWith('/founders/'), title: 'Founder', area: 'Founder ecosystem' },
   { test: (p) => p.startsWith('/pitches'), title: 'Pitch Arena', area: 'Founder ecosystem' },
   { test: (p) => p.startsWith('/community'), title: 'Community', area: 'Founder ecosystem' },
+  { test: (p) => p.startsWith('/opportunities/challenges/'), title: 'Challenge', area: 'Opportunities' },
   { test: (p) => p.startsWith('/opportunities'), title: 'Opportunities', area: 'Founder ecosystem' },
   { test: (p) => p.startsWith('/workspace'), title: 'My workspace', area: 'Your businesses' },
   { test: (p) => p.startsWith('/dashboard'), title: 'Practice dashboard', area: 'Private AI practice' },
@@ -329,7 +331,9 @@ export default function AppLayout() {
               </div>
             ) : (
               notifications.map((item) => {
+                const challenge = item.type.startsWith('challenge_');
                 const Icon =
+                  challenge ? Trophy :
                   item.type === 'business_update' ? Megaphone :
                   item.type === 'community_reply' ? MessagesSquare :
                   item.type === 'founder_update' || item.type === 'founder_business' ? UserRound :
@@ -345,7 +349,9 @@ export default function AppLayout() {
                   >
                     <div className={cn(
                       'flex h-8 w-8 shrink-0 items-center justify-center rounded-lg',
-                      item.type === 'business_update'
+                      challenge
+                        ? 'bg-amber-50 text-amber-500 dark:bg-amber-950/20'
+                        : item.type === 'business_update'
                         ? 'bg-emerald-50 text-emerald-500 dark:bg-emerald-950/20'
                         : item.type === 'community_reply'
                           ? 'bg-violet-50 text-violet-500 dark:bg-violet-950/20'

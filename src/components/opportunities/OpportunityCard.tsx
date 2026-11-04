@@ -1,8 +1,9 @@
 import React from "react";
 import { CalendarDays, ExternalLink, MapPin, ShieldCheck } from "lucide-react";
-import { KIND_LABELS, type Opportunity } from "../../api/opportunities";
+import { isHostedChallenge, KIND_LABELS, type Opportunity } from "../../api/opportunities";
 import { cn } from "../../lib/utils";
 import { trackEvent } from "../../lib/analytics";
+import { HostedChallengeCard } from "./HostedChallengeCard";
 
 function formatDate(value: string | null) {
   if (!value) return "";
@@ -37,9 +38,11 @@ export function StateBadge({ opportunity }: { opportunity: Pick<Opportunity, "st
 
 /**
  * One curated opportunity. The action always leads to the organizer's own
- * page: PitchNest lists opportunities but never takes applications.
+ * page: PitchNest lists opportunities but never takes applications. The
+ * exception is a challenge PitchNest hosts itself, which opens its page here.
  */
 export function OpportunityCard({ opportunity }: { opportunity: Opportunity }) {
+  if (isHostedChallenge(opportunity)) return <HostedChallengeCard item={opportunity} />;
   const closed = opportunity.state === "closed";
   return (
     <article

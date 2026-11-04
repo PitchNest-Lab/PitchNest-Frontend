@@ -14,6 +14,7 @@ import { Logo } from "../components/Logo";
 import { cn } from "../lib/utils";
 import { useAuth } from "../contexts/AuthContext";
 import { getAuthToken } from "../lib/authStorage";
+import { takeChallengeReturn } from "../lib/challengeReturn";
 
 export default function Onboarding() {
   const [step, setStep] = useState(1);
@@ -69,7 +70,8 @@ export default function Onboarding() {
       formData.fundingStage || "Pre-Seed",
     );
 
-    navigate("/dashboard");
+    // Signed up from a challenge page: go back there to join.
+    navigate(takeChallengeReturn() ?? "/dashboard");
   };
 
   // Skip onboarding — marks the user onboarded so they aren't sent back here.
@@ -92,7 +94,8 @@ export default function Onboarding() {
       console.warn("Failed to persist skip-onboarding:", err);
     }
 
-    navigate("/dashboard");
+    // Signed up from a challenge page: go back there to join.
+    navigate(takeChallengeReturn() ?? "/dashboard");
   };
 
   // Switch statement so AnimatePresence can hook into the changing key.

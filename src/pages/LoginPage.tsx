@@ -17,6 +17,7 @@ import { cn } from "../lib/utils";
 import { useAuth } from "../contexts/AuthContext";
 import { GoogleSignInButton } from "../components/GoogleSignInButton";
 import { clearAuthSession } from "../lib/authStorage";
+import { takeChallengeReturn } from "../lib/challengeReturn";
 import Cookies from "js-cookie";
 
 const loginSchema = z.object({
@@ -186,7 +187,14 @@ export default function LoginPage() {
 
 
 
-  const from = location.state?.from?.pathname || "/dashboard";
+  // The page that sent the founder here (with its query, e.g. a discount code);
+  // otherwise a challenge they were looking at (lib/challengeReturn); otherwise
+  // the dashboard. Computed at sign-in, so the challenge hand-off is used once.
+  const fromState = location.state?.from;
+  const destination = () =>
+    fromState?.pathname
+      ? `${fromState.pathname}${fromState.search || ""}${fromState.hash || ""}`
+      : takeChallengeReturn() || "/dashboard";
 
   useEffect(() => {
     const timer = setInterval(
@@ -215,7 +223,7 @@ export default function LoginPage() {
       localStorage.removeItem("pitchnest_startup_name");
       localStorage.removeItem("pitchnest_funding_stage");
       await login(data.email, data.password, rememberMe);
-      navigate(from, { replace: true });
+      navigate(destination(), { replace: true });
     } catch (error: any) {
       // Check if the error is about email not being verified
       if (
@@ -320,7 +328,7 @@ export default function LoginPage() {
                     const data = await loginWithGoogle(credential, rememberMe);
                     // New Google users land on onboarding (server decides via
                     // redirectTo); returning users go to their intended page.
-                    navigate(data?.redirectTo || from, { replace: true });
+                    navigate(data?.redirectTo || destination(), { replace: true });
                   } catch (error: any) {
                     setServerError(error.message || "Google sign-in failed.");
                   } finally {

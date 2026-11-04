@@ -1,6 +1,7 @@
-import React, { useMemo, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
-import { Check, Gift, Hammer, Loader2, Minus, Sparkles, Users, X } from "lucide-react";
+import React, { useEffect, useMemo, useState } from "react";
+import { Link, useLocation, useNavigate, useSearchParams } from "react-router-dom";
+import { Check, Gift, Hammer, Loader2, Minus, Sparkles, Tag, Users, X } from "lucide-react";
+import { previewDiscount, type DiscountQuote } from "../api/challenges";
 import { cn } from "../lib/utils";
 import { ThemeToggle } from "../components/ThemeToggle";
 import { LogoLink } from "../components/Logo";
@@ -75,13 +76,22 @@ function Cell({ value }: { value: string | boolean }) {
 
 export default function PricingPage() {
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const location = useLocation();
+  const [searchParams] = useSearchParams();
+  const { user, authFetch } = useAuth();
   const signedIn = Boolean(user && user.accountType !== "organization");
   const publicPrice = usePublicPrice();
   const { info, loaded, upgrade } = useBilling();
   const [term, setTerm] = useState<BillingTerm>("monthly");
   const [chosenMode, setChosenMode] = useState<BillingMode | null>(null);
   const [starting, setStarting] = useState<PaidPlan | null>(null);
+  // A discount code, from ?code= (the challenge page links here with it) or typed in.
+  const linkedCode = (searchParams.get("code") || "").trim().toUpperCase().slice(0, 32);
+  const [codeInput, setCodeInput] = useState(linkedCode);
+  const [appliedCode, setAppliedCode] = useState(linkedCode);
+  const [quote, setQuote] = useState<DiscountQuote | null>(null);
+  const [codeError, setCodeError] = useState("");
+  const [checkingCode, setCheckingCode] = useState(false);
 
   const useAccount = signedIn && loaded;
   const fromAccount = useAccount && info.catalog.length > 0;
@@ -110,13 +120,45 @@ export default function PricingPage() {
       ? Math.round((1 - proAnnual.amount / (proMonthly.amount * 12)) * 100)
       : 0;
   const modeSku = sku("pro", term) ?? proMonthly;
-  const billingModes = modeSku?.billingModes ?? ["auto_renew", "manual"];
+
+  // The server prices the code for THIS account, term and currency; what it
+  // says is what checkout charges. Codes apply to Pro Founder.
+  useEffect(() => {
+    if (!appliedCode || !signedIn || !loaded || !modeSku) {
+      setQuote(null);
+      return;
+    }
+    let cancelled = false;
+    setCheckingCode(true);
+    setCodeError("");
+    previewDiscount(authFetch, { code: appliedCode, plan: "pro", term, currency: modeSku.currency })
+      .then((result) => {
+        if (!cancelled) setQuote(result);
+      })
+      .catch((error) => {
+        if (cancelled) return;
+        setQuote(null);
+        setCodeError(error?.message || "That code can't be used right now.");
+      })
+      .finally(() => {
+        if (!cancelled) setCheckingCode(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [appliedCode, signedIn, loaded, term, modeSku?.currency, modeSku?.amount, authFetch]);
+
+  const codeApplies = Boolean(quote && quote.term === term && quote.currency === modeSku?.currency);
+  const billingModes = codeApplies ? (["manual"] as BillingMode[]) : modeSku?.billingModes ?? ["auto_renew", "manual"];
   // The buyer's own pick while it is on offer; until then, the default for
-  // this price (manual for local currencies, automatic for dollars).
+  // this price (manual for local currencies, automatic for dollars). A code
+  // means a one-time payment.
   const billingMode: BillingMode =
-    chosenMode && billingModes.includes(chosenMode)
-      ? chosenMode
-      : defaultBillingMode(modeSku, currentSub?.billingMode);
+    codeApplies
+      ? "manual"
+      : chosenMode && billingModes.includes(chosenMode)
+        ? chosenMode
+        : defaultBillingMode(modeSku, currentSub?.billingMode);
 
   const close = () => {
     if ((window.history.state?.idx ?? 0) > 0) navigate(-1);
@@ -125,8 +167,9 @@ export default function PricingPage() {
 
   const startCheckout = async (plan: PaidPlan) => {
     setStarting(plan);
+    const withCode = plan === "pro" && codeApplies && quote ? quote.code : undefined;
     // On success the browser leaves for Flutterwave, so only failure clears this.
-    const ok = await upgrade({ plan, term, currency: sku(plan, term)?.currency, billingMode });
+    const ok = await upgrade({ plan, term, currency: sku(plan, term)?.currency, billingMode, discountCode: withCode });
     if (!ok) setStarting(null);
   };
 
@@ -153,7 +196,10 @@ export default function PricingPage() {
         ? "bg-linear-to-r from-indigo-600 to-sky-600 text-white shadow-md shadow-sky-600/25 hover:brightness-110"
         : "border border-indigo-200 bg-white text-indigo-700 hover:bg-indigo-50 dark:border-indigo-500/40 dark:bg-transparent dark:text-indigo-200 dark:hover:bg-indigo-500/10",
     );
-    const label = freeMonths > 0 ? `Claim ${freeMonthsLabel(freeMonths)}` : plan.id === "pro" ? "Upgrade to Pro Founder" : "Get Founder";
+    const label =
+      plan.id === "pro" && codeApplies && quote
+        ? `Pay ${formatMoney(quote.amount, quote.currency)} with ${quote.code}`
+        : freeMonths > 0 ? `Claim ${freeMonthsLabel(freeMonths)}` : plan.id === "pro" ? "Upgrade to Pro Founder" : "Get Founder";
 
     if (!signedIn) return <Link to="/signup" className={action}>{label}</Link>;
     // Until this account's plan answers, no button can say what it would do.
@@ -209,6 +255,13 @@ export default function PricingPage() {
       const pricingLoaded = useAccount ? loaded : publicPrice.loaded;
       return { amount: pricingLoaded ? "Unavailable" : "Loading…", unit: "", approx: "" };
     }
+    if (plan.id === "pro" && codeApplies && quote) {
+      return {
+        amount: formatMoney(quote.amount, quote.currency),
+        unit: `first ${term === "annual" ? "year" : "month"}`,
+        approx: `was ${formatMoney(quote.listAmount, quote.currency)}`,
+      };
+    }
     return {
       amount: formatMoney(item.amount, item.currency),
       unit: term === "annual" ? "/ year" : "/ month",
@@ -255,6 +308,51 @@ export default function PricingPage() {
               ? `Subscribe to any plan and we add ${freeMonthsLabel(freeMonths).replace(" free", "")} on top. Choose automatic renewal or a one-time payment.`
               : "Choose automatic renewal by card or a one-time payment. You can renew manually whenever you are ready."}
           </p>
+        </div>
+
+        {/* Discount code */}
+        <div className="mx-auto mb-8 max-w-xl rounded-2xl border border-slate-200 bg-white/80 p-4 dark:border-zinc-800 dark:bg-zinc-900/70">
+          <form
+            className="flex flex-col gap-2 sm:flex-row sm:items-end"
+            onSubmit={(event) => {
+              event.preventDefault();
+              setAppliedCode(codeInput.trim().toUpperCase());
+            }}
+          >
+            <label className="flex-1 text-xs font-bold text-slate-600 dark:text-zinc-300">
+              <span className="flex items-center gap-1.5"><Tag size={13} /> Discount code</span>
+              <input
+                value={codeInput}
+                onChange={(event) => setCodeInput(event.target.value.toUpperCase().replace(/[^A-Z0-9]/g, ""))}
+                maxLength={32}
+                placeholder="e.g. PCHU01"
+                autoComplete="off"
+                className="input-field mt-1.5 text-sm uppercase"
+              />
+            </label>
+            <button type="submit" disabled={!codeInput.trim() || checkingCode} className="btn-secondary px-4 py-3 text-sm disabled:opacity-50">
+              {checkingCode && <Loader2 size={14} className="animate-spin" />} Apply
+            </button>
+          </form>
+          {!signedIn && appliedCode && (
+            <p className="mt-2 text-xs text-slate-600 dark:text-zinc-300">
+              <Link to="/login" state={{ from: location }} className="font-bold text-indigo-600 underline-offset-2 hover:underline dark:text-indigo-400">Log in</Link>
+              {" or "}
+              <Link to="/signup" className="font-bold text-indigo-600 underline-offset-2 hover:underline dark:text-indigo-400">create a free account</Link>
+              {` to use ${appliedCode}.`}
+            </p>
+          )}
+          {signedIn && codeApplies && quote && (
+            <p className="mt-2 text-xs font-semibold text-emerald-700 dark:text-emerald-400">
+              {quote.code}: {quote.percentOff}% off your first {term === "annual" ? "year" : "month"} of Pro Founder,{" "}
+              {formatMoney(quote.amount, quote.currency)} instead of {formatMoney(quote.listAmount, quote.currency)}. It is a one-time
+              payment; you renew manually at the normal price.
+              {freeMonths > 0 && !quote.combineWithOffer ? " The code replaces the free-month offer." : ""}
+            </p>
+          )}
+          {signedIn && codeError && !checkingCode && (
+            <p className="mt-2 text-xs font-semibold text-rose-600 dark:text-rose-400" role="alert">{codeError}</p>
+          )}
         </div>
 
         {/* Billing period and currency */}
@@ -332,6 +430,9 @@ export default function PricingPage() {
             const price = priceFor(plan);
             const paidCard = plan.id === "founder" || plan.id === "pro";
             const recurring = paidCard ? sku(CARD_PLAN[plan.id as "founder" | "pro"], term) : null;
+            const withCode = plan.id === "pro" && codeApplies && quote !== null;
+            // A code that doesn't combine with the offer takes the free months' place.
+            const cardFreeMonths = withCode && !quote!.combineWithOffer ? 0 : freeMonths;
             return (
               <div
                 key={plan.id}
@@ -348,7 +449,7 @@ export default function PricingPage() {
                   <p className="text-sm font-medium text-slate-700 dark:text-zinc-300">{plan.name}</p>
                   {featured && (
                     <span className="inline-flex items-center gap-1 rounded-full bg-accent px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-accent-ink">
-                      {freeMonths > 0 ? <><Gift size={11} /> {freeMonthsLabel(freeMonths)}</> : "Most popular"}
+                      {withCode ? <><Tag size={11} /> {quote!.percentOff}% off</> : cardFreeMonths > 0 ? <><Gift size={11} /> {freeMonthsLabel(cardFreeMonths)}</> : "Most popular"}
                     </span>
                   )}
                 </div>
@@ -363,7 +464,9 @@ export default function PricingPage() {
                   {price.approx && <span className="text-xs text-slate-400 dark:text-zinc-500">{price.approx}</span>}
                 </div>
                 <p className="mt-1 h-5 text-xs font-semibold text-accent-text dark:text-accent">
-                  {paidCard && freeMonths > 0 ? `+ ${freeMonthsLabel(freeMonths)} on your first subscription` : ""}
+                  {withCode
+                    ? `With ${quote!.code}, then the normal price`
+                    : paidCard && cardFreeMonths > 0 ? `+ ${freeMonthsLabel(cardFreeMonths)} on your first subscription` : ""}
                 </p>
 
                 <div className="mt-5">{ctaFor(plan)}</div>
@@ -382,8 +485,8 @@ export default function PricingPage() {
                     ? "No card needed. Every new account starts on the Free plan."
                     : recurring
                       ? billingMode === "auto_renew"
-                        ? `${freeMonths > 0 ? "The free month applies to your first subscription only. " : ""}Renews at ${formatMoney(recurring.amount, recurring.currency)} ${term === "annual" ? "a year" : "a month"} until you cancel.`
-                        : `${freeMonths > 0 ? "The free month applies to your first subscription only. " : ""}One-time payment. Renew manually when your paid period ends.`
+                        ? `${cardFreeMonths > 0 ? "The free month applies to your first subscription only. " : ""}Renews at ${formatMoney(recurring.amount, recurring.currency)} ${term === "annual" ? "a year" : "a month"} until you cancel.`
+                        : `${cardFreeMonths > 0 ? "The free month applies to your first subscription only. " : ""}One-time payment. Renew manually${withCode ? ` at ${formatMoney(recurring.amount, recurring.currency)}` : ""} when your paid period ends.`
                       : billingMode === "auto_renew" ? "Renews automatically until you cancel." : "One-time payment. Renew manually when you are ready."}
                 </p>
               </div>

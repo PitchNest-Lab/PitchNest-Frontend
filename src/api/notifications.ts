@@ -5,7 +5,14 @@ export type NotificationType =
   | "business_update"
   | "community_reply"
   | "founder_update"
-  | "founder_business";
+  | "founder_business"
+  | "challenge_joined"
+  | "challenge_eligible"
+  | "challenge_submitted"
+  | "challenge_correction"
+  | "challenge_approved"
+  | "challenge_rejected"
+  | "challenge_results";
 
 export interface AppNotification {
   id: string;

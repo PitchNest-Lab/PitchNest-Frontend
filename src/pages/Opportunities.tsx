@@ -4,9 +4,11 @@ import { useSearchParams } from "react-router-dom";
 import { PageHero } from "../components/layout/PageHero";
 import { PageWithRail } from "../components/layout/EcosystemRail";
 import { OpportunityCard } from "../components/opportunities/OpportunityCard";
+import { HostedChallengeCard } from "../components/opportunities/HostedChallengeCard";
 import { usePageMetadata } from "../hooks/usePageMetadata";
 import {
   fetchOpportunities,
+  isHostedChallenge,
   KIND_LABELS,
   OPPORTUNITY_KINDS,
   type Opportunity,
@@ -59,6 +61,10 @@ export default function Opportunities() {
     event.preventDefault();
     setParam("q", search.trim());
   };
+
+  // Challenges PitchNest hosts lead the page; everything else keeps its grid.
+  const hosted = items.filter(isHostedChallenge);
+  const listed = items.filter((item) => !isHostedChallenge(item));
 
   return (
     <PageWithRail hide={["opportunities"]}>
@@ -132,9 +138,16 @@ export default function Opportunities() {
                 </p>
               </div>
             )}
-            {status === "ready" && items.length > 0 && (
+            {status === "ready" && hosted.length > 0 && (
+              <div className="mb-6 space-y-5">
+                {hosted.map((item) => (
+                  <HostedChallengeCard key={item.id} item={item} variant="featured" />
+                ))}
+              </div>
+            )}
+            {status === "ready" && listed.length > 0 && (
               <div className="grid gap-5 md:grid-cols-2">
-                {items.map((item) => (
+                {listed.map((item) => (
                   <OpportunityCard key={item.id} opportunity={item} />
                 ))}
               </div>

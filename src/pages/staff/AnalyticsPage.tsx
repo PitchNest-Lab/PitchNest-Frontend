@@ -107,6 +107,7 @@ export default function AnalyticsPage() {
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
+          <Link to="/staff/challenges" className="btn-secondary px-4 py-2 text-sm">Challenges</Link>
           <Link to="/staff/moderation" className="btn-secondary px-4 py-2 text-sm">Moderation</Link>
           <Link to="/staff/opportunities" className="btn-secondary px-4 py-2 text-sm">Opportunities</Link>
         </div>

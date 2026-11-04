@@ -24,6 +24,7 @@ import { UpgradeProvider } from "./components/ui/UpgradeModal";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 import { CookieConsent } from "./components/CookieConsent";
 import { GoogleOneTap } from "./components/GoogleOneTap";
+import { ChallengePromo } from "./components/challenges/ChallengePromo";
 
 const AppLayout = lazyPage(() => import("./components/AppLayout"));
 const LoginPage = lazyPage(() => import("./pages/LoginPage"));
@@ -69,7 +70,10 @@ const ModerationPage = lazyPage(() => import("./pages/staff/ModerationPage"));
 const Community = lazyPage(() => import("./pages/Community"));
 const CommunityThread = lazyPage(() => import("./pages/CommunityThread"));
 const Opportunities = lazyPage(() => import("./pages/Opportunities"));
+const ChallengePage = lazyPage(() => import("./pages/ChallengePage"));
 const OpportunitiesAdmin = lazyPage(() => import("./pages/staff/OpportunitiesAdmin"));
+const ChallengesAdmin = lazyPage(() => import("./pages/staff/ChallengesAdmin"));
+const ChallengeAdmin = lazyPage(() => import("./pages/staff/ChallengeAdmin"));
 const StaffAnalytics = lazyPage(() => import("./pages/staff/AnalyticsPage"));
 const PitchArena = lazyPage(() => import("./pages/PitchArena"));
 const Home = lazyPage(() => import("./pages/Home"));
@@ -85,6 +89,7 @@ export default function App() {
           <VercelAnalytics />
           <CookieConsent />
           <GoogleOneTap />
+          <ChallengePromo />
           {/* Outer boundaries for on-demand pages. Pages inside the sidebar
               layout have their own Suspense around the Outlet (AppLayout), so
               moving between app pages keeps the sidebar on screen. */}
@@ -161,6 +166,16 @@ export default function App() {
                   </ErrorBoundary>
                 }
               />
+              {/* A challenge PitchNest hosts: public rules, and the signed-in
+                  founder's own entry. */}
+              <Route
+                path="/opportunities/challenges/:slug"
+                element={
+                  <ErrorBoundary>
+                    <ChallengePage />
+                  </ErrorBoundary>
+                }
+              />
               <Route
                 path="/community"
                 element={
@@ -233,6 +248,22 @@ export default function App() {
                 element={
                   <ErrorBoundary>
                     <StaffAnalytics />
+                  </ErrorBoundary>
+                }
+              />
+              <Route
+                path="/staff/challenges"
+                element={
+                  <ErrorBoundary>
+                    <ChallengesAdmin />
+                  </ErrorBoundary>
+                }
+              />
+              <Route
+                path="/staff/challenges/:id"
+                element={
+                  <ErrorBoundary>
+                    <ChallengeAdmin />
                   </ErrorBoundary>
                 }
               />
