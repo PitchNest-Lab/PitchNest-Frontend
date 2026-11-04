@@ -1,20 +1,21 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import LegalLayout from '../../components/LegalLayout';
-import { CONTACT_EMAIL, TERMS_LAST_UPDATED } from '../../lib/legal';
+import { CONTACT_EMAIL, REFUNDS_LAST_UPDATED } from '../../lib/legal';
 
 export default function RefundPolicy() {
   return (
-    <LegalLayout title="Refunds & Cancellations" lastUpdated={TERMS_LAST_UPDATED}>
+    <LegalLayout title="Refunds & Cancellations" lastUpdated={REFUNDS_LAST_UPDATED}>
       <p>
         This policy explains how cancelling and refunds work for PitchNest plans. It forms part of our{' '}
         <Link to="/terms">Terms of Service</Link>.
       </p>
 
-      <h2>1. Free trial</h2>
+      <h2>1. Free plan</h2>
       <p>
-        New accounts start with a free trial of full Pro access. No card is needed and nothing is charged, so there is
-        nothing to refund. When the trial ends, your account moves to the Free plan unless you subscribe.
+        New accounts start on the Free plan. No card is needed and nothing is charged, so there is nothing to refund.
+        Accounts that were given a free trial of Pro access before November 4, 2026 keep it until it ends, then move to
+        the Free plan unless they subscribe.
       </p>
 
       <h2>2. How plans renew</h2>

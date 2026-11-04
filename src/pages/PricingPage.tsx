@@ -49,7 +49,7 @@ const MATRIX: { label: string; free: Cellv; founder: Cellv; pro: Cellv; enterpri
   { label: "1-on-1 coach mode", free: true, founder: true, pro: true, enterprise: true },
   { label: "Deck-aware questioning", free: true, founder: true, pro: true, enterprise: true },
   { label: "Readiness score, radar, strengths & risks", free: true, founder: true, pro: true, enterprise: true },
-  { label: "Downloadable PDF report", free: "Trial only", founder: true, pro: true, enterprise: true },
+  { label: "Downloadable PDF report", free: false, founder: true, pro: true, enterprise: true },
   { label: "Prioritised next steps & reading the room", free: false, founder: false, pro: true, enterprise: true },
   { label: "Live market research in panel", free: false, founder: false, pro: true, enterprise: true },
   { label: "Organisation account & cohort seats", free: false, founder: false, pro: false, enterprise: true },
@@ -379,7 +379,7 @@ export default function PricingPage() {
 
                 <p className="mt-6 text-[11px] leading-relaxed text-slate-400 dark:text-zinc-500">
                   {plan.id === "free"
-                    ? "No card needed. New accounts start with 3 days of full Pro access."
+                    ? "No card needed. Every new account starts on the Free plan."
                     : recurring
                       ? billingMode === "auto_renew"
                         ? `${freeMonths > 0 ? "The free month applies to your first subscription only. " : ""}Renews at ${formatMoney(recurring.amount, recurring.currency)} ${term === "annual" ? "a year" : "a month"} until you cancel.`
@@ -443,10 +443,9 @@ export default function PricingPage() {
         </div>
 
         <p className="mt-4 text-xs text-slate-400 dark:text-zinc-500">
-          New accounts get 3 days of full Pro access, so every row above reads as included while you trial.
-          When it ends you keep the Free plan and every report you already generated stays readable — you
-          just stop being able to start new sessions beyond two a week. Hubs & Accelerators is priced custom
-          per seat or cohort.
+          New accounts start on the Free plan: two sessions a week, and every report you generate stays
+          readable. Upgrade whenever you need more sessions, longer sessions, the PDF report or the Pro tools.
+          Hubs & Accelerators is priced custom per seat or cohort.
         </p>
 
         {/* Roadmap — deliberately OUTSIDE the comparison table, so nothing here

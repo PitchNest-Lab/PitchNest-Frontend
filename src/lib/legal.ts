@@ -3,8 +3,10 @@ export const CONTACT_EMAIL = 'pitchnestapp@gmail.com';
 export const APP_NAME = 'PitchNest';
 export const MIN_AGE = 13;
 export const LEGAL_LAST_UPDATED = 'October 17, 2026';
-/** The Terms and the refund policy changed after the other legal pages. */
+/** The Terms changed after the other legal pages. */
 export const TERMS_LAST_UPDATED = 'October 21, 2026';
+/** The refund policy no longer describes a trial for new accounts. */
+export const REFUNDS_LAST_UPDATED = 'November 4, 2026';
 /** The Privacy Policy added opt-in Google Ads cookies. */
 export const PRIVACY_LAST_UPDATED = 'November 1, 2026';
 
