@@ -2,7 +2,7 @@ import type { AuthFetch } from "./businesses";
 
 /** Challenges PitchNest hosts itself, a founder's entry, and the staff tools. */
 
-export const DEFAULT_CHALLENGE_POSTER_URL = "/pitchnest-challenge-poster-founder.png";
+export const DEFAULT_CHALLENGE_POSTER_URL = "/pitchnest-challenge-poster-founder.jpg";
 
 /** Prefer the staff-uploaded image, then the bundled poster for the seeded challenge. */
 export function challengePosterUrl(challenge: {

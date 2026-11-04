@@ -270,7 +270,7 @@ function SetupTab({ challenge, onSaved }: { challenge: StaffChallenge; onSaved: 
   const upload = async (file: File | undefined) => {
     if (!file) return;
     if (file.size > 4 * 1024 * 1024) {
-      setMessage({ tone: "error", text: "Use an image under 4 MB. The 1600 px poster file (pitchnest-challenge-poster-1600.jpg) is about 0.4 MB." });
+      setMessage({ tone: "error", text: "Use an image under 4 MB. The poster file (pitchnest-challenge-poster-founder.jpg) is about 0.3 MB." });
       return;
     }
     setImageBusy(true);
