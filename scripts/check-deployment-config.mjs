@@ -56,26 +56,36 @@ assert(
   "script-src must allow the Google Ads tag (https://www.googletagmanager.com)",
 );
 
-// Link previews: crawlers on a business page get the backend's share document
-// (PitchNest-Backend publicBusinessMetadata.ts); everyone else gets the app.
-// The CDN never caches it, so a crawler's copy can never reach a visitor.
-const previewRewrite = vercel.rewrites?.find((rule) => rule.source === "/businesses/:slug");
-assert(previewRewrite, "vercel.json must forward link-preview crawlers on /businesses/:slug");
-assert.match(previewRewrite.destination, /^https:\/\/[^/]+\/api\/public\/businesses\/:slug\/share-html$/);
-assert(
-  vercel.rewrites.indexOf(previewRewrite) < vercel.rewrites.findIndex((rule) => rule.source === "/(.*)"),
-  "the crawler rewrite must come before the app fallback",
-);
-const crawlerAgents = previewRewrite.has?.find(
-  (condition) => condition.type === "header" && condition.key === "user-agent",
-)?.value;
-assert(crawlerAgents, "the crawler rewrite must be limited by user agent");
-const previewHeaders = vercel.headers.find((rule) => rule.source === "/businesses/:slug");
-assert.equal(previewHeaders?.has?.[0]?.value, crawlerAgents, "the no-cache rule must cover the same user agents");
-assert(
-  previewHeaders.headers.some((header) => header.key === "x-vercel-enable-rewrite-caching" && header.value === "0"),
-  "crawler responses must not be cached on the CDN",
-);
+// Link previews: crawlers on a business or challenge page get the backend's
+// share document (PitchNest-Backend publicBusinessMetadata.ts and
+// publicChallengeMetadata.ts); everyone else gets the app. The CDN never
+// caches it, so a crawler's copy can never reach a visitor.
+const previewPages = [
+  ["/businesses/:slug", /^https:\/\/[^/]+\/api\/public\/businesses\/:slug\/share-html$/],
+  ["/opportunities/challenges/:slug", /^https:\/\/[^/]+\/api\/public\/challenges\/:slug\/share-html$/],
+];
+let crawlerAgents;
+for (const [source, destination] of previewPages) {
+  const previewRewrite = vercel.rewrites?.find((rule) => rule.source === source);
+  assert(previewRewrite, `vercel.json must forward link-preview crawlers on ${source}`);
+  assert.match(previewRewrite.destination, destination);
+  assert(
+    vercel.rewrites.indexOf(previewRewrite) < vercel.rewrites.findIndex((rule) => rule.source === "/(.*)"),
+    `the crawler rewrite for ${source} must come before the app fallback`,
+  );
+  const agents = previewRewrite.has?.find(
+    (condition) => condition.type === "header" && condition.key === "user-agent",
+  )?.value;
+  assert(agents, `the crawler rewrite for ${source} must be limited by user agent`);
+  crawlerAgents ??= agents;
+  assert.equal(agents, crawlerAgents, "every preview rewrite must match the same crawlers");
+  const previewHeaders = vercel.headers.find((rule) => rule.source === source);
+  assert.equal(previewHeaders?.has?.[0]?.value, crawlerAgents, `the no-cache rule for ${source} must cover the same user agents`);
+  assert(
+    previewHeaders.headers.some((header) => header.key === "x-vercel-enable-rewrite-caching" && header.value === "0"),
+    `crawler responses on ${source} must not be cached on the CDN`,
+  );
+}
 // Whether Vercel anchors the pattern or searches with it, crawlers match and people do not.
 for (const pattern of [new RegExp(`^(?:${crawlerAgents})$`), new RegExp(crawlerAgents)]) {
   for (const agent of [
