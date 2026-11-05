@@ -166,16 +166,6 @@ export default function App() {
                   </ErrorBoundary>
                 }
               />
-              {/* A challenge PitchNest hosts: public rules, and the signed-in
-                  founder's own entry. */}
-              <Route
-                path="/opportunities/challenges/:slug"
-                element={
-                  <ErrorBoundary>
-                    <ChallengePage />
-                  </ErrorBoundary>
-                }
-              />
               <Route
                 path="/community"
                 element={
@@ -213,6 +203,18 @@ export default function App() {
                 element={
                   <ErrorBoundary>
                     <Dashboard />
+                  </ErrorBoundary>
+                }
+              />
+              {/* A challenge PitchNest hosts: its rules and the founder's own
+                  entry. Signed-out visitors log in or sign up first and come
+                  back here (lib/returnTo); link previews come from the backend
+                  (vercel.json). */}
+              <Route
+                path="/opportunities/challenges/:slug"
+                element={
+                  <ErrorBoundary>
+                    <ChallengePage />
                   </ErrorBoundary>
                 }
               />

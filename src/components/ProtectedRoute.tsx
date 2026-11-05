@@ -1,6 +1,7 @@
 import React from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
+import { locationPath, rememberReturnTo } from '../lib/returnTo';
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
@@ -32,6 +33,9 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children, inline
   }
 
   if (!isLoading && !user) {
+    // Remembered beyond the login page, so signing up (and verifying, and
+    // onboarding) also ends on the page that was opened.
+    rememberReturnTo(locationPath(location));
     return <Navigate to="/login" state={{ from: location }} replace />;
   }
 

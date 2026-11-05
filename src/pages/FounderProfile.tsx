@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { Link, useParams } from "react-router-dom";
+import { Link, useLocation, useParams } from "react-router-dom";
 import { ArrowLeft, Bell, BellOff, Check, Compass, Loader2, Settings2, Share2, UserRound } from "lucide-react";
 import { useAuth } from "../contexts/AuthContext";
 import { useEcosystemFeatures } from "../hooks/useEcosystemFeatures";
@@ -18,6 +18,7 @@ function FounderAvatar({ name, url }: { name: string; url: string | null }) {
  */
 export default function FounderProfile() {
   const { handle = "" } = useParams();
+  const location = useLocation();
   const { authFetch, user } = useAuth();
   const features = useEcosystemFeatures();
   const [founder, setFounder] = useState<PublicFounder | null>(null);
@@ -152,7 +153,7 @@ export default function FounderProfile() {
                     {following ? "Following" : `Follow ${firstName}`}
                   </button>
                 ) : (
-                  <Link to="/login" className="btn-accent px-4 py-2 text-sm">
+                  <Link to="/login" state={{ from: location }} className="btn-accent px-4 py-2 text-sm">
                     <Bell size={16} /> Log in to follow
                   </Link>
                 )

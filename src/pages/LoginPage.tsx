@@ -17,7 +17,7 @@ import { cn } from "../lib/utils";
 import { useAuth } from "../contexts/AuthContext";
 import { GoogleSignInButton } from "../components/GoogleSignInButton";
 import { clearAuthSession } from "../lib/authStorage";
-import { takeChallengeReturn } from "../lib/challengeReturn";
+import { locationPath, rememberReturnTo, takeReturnTo } from "../lib/returnTo";
 import Cookies from "js-cookie";
 
 const loginSchema = z.object({
@@ -188,13 +188,17 @@ export default function LoginPage() {
 
 
   // The page that sent the founder here (with its query, e.g. a discount code);
-  // otherwise a challenge they were looking at (lib/challengeReturn); otherwise
-  // the dashboard. Computed at sign-in, so the challenge hand-off is used once.
-  const fromState = location.state?.from;
-  const destination = () =>
-    fromState?.pathname
-      ? `${fromState.pathname}${fromState.search || ""}${fromState.hash || ""}`
-      : takeChallengeReturn() || "/dashboard";
+  // otherwise one remembered on the way (lib/returnTo: a link opened while
+  // signed out); otherwise the dashboard. The sending page is remembered too,
+  // so choosing "Join PitchNest" instead still ends on it after onboarding.
+  const fromPath = locationPath(location.state?.from);
+  useEffect(() => {
+    if (fromPath) rememberReturnTo(fromPath);
+  }, [fromPath]);
+  const destination = () => {
+    const remembered = takeReturnTo();
+    return fromPath ?? remembered ?? "/dashboard";
+  };
 
   useEffect(() => {
     const timer = setInterval(
@@ -326,9 +330,10 @@ export default function LoginPage() {
                     localStorage.removeItem("pitchnest_startup_name");
                     localStorage.removeItem("pitchnest_funding_stage");
                     const data = await loginWithGoogle(credential, rememberMe);
-                    // New Google users land on onboarding (server decides via
-                    // redirectTo); returning users go to their intended page.
-                    navigate(data?.redirectTo || destination(), { replace: true });
+                    // New Google users go through onboarding first (the server
+                    // says so), which then sends them on; everyone else goes
+                    // straight to their page, not the server's default.
+                    navigate(data?.redirectTo === "/onboarding" ? "/onboarding" : destination(), { replace: true });
                   } catch (error: any) {
                     setServerError(error.message || "Google sign-in failed.");
                   } finally {

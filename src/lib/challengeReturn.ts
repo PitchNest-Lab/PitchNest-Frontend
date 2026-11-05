@@ -1,45 +1,30 @@
+import { clearReturnTo, peekReturnTo, rememberReturnTo } from "./returnTo";
+
 /**
- * Brings a founder back to a challenge page after a detour: signing up (and
- * onboarding), or paying for the plan the challenge needs. Kept in this
- * browser for a day, and only ever a challenge page, so it can't be used to
- * send someone elsewhere.
+ * Brings a founder back to a challenge page after a detour, such as paying
+ * for the plan the challenge needs. Uses the same one-day, this-browser store
+ * as the return after logging in (lib/returnTo), limited to challenge pages.
  */
 
-const KEY = "pitchnest.challengeReturn";
-const MAX_AGE_MS = 24 * 60 * 60 * 1000;
 const CHALLENGE_PATH = /^\/opportunities\/challenges\/[a-z0-9]+(?:-[a-z0-9]+)*$/;
 
 export function rememberChallengeReturn(path: string): void {
-  if (!CHALLENGE_PATH.test(path)) return;
-  try {
-    localStorage.setItem(KEY, JSON.stringify({ path, at: Date.now() }));
-  } catch {
-    // Private mode or storage blocked: the founder can still find the challenge.
-  }
+  if (CHALLENGE_PATH.test(path)) rememberReturnTo(path);
 }
 
 export function peekChallengeReturn(): string | null {
-  try {
-    const stored = JSON.parse(localStorage.getItem(KEY) || "null");
-    if (stored && CHALLENGE_PATH.test(stored.path) && Date.now() - Number(stored.at) < MAX_AGE_MS) return stored.path;
-  } catch {
-    // Unreadable: treat as nothing stored.
-  }
-  return null;
+  const path = peekReturnTo();
+  return path && CHALLENGE_PATH.test(path) ? path : null;
 }
 
 export function clearChallengeReturn(): void {
-  try {
-    localStorage.removeItem(KEY);
-  } catch {
-    // Nothing to clear.
-  }
+  if (peekChallengeReturn()) clearReturnTo();
 }
 
 /** The stored challenge page, once. */
 export function takeChallengeReturn(): string | null {
   const path = peekChallengeReturn();
-  clearChallengeReturn();
+  if (path) clearReturnTo();
   return path;
 }
 

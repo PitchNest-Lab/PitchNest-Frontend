@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import {
   ChevronDown,
   Loader2,
@@ -18,6 +18,7 @@ import { cn } from "../lib/utils";
 import { useAuth } from "../contexts/AuthContext";
 import { clearAuthSession } from "../lib/authStorage";
 import { GoogleSignInButton } from "../components/GoogleSignInButton";
+import { locationPath, rememberReturnTo, takeReturnTo } from "../lib/returnTo";
 import Cookies from "js-cookie";
 
 const signupSchema = z
@@ -189,6 +190,14 @@ export default function SignupPage() {
 
   const { signup, loginWithGoogle } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
+
+  // A page that sent the visitor here is where they land after verifying and
+  // onboarding (lib/returnTo); a link opened while signed out is already kept.
+  const fromPath = locationPath(location.state?.from);
+  useEffect(() => {
+    if (fromPath) rememberReturnTo(fromPath);
+  }, [fromPath]);
 
   const params = new URLSearchParams(window.location.search);
 
@@ -344,9 +353,10 @@ export default function SignupPage() {
                     localStorage.removeItem("pitchnest_startup_name");
                     localStorage.removeItem("pitchnest_funding_stage");
                     const data = await loginWithGoogle(credential);
-                    // New Google users land on onboarding (server decides via
-                    // redirectTo); returning users go to the dashboard.
-                    navigate(data?.redirectTo || "/dashboard", { replace: true });
+                    // New Google users go through onboarding first (the server
+                    // says so), which then sends them on; an existing account
+                    // goes straight to the page it came for, else the dashboard.
+                    navigate(data?.redirectTo === "/onboarding" ? "/onboarding" : (takeReturnTo() ?? "/dashboard"), { replace: true });
                   } catch (error: any) {
                     setServerError(error.message || "Google sign-up failed.");
                   } finally {

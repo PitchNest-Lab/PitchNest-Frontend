@@ -5,6 +5,7 @@ import { useAuth } from "../contexts/AuthContext";
 import { clearAuthSession } from "../lib/authStorage";
 import { useCookieBannerOpen } from "../lib/adsConsent";
 import { GOOGLE_CLIENT_ID, loadGsiScript } from "./GoogleSignInButton";
+import { locationPath, rememberReturnTo } from "../lib/returnTo";
 
 // Pages with their own Google button, or an auth step in progress.
 const SKIPPED_PATHS = new Set([
@@ -71,8 +72,12 @@ export function GoogleOneTap() {
         localStorage.removeItem("pitchnest_startup_name");
         localStorage.removeItem("pitchnest_funding_stage");
         const data = await latest.current.loginWithGoogle(credential);
-        // "/" forwards signed-in founders to /home by itself.
-        if (data?.redirectTo === "/onboarding") latest.current.navigate("/onboarding", { replace: true });
+        // "/" forwards signed-in founders to /home by itself. A new account
+        // onboards first, then comes back to this page (lib/returnTo).
+        if (data?.redirectTo === "/onboarding") {
+          rememberReturnTo(locationPath(window.location));
+          latest.current.navigate("/onboarding", { replace: true });
+        }
       } catch (err: any) {
         setError(err?.message || "Google sign-in failed.");
       } finally {

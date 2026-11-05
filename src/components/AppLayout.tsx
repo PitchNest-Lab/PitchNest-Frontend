@@ -449,10 +449,11 @@ export default function AppLayout() {
             <p className="mt-1 text-[11px] leading-relaxed text-slate-500 dark:text-zinc-400">
               Rehearse with AI investors, then share your business when you choose.
             </p>
-            <Link to="/signup" onClick={closeMenu} className="btn-accent mt-3 w-full py-2 text-xs">
+            {/* Both come back to this page afterwards (lib/returnTo). */}
+            <Link to="/signup" state={{ from: location }} onClick={closeMenu} className="btn-accent mt-3 w-full py-2 text-xs">
               Create free account
             </Link>
-            <Link to="/login" onClick={closeMenu} className="mt-2 block text-center text-[11px] font-bold text-slate-500 hover:text-slate-800 dark:text-zinc-400 dark:hover:text-zinc-200">
+            <Link to="/login" state={{ from: location }} onClick={closeMenu} className="mt-2 block text-center text-[11px] font-bold text-slate-500 hover:text-slate-800 dark:text-zinc-400 dark:hover:text-zinc-200">
               Log in
             </Link>
           </div>
@@ -522,7 +523,7 @@ export default function AppLayout() {
               )}
 
               {!isLoading && !signedIn && (
-                <Link to="/login" className="btn-ghost hidden px-3 py-2 text-xs sm:inline-flex">Log in</Link>
+                <Link to="/login" state={{ from: location }} className="btn-ghost hidden px-3 py-2 text-xs sm:inline-flex">Log in</Link>
               )}
 
               <Link to={showcasePath} className="btn-accent px-3 py-2 text-xs sm:px-4">

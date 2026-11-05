@@ -16,6 +16,17 @@ import {
   storeAuthSession,
   updateStoredUser,
 } from "../lib/authStorage";
+import { takeReturnTo } from "../lib/returnTo";
+
+/**
+ * Where a verified account goes: onboarding first when the server says so
+ * (it then sends them on); otherwise the page they came for (lib/returnTo),
+ * else the server's default.
+ */
+function afterVerification(redirectTo: unknown): string {
+  if (typeof redirectTo !== "string" || !redirectTo || redirectTo === "/onboarding") return "/onboarding";
+  return takeReturnTo() ?? redirectTo;
+}
 
 // MUST match the backend's EMAIL_FROM / config.emailFrom (backend/src/config/env.ts).
 // This previously read "pitchnestapp@gmail.com" — an address that has never sent
@@ -165,7 +176,7 @@ export default function VerifyEmailPage() {
           // so the server returns a session token on both "verified" and
           // "already verified" — store it and route via the server's redirectTo.
           storeAuthSession(data.user, data.token, false);
-          window.location.replace(data.redirectTo || "/onboarding");
+          window.location.replace(afterVerification(data.redirectTo));
         } else if (data.alreadyVerified) {
           navigate("/login", { replace: true });
         } else {
@@ -211,7 +222,7 @@ export default function VerifyEmailPage() {
       .then(({ ok, data }) => {
         if (ok && data.message === "Email verified successfully" && data.token) {
           storeAuthSession(data.user, data.token, false);
-          window.location.replace(data.redirectTo || "/onboarding");
+          window.location.replace(afterVerification(data.redirectTo));
         } else if (ok && data.alreadyVerified) {
           // Account is already verified (e.g. verified on another device). No
           // token is issued without a matching code — send them to log in.
@@ -260,11 +271,7 @@ export default function VerifyEmailPage() {
                 updateStoredUser(userObj);
               } catch (e) {}
             }
-            if (data.onboardingCompleted) {
-              navigate("/dashboard", { replace: true });
-            } else {
-              navigate("/onboarding", { replace: true });
-            }
+            navigate(afterVerification(data.onboardingCompleted ? "/dashboard" : "/onboarding"), { replace: true });
           }
         })
         .catch(() => {});

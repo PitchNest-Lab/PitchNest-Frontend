@@ -15,6 +15,7 @@ import {
   updateStoredToken,
   updateStoredUser,
 } from "../lib/authStorage";
+import { clearReturnTo } from "../lib/returnTo";
 
 export type UserRole = "Founder" | "Investor" | "Advisor";
 
@@ -300,6 +301,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setUser(null);
     setToken(null);
     clearAuthSession();
+    // A page remembered for this account must not greet the next one.
+    clearReturnTo();
   };
 
   /**
