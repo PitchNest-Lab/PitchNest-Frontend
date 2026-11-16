@@ -62,6 +62,7 @@ const PublicPitch = lazyPage(() => import("./pages/PublicPitch"));
 const BillingReturn = lazyPage(() => import("./pages/BillingReturn"));
 const OrganizationDashboard = lazyPage(() => import("./pages/organization/dashbaord/Main"));
 const OrganizationLogin = lazyPage(() => import("./pages/organization/auth/Login"));
+const OrganizationInvite = lazyPage(() => import("./pages/organization/auth/Invite"));
 const BusinessWorkspace = lazyPage(() => import("./pages/BusinessWorkspace"));
 const Discover = lazyPage(() => import("./pages/Discover"));
 const PublicBusinessProfile = lazyPage(() => import("./pages/PublicBusinessProfile"));
@@ -103,6 +104,9 @@ export default function App() {
             <Route path="/signup" element={<SignupPage />} />
             <Route path="/forgot-password" element={<ForgotPassword />} />
             <Route path="/reset-password" element={<ResetPassword />} />
+            <Route path="/organization-forgot-password" element={<ForgotPassword />} />
+            <Route path="/organization-reset-password" element={<ResetPassword />} />
+            <Route path="/organization-invite" element={<OrganizationInvite />} />
             <Route path="/privacy" element={<PrivacyPolicy />} />
             <Route path="/terms" element={<TermsOfService />} />
             <Route path="/delete-account" element={<DeleteAccount />} />

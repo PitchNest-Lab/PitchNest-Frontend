@@ -1,8 +1,11 @@
 import React, { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import { Mail, ArrowLeft } from 'lucide-react';
 
 export default function ForgotPassword() {
+  const location = useLocation();
+  const organizationAccount = location.pathname.startsWith('/organization-');
+  const loginPath = organizationAccount ? '/organization-login' : '/login';
   const [email, setEmail] = useState('');
   const [status, setStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
   const [message, setMessage] = useState('');
@@ -11,7 +14,7 @@ export default function ForgotPassword() {
     e.preventDefault();
     setStatus('loading');
     try {
-      const res = await fetch('/api/auth/forgot-password', {
+      const res = await fetch(organizationAccount ? '/api/auth/organization-forgot-password' : '/api/auth/forgot-password', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email }),
@@ -28,7 +31,7 @@ export default function ForgotPassword() {
   return (
     <div className="min-h-screen flex items-center justify-center bg-slate-50 dark:bg-zinc-950 px-4">
       <div className="w-full max-w-md bg-white dark:bg-zinc-900 rounded-2xl shadow-lg p-8 border border-slate-100 dark:border-zinc-800">
-        <Link to="/login" className="inline-flex items-center gap-2 text-sm text-slate-500 hover:text-slate-900 dark:hover:text-white mb-6">
+        <Link to={loginPath} className="inline-flex items-center gap-2 text-sm text-slate-500 hover:text-slate-900 dark:hover:text-white mb-6">
           <ArrowLeft size={14} /> Back to login
         </Link>
         <div className="flex items-center gap-3 mb-6">
@@ -36,8 +39,8 @@ export default function ForgotPassword() {
             <Mail className="text-white w-5 h-5" />
           </div>
           <div>
-            <h1 className="text-xl font-bold text-slate-900 dark:text-white">Forgot password?</h1>
-            <p className="text-sm text-slate-500">We'll send a reset link to your email.</p>
+            <h1 className="text-xl font-bold text-slate-900 dark:text-white">{organizationAccount ? 'Recover organization access' : 'Forgot password?'}</h1>
+            <p className="text-sm text-slate-500">We'll send a reset link to your email if an account is eligible.</p>
           </div>
         </div>
         {status === 'success' ? (

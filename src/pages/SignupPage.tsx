@@ -201,19 +201,16 @@ export default function SignupPage() {
 
   const params = new URLSearchParams(window.location.search);
 
-  const referralCode = params.get("referralCode");
-  const organizationInvite =
-    (referralCode && /^\d{1,18}$/.test(referralCode) ? referralCode : "") ||
-    (Cookies.get("code")?.match(/^\d{1,18}$/)?.[0] ?? "");
+  const organizationInvite = params.get("organizationInvite") || "";
 
   useEffect(() => {
-    if (!referralCode || !/^\d{1,18}$/.test(referralCode)) return;
-    Cookies.set("code", referralCode, {
+    if (!/^[a-f0-9]{64}$/i.test(organizationInvite)) return;
+    Cookies.set("organizationInvite", organizationInvite, {
       sameSite: "lax",
       secure: window.location.protocol === "https:",
-      expires: 7,
+      expires: 1,
     });
-  }, [referralCode]);
+  }, [organizationInvite]);
 
   useEffect(() => {
     const timer = setInterval(

@@ -337,7 +337,7 @@ export default function LoginPage() {
                   Keep me logged in
                 </label>
                 <Link
-                  to="/forgot-password"
+                  to="/organization-forgot-password"
                   className="text-sm font-bold text-sky-600 dark:text-sky-400 hover:underline"
                 >
                   Forgot password?

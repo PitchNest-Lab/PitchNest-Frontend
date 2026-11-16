@@ -45,6 +45,8 @@ export interface User {
   trialExpiresAt?: string | null;
   onboardingCompleted?: boolean;
   orgCode?: number | string;
+  organizationRole?: "owner" | "admin" | "facilitator";
+  organizationMemberId?: number;
   accountType?: "user" | "organization";
   authProvider?: "form" | "google";
 }
@@ -236,7 +238,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     password: string,
     role?: UserRole,
   ) => {
-    const referralCode = Cookies.get("code")?.trim();
+    const organizationInviteToken = Cookies.get("organizationInvite")?.trim();
     const res = await fetch("/api/auth/signup", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -245,12 +247,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         email,
         password,
         role,
-        ...(referralCode ? { referralCode } : {}),
+        ...(organizationInviteToken ? { organizationInviteToken } : {}),
       }),
     });
     const data = await res.json();
     if (!res.ok) throw new Error(data.message || data.error || "Signup failed");
-    if (referralCode) Cookies.remove("code");
+    if (organizationInviteToken) Cookies.remove("organizationInvite");
 
     // Signup no longer logs the user in: the backend requires email
     // verification first and returns NO token (requiresVerification: true).
@@ -266,20 +268,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const loginWithGoogle = async (credential: string, rememberMe = false) => {
-    const referralCode = Cookies.get("code")?.trim();
+    const organizationInviteToken = Cookies.get("organizationInvite")?.trim();
     const res = await fetch("/api/auth/google", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         credential,
         rememberMe,
-        ...(referralCode ? { referralCode } : {}),
+        ...(organizationInviteToken ? { organizationInviteToken } : {}),
       }),
     });
     const data = await res.json();
     if (!res.ok)
       throw new Error(data.message || data.error || "Google sign-in failed");
-    if (referralCode) Cookies.remove("code");
+    if (organizationInviteToken) Cookies.remove("organizationInvite");
 
     storeAuthSession(data.user, data.token, rememberMe);
     setUser(data.user);

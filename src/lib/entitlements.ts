@@ -14,6 +14,7 @@ export type UiPlan = "free" | "founder" | "prep" | "pro";
 
 function normalize(plan: string | null | undefined): UiPlan {
   if (plan === "pro") return "pro";
+  if (plan === "enterprise") return "pro";
   if (plan === "founder" || plan === "prep") return "founder";
   return "free";
 }
@@ -65,6 +66,7 @@ export function planLabel(
     if (d === null) return "Free Trial (Pro Full Access)";
     return `Free Trial — ${d} day${d === 1 ? "" : "s"} left (Pro Full Access)`;
   }
+  if (plan === "enterprise") return "Organization Enterprise";
   const p = normalize(plan);
   return p === "pro" ? "Pro Founder" : p === "founder" ? "Founder" : "Free";
 }

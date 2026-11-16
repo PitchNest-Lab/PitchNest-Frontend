@@ -1,9 +1,13 @@
 import React, { useEffect, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Lock, Eye, EyeOff } from 'lucide-react';
 
 export default function ResetPassword() {
   const navigate = useNavigate();
+  const location = useLocation();
+  const organizationAccount = location.pathname.startsWith('/organization-');
+  const loginPath = organizationAccount ? '/organization-login' : '/login';
+  const forgotPath = organizationAccount ? '/organization-forgot-password' : '/forgot-password';
   const [token] = useState(() => new URLSearchParams(window.location.search).get('token') || '');
   const [password, setPassword] = useState('');
   const [confirm, setConfirm] = useState('');
@@ -12,21 +16,21 @@ export default function ResetPassword() {
   const [message, setMessage] = useState('');
 
   useEffect(() => {
-    if (token) window.history.replaceState(window.history.state, '', '/reset-password');
-  }, [token]);
+    if (token) window.history.replaceState(window.history.state, '', organizationAccount ? '/organization-reset-password' : '/reset-password');
+  }, [token, organizationAccount]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (password !== confirm) { setStatus('error'); setMessage('Passwords do not match.'); return; }
     setStatus('loading');
     try {
-      const res = await fetch('/api/auth/reset-password', {
+      const res = await fetch(organizationAccount ? '/api/auth/organization-reset-password' : '/api/auth/reset-password', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ token, password }),
       });
       const data = await res.json();
-      if (res.ok) { setStatus('success'); setTimeout(() => navigate('/login'), 2000); }
+      if (res.ok) { setStatus('success'); setTimeout(() => navigate(loginPath), 2000); }
       else { setStatus('error'); setMessage(data.error || 'Something went wrong.'); }
     } catch {
       setStatus('error');
@@ -36,7 +40,7 @@ export default function ResetPassword() {
 
   if (!token) return (
     <div className="min-h-screen flex items-center justify-center">
-      <p className="text-slate-500">Invalid reset link. <Link to="/forgot-password" className="text-sky-500 underline">Request a new one.</Link></p>
+      <p className="text-slate-500">Invalid reset link. <Link to={forgotPath} className="text-sky-500 underline">Request a new one.</Link></p>
     </div>
   );
 

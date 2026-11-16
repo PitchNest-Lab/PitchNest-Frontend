@@ -33,8 +33,8 @@ import {
   AlertCircle,
   Hourglass,
   Globe,
-  Copy,
-  Check,
+  Download,
+  UserPlus,
   ArrowLeft,
   LogOut,
   Menu,
@@ -44,7 +44,6 @@ import { LogoMark } from "../../../components/Logo";
 import { ThemeToggle } from "../../../components/ThemeToggle";
 import { UserAvatar } from "../../../components/ui/UserAvatar";
 import { useAuth } from "../../../contexts/AuthContext";
-import QRCode from "qrcode";
 
 /* ------------------------------------------------------------------ */
 /*  API DATA CONTRACT                                                  */
@@ -79,7 +78,6 @@ export interface OrganizationDetails {
   trialExpiresAt: string | null;
   trialStatus: string;
   createdAt: string;
-  enrollLink: string; // link the QR code encodes
 }
 
 export interface OrgOverview {
@@ -167,9 +165,14 @@ export interface FounderDrilldown {
 export interface Report {
   id: string;
   title: string;
-  type: "Weekly" | "Monthly" | "Custom";
-  generatedAt: string; // ISO date
-  fileUrl: string;
+  type: "Weekly" | "Monthly";
+  generatedAt: string;
+  rangeStart: string;
+  rangeEnd: string;
+  totalPitches: number;
+  completionRate: number;
+  avgScore: number;
+  activeFounders: number;
   status: ReportStatus;
 }
 
@@ -179,9 +182,9 @@ export interface Replay {
   pitchTitle: string;
   date: string; // ISO date
   panelType: string;
-  durationSeconds: number;
-  status: PitchStatus;
+  status: string;
   score: number | null;
+  replayUrl: string | null;
 }
 
 export interface ReadinessAggregation {
@@ -242,6 +245,17 @@ import {
   fetchMembers,
   generateWeeklyReport,
   generateMonthlyReport,
+  fetchReports,
+  fetchReplays,
+  downloadReport,
+  fetchFounderInvites,
+  createFounderInvite,
+  revokeFounderInvite,
+  fetchOrganizationTeam,
+  inviteOrganizationTeamMember,
+  revokeOrganizationTeamMember,
+  type FounderOrganizationInvite,
+  type OrganizationTeamMember,
 } from "../../../api/organization";
 
 const deriveAnalytics = (founders: FounderDrilldown[]) => {
@@ -667,13 +681,15 @@ const OrganizationDashboard: React.FC = () => {
       fetchActivity(authFetch),
       fetchFounders(authFetch),
       fetchMembers(authFetch),
+      fetchReports(authFetch),
+      fetchReplays(authFetch),
     ])
-      .then(([organization, overview, seatUsage, activity, founders, members]) => {
+      .then(([organization, overview, seatUsage, activity, founders, members, reports, replays]) => {
         if (cancelled) return;
         const derived = deriveAnalytics(founders);
         setData({
           organization, overview, members, seatUsage, activity, founders,
-          reports: [], replays: [], ...derived,
+          reports, replays, ...derived,
         });
         setSelectedFounderId(founders[0]?.memberId ?? "");
       })
@@ -922,8 +938,13 @@ const OrganizationDashboard: React.FC = () => {
                   cohorts={data.filters.cohorts}
                 />
               )}
-              {active === "reports" && <ReportsTab />}
-              {active === "replays" && <ReplaysTab />}
+              {active === "reports" && (
+                <ReportsTab
+                  reports={data.reports}
+                  onReportsChange={(reports) => setData((prev) => prev ? { ...prev, reports } : prev)}
+                />
+              )}
+              {active === "replays" && <ReplaysTab replays={data.replays} />}
             </div>
           </main>
         </div>
@@ -963,38 +984,6 @@ const OrganizationTab: React.FC<{
   org: OrganizationDetails;
   onBack: () => void;
 }> = ({ org, onBack }) => {
-  const [copied, setCopied] = useState(false);
-  const [qrSrc, setQrSrc] = useState("");
-
-  useEffect(() => {
-    let cancelled = false;
-    QRCode.toDataURL(org.enrollLink, {
-      width: 240,
-      margin: 1,
-      errorCorrectionLevel: "M",
-      color: { dark: "#0f172a", light: "#ffffff" },
-    })
-      .then((value) => {
-        if (!cancelled) setQrSrc(value);
-      })
-      .catch(() => {
-        if (!cancelled) setQrSrc("");
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [org.enrollLink]);
-
-  const copyLink = async () => {
-    try {
-      await navigator.clipboard.writeText(org.enrollLink);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 1500);
-    } catch {
-      /* clipboard API unavailable — ignore */
-    }
-  };
-
   const daysLeft =
     org.trialExpiresAt !== null
       ? Math.max(
@@ -1112,50 +1101,100 @@ const OrganizationTab: React.FC<{
             />
           </div>
         </GlassCard>
-
-        {/* "Scanner" box: QR code encoding the org link, with the raw link
-            shown underneath so it can be read/copied without scanning. */}
-        <GlassCard className="p-6 flex flex-col items-center text-center">
-          <p className="text-sm font-semibold text-slate-700 dark:text-slate-200 mb-4 self-start">
-            Scan to open
-          </p>
-          <div className="p-3 rounded-2xl bg-white">
-            {qrSrc ? (
-              <img
-                src={qrSrc}
-                alt="QR code for organization link"
-                width={200}
-                height={200}
-                className="rounded-lg block"
-              />
-            ) : (
-              <div className="flex h-[200px] w-[200px] items-center justify-center rounded-lg bg-slate-50 px-5 text-xs text-slate-500">
-                QR preview unavailable. Copy the invitation link below.
-              </div>
-            )}
-          </div>
-          <div className="w-full mt-5 flex items-center gap-2 px-3 py-2.5 rounded-xl bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10">
-            <span className="flex-1 text-xs text-slate-600 dark:text-slate-300 truncate text-left">
-              {org.enrollLink}
-            </span>
-            <button
-              onClick={copyLink}
-              className="shrink-0 flex items-center gap-1 text-xs font-semibold px-2.5 py-1.5 rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 transition-colors"
-            >
-              {copied ? (
-                <>
-                  <Check className="w-3.5 h-3.5" /> Copied
-                </>
-              ) : (
-                <>
-                  <Copy className="w-3.5 h-3.5" /> Copy
-                </>
-              )}
-            </button>
-          </div>
-        </GlassCard>
       </div>
+      <OrganizationTeamManagement />
     </div>
+  );
+};
+
+const OrganizationTeamManagement: React.FC = () => {
+  const { authFetch, user } = useAuth();
+  const [members, setMembers] = useState<OrganizationTeamMember[]>([]);
+  const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
+  const [role, setRole] = useState<"admin" | "facilitator">("facilitator");
+  const [inviteUrl, setInviteUrl] = useState("");
+  const [message, setMessage] = useState("");
+  const [error, setError] = useState("");
+  const [busy, setBusy] = useState(false);
+  const owner = user?.organizationRole === "owner";
+  const refresh = async () => setMembers(await fetchOrganizationTeam(authFetch));
+
+  useEffect(() => {
+    let active = true;
+    fetchOrganizationTeam(authFetch)
+      .then((rows) => active && setMembers(rows))
+      .catch((cause) => active && setError(cause instanceof Error ? cause.message : "Could not load the organization team."));
+    return () => { active = false; };
+  }, [authFetch]);
+
+  const submit = async (event: React.FormEvent) => {
+    event.preventDefault();
+    setBusy(true);
+    setError("");
+    setMessage("");
+    try {
+      const result = await inviteOrganizationTeamMember(authFetch, { name, email, role });
+      setMembers((current) => [...current.filter((member) => member.id !== result.member.id), result.member]);
+      setInviteUrl(result.inviteUrl);
+      setMessage(result.emailSent ? `Invitation sent to ${result.member.email}.` : "Email delivery is not configured. Copy and send this private invitation link yourself.");
+      setName("");
+      setEmail("");
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "Could not invite this administrator.");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const revoke = async (member: OrganizationTeamMember) => {
+    setBusy(true);
+    setError("");
+    try {
+      await revokeOrganizationTeamMember(authFetch, member.id);
+      await refresh();
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "Could not revoke this account.");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const copy = async () => {
+    try {
+      await navigator.clipboard.writeText(inviteUrl);
+      setMessage("Invitation link copied.");
+    } catch {
+      setError("Clipboard access failed. Select and copy the link manually.");
+    }
+  };
+
+  return (
+    <GlassCard className="mt-5 p-6">
+      <div className="mb-5 flex items-start gap-3">
+        <div className="grid h-10 w-10 place-items-center rounded-xl bg-slate-100 text-slate-600 dark:bg-white/10 dark:text-slate-300"><ShieldCheck size={18} /></div>
+        <div><h2 className="font-semibold text-slate-900 dark:text-white">Organization administrators</h2><p className="mt-1 text-xs text-slate-500">Each person has a separate account and role. Invitation links expire after seven days.</p></div>
+      </div>
+      <form onSubmit={submit} className="grid gap-2 sm:grid-cols-[1fr_1fr_170px_auto]">
+        <input value={name} onChange={(event) => setName(event.target.value)} placeholder="Name" minLength={2} maxLength={120} required className="rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm dark:border-white/10 dark:bg-zinc-900 dark:text-white" />
+        <input type="email" value={email} onChange={(event) => setEmail(event.target.value)} placeholder="Email address" required className="rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm dark:border-white/10 dark:bg-zinc-900 dark:text-white" />
+        <select value={role} onChange={(event) => setRole(event.target.value as "admin" | "facilitator")} className="rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm dark:border-white/10 dark:bg-zinc-900 dark:text-white">
+          {owner && <option value="admin">Administrator</option>}
+          <option value="facilitator">Facilitator</option>
+        </select>
+        <button disabled={busy} className="rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-60 dark:bg-white dark:text-slate-900">Invite</button>
+      </form>
+      {message && <p role="status" className="mt-3 text-sm text-emerald-700 dark:text-emerald-300">{message}</p>}
+      {error && <p role="alert" className="mt-3 text-sm text-rose-600">{error}</p>}
+      {inviteUrl && <div className="mt-3 flex flex-col gap-2 sm:flex-row"><input readOnly value={inviteUrl} aria-label="Private administrator invitation link" className="min-w-0 flex-1 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs dark:border-white/10 dark:bg-zinc-950 dark:text-slate-200" /><button type="button" onClick={copy} className="rounded-lg border border-slate-200 px-3 py-2 text-xs font-semibold dark:border-white/10 dark:text-white">Copy link</button></div>}
+      <div className="mt-5 divide-y divide-slate-100 dark:divide-white/5">
+        {members.map((member) => <div key={member.id} className="flex flex-wrap items-center gap-3 py-3 text-sm">
+          <div className="min-w-0 flex-1"><p className="truncate font-medium text-slate-800 dark:text-slate-100">{member.name}</p><p className="truncate text-xs text-slate-500">{member.email}</p></div>
+          <span className="capitalize text-xs text-slate-500">{member.role} · {member.status}</span>
+          {member.status !== "revoked" && member.role !== "owner" && member.id !== user?.organizationMemberId && <button type="button" disabled={busy} onClick={() => void revoke(member)} className="text-xs font-semibold text-rose-600 disabled:opacity-50">Revoke</button>}
+        </div>)}
+      </div>
+    </GlassCard>
   );
 };
 
@@ -1585,7 +1624,7 @@ const OverviewTab: React.FC<{
                     {formatDate(r.date)} · {r.panelType}
                   </p>
                 </div>
-                <StatusPill status={r.status} />
+                <StatusPill status={r.status as PitchStatus} />
               </div>
             ))}
           </div>
@@ -1688,6 +1727,94 @@ const StatCard: React.FC<{
 /*  TAB: MEMBER LIST                                                    */
 /* ------------------------------------------------------------------ */
 
+const FounderInvites: React.FC = () => {
+  const { authFetch } = useAuth();
+  const [email, setEmail] = useState("");
+  const [invites, setInvites] = useState<FounderOrganizationInvite[]>([]);
+  const [inviteUrl, setInviteUrl] = useState("");
+  const [notice, setNotice] = useState("");
+  const [error, setError] = useState("");
+  const [busy, setBusy] = useState(false);
+
+  const refresh = async () => setInvites(await fetchFounderInvites(authFetch));
+  useEffect(() => {
+    let active = true;
+    fetchFounderInvites(authFetch)
+      .then((items) => active && setInvites(items))
+      .catch((cause) => active && setError(cause instanceof Error ? cause.message : "Could not load invitations."));
+    return () => { active = false; };
+  }, [authFetch]);
+
+  const create = async (event: React.FormEvent) => {
+    event.preventDefault();
+    setBusy(true);
+    setError("");
+    setNotice("");
+    try {
+      const result = await createFounderInvite(authFetch, email);
+      setInvites((current) => [result.invite, ...current.filter((item) => item.id !== result.invite.id)]);
+      setInviteUrl(result.inviteUrl);
+      setNotice(result.emailSent ? `Invitation sent to ${result.invite.email}.` : "Email delivery is not configured. Copy and send the private invitation link yourself.");
+      setEmail("");
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "Could not create invitation.");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const revoke = async (invite: FounderOrganizationInvite) => {
+    setBusy(true);
+    setError("");
+    try {
+      await revokeFounderInvite(authFetch, invite.id);
+      await refresh();
+      if (inviteUrl) setInviteUrl("");
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "Could not revoke invitation.");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const copy = async () => {
+    try {
+      await navigator.clipboard.writeText(inviteUrl);
+      setNotice("Invitation link copied.");
+    } catch {
+      setError("Clipboard access failed. Select and copy the link manually.");
+    }
+  };
+
+  return (
+    <GlassCard className="mb-5 p-5">
+      <div className="mb-4 flex items-start gap-3">
+        <div className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-indigo-50 text-indigo-600 dark:bg-indigo-500/10 dark:text-indigo-300"><UserPlus size={18} /></div>
+        <div>
+          <h3 className="font-semibold text-slate-900 dark:text-white">Invite a founder</h3>
+          <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">Invitations are email-bound, expire after seven days, and can only be used once.</p>
+        </div>
+      </div>
+      <form onSubmit={create} className="flex flex-col gap-2 sm:flex-row">
+        <input type="email" required value={email} onChange={(event) => setEmail(event.target.value)} placeholder="founder@example.com" autoComplete="email" className="min-w-0 flex-1 rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm dark:border-white/10 dark:bg-zinc-900 dark:text-white" />
+        <button disabled={busy} className="inline-flex items-center justify-center gap-2 rounded-xl bg-indigo-600 px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-60"><Mail size={15} /> Send invite</button>
+      </form>
+      {notice && <p role="status" className="mt-3 text-sm text-emerald-700 dark:text-emerald-300">{notice}</p>}
+      {error && <p role="alert" className="mt-3 text-sm text-rose-600">{error}</p>}
+      {inviteUrl && <div className="mt-3 flex flex-col gap-2 sm:flex-row"><input readOnly value={inviteUrl} aria-label="Private invitation link" className="min-w-0 flex-1 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs dark:border-white/10 dark:bg-zinc-950 dark:text-slate-200" /><button type="button" onClick={copy} className="rounded-lg border border-slate-200 px-3 py-2 text-xs font-semibold dark:border-white/10 dark:text-white">Copy link</button></div>}
+      {invites.length > 0 && <div className="mt-4 space-y-2 border-t border-slate-200 pt-4 dark:border-white/10">
+        <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Recent invitations</p>
+        {invites.slice(0, 5).map((invite) => <div key={invite.id} className="flex flex-wrap items-center gap-2 text-xs">
+          <span className="min-w-0 flex-1 truncate text-slate-700 dark:text-slate-200">{invite.email}</span>
+          <span className="capitalize text-slate-500">{invite.status}</span>
+          <span className="text-slate-400">expires {formatDate(invite.expiresAt)}</span>
+          {invite.status === "pending" && <button type="button" disabled={busy} onClick={() => void revoke(invite)} className="font-semibold text-rose-600 disabled:opacity-50">Revoke</button>}
+        </div>)}
+      </div>}
+    </GlassCard>
+  );
+};
+
 const MembersTab: React.FC<{
   members: Member[];
   query: string;
@@ -1718,6 +1845,8 @@ const MembersTab: React.FC<{
         </div>
       }
     />
+
+    <FounderInvites />
 
     <FilterBar
       filters={filters}
@@ -2176,18 +2305,22 @@ const MiniStat: React.FC<{
 /*  TAB: REPORTS                                                        */
 /* ------------------------------------------------------------------ */
 
-const ReportsTab: React.FC = () => {
+const ReportsTab: React.FC<{ reports: Report[]; onReportsChange: (reports: Report[]) => void }> = ({ reports, onReportsChange }) => {
   const { authFetch } = useAuth();
-  const [reports, setReports] = useState<any[]>([]);
   const [generating, setGenerating] = useState<"weekly" | "monthly" | null>(
     null,
   );
+  const [downloading, setDownloading] = useState<string | null>(null);
+  const [error, setError] = useState("");
 
   const runWeekly = async () => {
     setGenerating("weekly");
     try {
       const r = await generateWeeklyReport(authFetch);
-      setReports((prev) => [r, ...prev]);
+      onReportsChange([r, ...reports.filter((item) => item.id !== r.id)]);
+      setError("");
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "Could not generate weekly report.");
     } finally {
       setGenerating(null);
     }
@@ -2197,9 +2330,32 @@ const ReportsTab: React.FC = () => {
     setGenerating("monthly");
     try {
       const r = await generateMonthlyReport(authFetch);
-      setReports((prev) => [r, ...prev]);
+      onReportsChange([r, ...reports.filter((item) => item.id !== r.id)]);
+      setError("");
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "Could not generate monthly report.");
     } finally {
       setGenerating(null);
+    }
+  };
+
+  const saveReport = async (report: Report) => {
+    setDownloading(report.id);
+    setError("");
+    try {
+      const blob = await downloadReport(authFetch, report.id);
+      const objectUrl = URL.createObjectURL(blob);
+      const anchor = document.createElement("a");
+      anchor.href = objectUrl;
+      anchor.download = `${report.title.replace(/[^a-z0-9-_]+/gi, "-").slice(0, 80) || "organization-report"}.json`;
+      document.body.appendChild(anchor);
+      anchor.click();
+      anchor.remove();
+      window.setTimeout(() => URL.revokeObjectURL(objectUrl), 1000);
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "Could not download this report.");
+    } finally {
+      setDownloading(null);
     }
   };
 
@@ -2230,9 +2386,10 @@ const ReportsTab: React.FC = () => {
           </div>
         }
       />
+      {error && <p role="alert" className="mb-4 text-sm text-rose-600">{error}</p>}
       <div className="grid md:grid-cols-2 gap-4">
-        {reports.map((r, i) => (
-          <GlassCard key={i} className="p-5">
+        {reports.map((r) => (
+          <GlassCard key={r.id} className="p-5">
             <p className="text-sm font-medium text-slate-900 dark:text-white mb-1">
               {r.title}
             </p>
@@ -2245,6 +2402,9 @@ const ReportsTab: React.FC = () => {
               <span>Avg score {r.avgScore}</span>
               <span>{r.activeFounders} active founders</span>
             </div>
+            <button type="button" onClick={() => void saveReport(r)} disabled={downloading !== null} className="mt-4 inline-flex items-center gap-2 rounded-lg border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-700 disabled:opacity-50 dark:border-white/10 dark:text-slate-200">
+              <Download size={14} /> {downloading === r.id ? "Preparing…" : "Download JSON"}
+            </button>
           </GlassCard>
         ))}
         {reports.length === 0 && (
@@ -2261,16 +2421,44 @@ const ReportsTab: React.FC = () => {
 /*  TAB: REPLAYS                                                        */
 /* ------------------------------------------------------------------ */
 
-const ReplaysTab: React.FC = () => (
-  <div>
-    <SectionHeading title="Replays" />
-    <GlassCard className="p-12 flex flex-col items-center text-center gap-3">
-      <History className="w-8 h-8 text-slate-300 dark:text-slate-600" />
-      <p className="text-slate-500 dark:text-slate-400 text-sm">
-        Replays aren't wired up yet — coming soon.
-      </p>
-    </GlassCard>
-  </div>
-);
+const ReplaysTab: React.FC<{ replays: Replay[] }> = ({ replays: initialReplays }) => {
+  const { authFetch } = useAuth();
+  const [replays, setReplays] = useState(initialReplays);
+  const [error, setError] = useState("");
+  useEffect(() => {
+    let active = true;
+    fetchReplays(authFetch)
+      .then((items) => active && setReplays(items))
+      .catch((cause) => active && setError(cause instanceof Error ? cause.message : "Could not load replays."));
+    return () => { active = false; };
+  }, [authFetch]);
+
+  return (
+    <div>
+      <SectionHeading title="Shared pitch recordings" />
+      {error && <p role="alert" className="mb-4 text-sm text-rose-600">{error}</p>}
+      {replays.length === 0 ? (
+        <GlassCard className="p-10 text-center text-sm text-slate-500 dark:text-slate-400">
+          No recordings have been shared with this organization yet. Founders control whether a pitch is shared.
+        </GlassCard>
+      ) : (
+        <div className="grid gap-4 lg:grid-cols-2">
+          {replays.map((replay) => (
+            <GlassCard key={replay.id} className="p-5">
+              <div className="mb-3 flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="truncate font-semibold text-slate-900 dark:text-white">{replay.pitchTitle}</p>
+                  <p className="mt-1 text-xs text-slate-500">{replay.founderName} · {formatDate(replay.date)} · {replay.panelType}</p>
+                </div>
+                <StatusPill status={replay.status as PitchStatus} />
+              </div>
+              {replay.replayUrl ? <audio controls preload="none" className="w-full" src={replay.replayUrl}>Your browser does not support audio playback.</audio> : <p className="text-xs text-slate-500">Recording is unavailable or could not be verified.</p>}
+            </GlassCard>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
 
 export default OrganizationDashboard;
