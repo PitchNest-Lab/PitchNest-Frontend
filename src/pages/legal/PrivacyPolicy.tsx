@@ -27,7 +27,7 @@ export default function PrivacyPolicy() {
         <li>Provide and improve the PitchNest service (authentication, deck storage, live AI pitch rooms, analytics).</li>
         <li>Process your pitch content through AI models to generate feedback, scores, and transcripts.</li>
         <li>Allow specifically authorized staff to review pitch transcripts for service quality and safety. These accesses are logged; the review tool does not expose account emails, decks, or recordings.</li>
-        <li>If you join through an organization invitation, provide that organization with membership, pitch scores, progress, and feedback. Organization dashboards do not receive your transcripts, decks, or recordings.</li>
+        <li>If you join through an organization invitation, provide that organization with your membership details, the answers and attachments you submit to its program forms, and scores, progress, and evaluation feedback from pitch sessions you assign to that program. Each organization sees only its own program data. PitchNest pitch transcripts, saved decks, and recordings are not automatically shared with organization dashboards.</li>
         <li>Respond to support requests and legal obligations.</li>
         <li>Send service-related communications (e.g., password reset) and trial/plan reminders you can disable in Settings.</li>
         <li>With your consent, measure which of our ads bring visitors to our website (see section 8).</li>
@@ -84,7 +84,7 @@ export default function PrivacyPolicy() {
           <Link to="/delete-account">Delete Account</Link> page (works in a browser without reinstalling the app).</li>
         <li><strong>Permissions:</strong> revoke microphone or screen-sharing access in your browser or device settings at any time.</li>
         <li><strong>Email choices:</strong> disable trial and plan reminder emails in Settings → Notifications. Essential verification, password-reset, and security messages are unaffected.</li>
-        <li><strong>Organization membership:</strong> an organization invitation is not activated until you verify ownership of your email. Sessions run while enrolled contribute scores and feedback to that organization&apos;s dashboard.</li>
+        <li><strong>Organization membership:</strong> an organization invitation is not activated until you verify ownership of your email. You may join more than one organization with the same founder account. Only sessions you assign to a program contribute scores and progress to that organization&apos;s dashboard; form answers and attachments go to the organization whose form you submit.</li>
       </ul>
       <p>
         Depending on your location (e.g., EU/UK, California), you may have additional rights to access, port, or restrict

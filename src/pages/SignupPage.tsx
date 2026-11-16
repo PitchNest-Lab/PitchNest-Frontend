@@ -188,7 +188,7 @@ export default function SignupPage() {
   const [showUnverifiedPopup, setShowUnverifiedPopup] = useState(false);
   const [unverifiedEmail, setUnverifiedEmail] = useState("");
 
-  const { signup, loginWithGoogle } = useAuth();
+  const { signup, loginWithGoogle, user, isLoading: authLoading, authFetch } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -211,6 +211,27 @@ export default function SignupPage() {
       expires: 1,
     });
   }, [organizationInvite]);
+
+  useEffect(() => {
+    if (authLoading || user?.accountType !== "user" || !/^[a-f0-9]{64}$/i.test(organizationInvite)) return;
+    let cancelled = false;
+    void authFetch("/api/auth/organization-invite/accept-founder", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ organizationInviteToken: organizationInvite }),
+    }).then(async (response) => {
+      const data = await response.json().catch(() => null);
+      if (!response.ok) throw new Error(data?.error || "Could not accept this organization invitation.");
+      if (cancelled) return;
+      Cookies.remove("organizationInvite");
+      navigate("/my-programs", { replace: true });
+    }).catch((error) => {
+      if (!cancelled) {
+        setServerError(error instanceof Error ? error.message : "Could not accept this organization invitation.");
+      }
+    });
+    return () => { cancelled = true; };
+  }, [authLoading, authFetch, navigate, organizationInvite, user?.accountType, user?.id]);
 
   useEffect(() => {
     const timer = setInterval(
@@ -318,10 +339,11 @@ export default function SignupPage() {
             <div className="space-y-4">
               {organizationInvite && (
                 <div className="rounded-xl border border-sky-200 bg-sky-50 px-4 py-3 text-xs leading-relaxed text-sky-900 dark:border-sky-900/60 dark:bg-sky-950/30 dark:text-sky-200">
-                  You are joining an organization workspace. After you verify your email,
-                  that organization can see your membership and the scores, progress, and
-                  feedback from pitch sessions you run while enrolled. Transcripts, decks,
-                  and recordings are not included in its dashboard.
+                  You are joining an organization program. After you verify your email,
+                  submit the organization’s forms and choose whether a pitch session belongs
+                  to that program. PitchNest transcripts, saved decks, and recordings are not
+                  automatically shared with the organization.
+                  <Link to={`/login?organizationInvite=${encodeURIComponent(organizationInvite)}`} className="mt-2 block font-bold text-sky-700 underline dark:text-sky-300">Already have a PitchNest account? Sign in to join.</Link>
                 </div>
               )}
               {serverError && (
@@ -353,7 +375,9 @@ export default function SignupPage() {
                     // New Google users go through onboarding first (the server
                     // says so), which then sends them on; an existing account
                     // goes straight to the page it came for, else the dashboard.
-                    navigate(data?.redirectTo === "/onboarding" ? "/onboarding" : (takeReturnTo() ?? "/dashboard"), { replace: true });
+                    navigate(data?.redirectTo === "/onboarding"
+                      ? "/onboarding"
+                      : organizationInvite ? "/my-programs" : (takeReturnTo() ?? "/dashboard"), { replace: true });
                   } catch (error: any) {
                     setServerError(error.message || "Google sign-up failed.");
                   } finally {

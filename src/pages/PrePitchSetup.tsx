@@ -23,6 +23,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { useUpgrade } from '../components/ui/UpgradeModal';
 import { Skeleton } from '../components/Skeleton';
 import { useScreenCapture } from '../hooks/useScreenCapture';
+import { fetchFounderPrograms, type FounderProgram } from '../api/founderPrograms';
 
 /**
  * Session lengths offered, in minutes. Free is pinned to the first; Pro gets
@@ -124,9 +125,35 @@ export default function PrePitchSetup() {
   const [searchParams] = useSearchParams();
   const [businesses, setBusinesses] = useState<Business[]>([]);
   const [selectedBusinessId, setSelectedBusinessId] = useState('');
+  const [programs, setPrograms] = useState<FounderProgram[]>([]);
+  const [programsLoaded, setProgramsLoaded] = useState(false);
+  const [programsAvailable, setProgramsAvailable] = useState(false);
+  const [selectedProgramId, setSelectedProgramId] = useState('');
+  const [shareProgramReplay, setShareProgramReplay] = useState(false);
   const [practiceQuestion, setPracticeQuestion] = useState('');
   const [bridgeError, setBridgeError] = useState('');
   const businessPrefillApplied = useRef(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetchFounderPrograms(authFetch)
+      .then((result) => {
+        if (cancelled) return;
+        setPrograms(result);
+        setProgramsAvailable(true);
+        setSelectedProgramId((current) => current && result.some((item) => String(item.organizationId) === current)
+          ? current
+          : '');
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setPrograms([]);
+          setProgramsAvailable(false);
+        }
+      })
+      .finally(() => { if (!cancelled) setProgramsLoaded(true); });
+    return () => { cancelled = true; };
+  }, [authFetch]);
 
   const handleUploadDeck = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -236,6 +263,12 @@ export default function PrePitchSetup() {
   // "Pitch Again": previous session's config + compact previous-attempt context
   // (built by buildRepitchState). When present, it wins over profile prefill.
   const repitch = location.state?.repitch;
+
+  useEffect(() => {
+    if (!programsLoaded || !repitch?.config?.programOrganizationId) return;
+    const preferred = String(repitch.config.programOrganizationId);
+    setSelectedProgramId(programs.some((program) => String(program.organizationId) === preferred) ? preferred : '');
+  }, [programsLoaded, programs, repitch?.config?.programOrganizationId]);
 
   useEffect(() => {
     const fetchInitialData = async () => {
@@ -458,6 +491,11 @@ export default function PrePitchSetup() {
         pitchConfig: {
           ...data,
           selectedDeck,
+          // This client always states its sharing choice. If program lookup is
+          // unavailable or the founder has not selected one, keep the session
+          // private instead of falling back to a legacy primary organization.
+          programOrganizationId: programsAvailable && selectedProgramId ? Number(selectedProgramId) : null,
+          shareProgramReplay: Boolean(programsAvailable && selectedProgramId && shareProgramReplay),
           // Re-pitch context: lets the server verify the parent session and
           // give the panel memory of the previous attempt.
           parentSessionId: repitch?.parentSessionId,
@@ -516,6 +554,21 @@ export default function PrePitchSetup() {
         
         {/* LEFT COLUMN: Setup */}
         <div className="lg:col-span-8 flex flex-col gap-6 lg:overflow-y-auto pr-0 lg:pr-2 custom-scrollbar">
+
+          {programsLoaded && programs.length > 0 && (
+            <div className="shrink-0 rounded-3xl border border-indigo-200 bg-indigo-50/60 p-4 dark:border-indigo-900/60 dark:bg-indigo-950/20 sm:p-5">
+              <label htmlFor="pitch-program" className="flex items-center gap-2 text-sm font-bold text-slate-800 dark:text-zinc-100"><Building2 size={16} className="text-indigo-600" />Share this session with a program?</label>
+              <select id="pitch-program" value={selectedProgramId} onChange={(event) => { setSelectedProgramId(event.target.value); setShareProgramReplay(false); }} className="mt-3 w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-800 dark:border-zinc-700 dark:bg-zinc-900 dark:text-white">
+                <option value="">Personal practice (private)</option>
+                {programs.map((program) => <option key={program.membershipId} value={program.organizationId}>{program.organizationName}{program.cohort ? ` · ${program.cohort}` : ''}</option>)}
+              </select>
+              <p className="mt-2 text-xs leading-relaxed text-slate-500 dark:text-zinc-400">Only the selected organization can include this session’s score and progress in its program dashboard. Transcripts and saved decks stay private; recordings stay private unless you opt in below.</p>
+              <label className={`mt-3 flex items-start gap-2 text-xs leading-relaxed text-slate-600 dark:text-zinc-300 ${selectedProgramId ? 'cursor-pointer' : 'opacity-60'}`}>
+                <input type="checkbox" checked={shareProgramReplay} disabled={!selectedProgramId} onChange={(event) => setShareProgramReplay(event.target.checked)} className="mt-0.5" />
+                <span>Also let this organization play the session recording. This is optional and applies only to this session.</span>
+              </label>
+            </div>
+          )}
           
           {(businesses.length > 0 || selectedBusinessId || bridgeError) && (
             <div className="bg-white dark:bg-zinc-900 p-4 sm:p-5 rounded-3xl border border-slate-200 dark:border-zinc-800 shadow-sm shrink-0 space-y-3">

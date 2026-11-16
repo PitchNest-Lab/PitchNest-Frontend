@@ -174,6 +174,17 @@ export default function LoginPage() {
   const navigate = useNavigate();
   const location = useLocation();
   const params = new URLSearchParams(window.location.search);
+  const organizationInvite = params.get("organizationInvite") || "";
+  const hasOrganizationInvite = Boolean(organizationInvite || Cookies.get("organizationInvite"));
+
+  useEffect(() => {
+    if (!/^[a-f0-9]{64}$/i.test(organizationInvite)) return;
+    Cookies.set("organizationInvite", organizationInvite, {
+      sameSite: "lax",
+      secure: window.location.protocol === "https:",
+      expires: 1,
+    });
+  }, [organizationInvite]);
   const referralCode = params.get("referralCode");
   useEffect(() => {
     if (!referralCode || !/^\d{1,18}$/.test(referralCode)) return;
@@ -226,8 +237,9 @@ export default function LoginPage() {
       localStorage.removeItem("pitchnest_onboarding_complete");
       localStorage.removeItem("pitchnest_startup_name");
       localStorage.removeItem("pitchnest_funding_stage");
+      const joiningOrganization = Boolean(Cookies.get("organizationInvite"));
       await login(data.email, data.password, rememberMe);
-      navigate(destination(), { replace: true });
+      navigate(joiningOrganization ? "/my-programs" : destination(), { replace: true });
     } catch (error: any) {
       // Check if the error is about email not being verified
       if (
@@ -311,6 +323,12 @@ export default function LoginPage() {
               </Link>
             </p>
 
+            {hasOrganizationInvite && (
+              <div className="mb-5 rounded-xl border border-sky-200 bg-sky-50 px-4 py-3 text-xs leading-relaxed text-sky-900 dark:border-sky-900/60 dark:bg-sky-950/30 dark:text-sky-200">
+                Sign in with the email address that received the invitation. PitchNest will add this existing founder account to the organization and open My Programs.
+              </div>
+            )}
+
             <div className="space-y-4">
               {serverError && (
                 <div id="login-server-error" role="alert" className="p-4 bg-rose-50 border border-rose-200 text-rose-600 rounded-lg text-sm font-bold">
@@ -329,11 +347,12 @@ export default function LoginPage() {
                     localStorage.removeItem("pitchnest_onboarding_complete");
                     localStorage.removeItem("pitchnest_startup_name");
                     localStorage.removeItem("pitchnest_funding_stage");
+                    const joiningOrganization = Boolean(Cookies.get("organizationInvite"));
                     const data = await loginWithGoogle(credential, rememberMe);
                     // New Google users go through onboarding first (the server
                     // says so), which then sends them on; everyone else goes
                     // straight to their page, not the server's default.
-                    navigate(data?.redirectTo === "/onboarding" ? "/onboarding" : destination(), { replace: true });
+                    navigate(data?.redirectTo === "/onboarding" ? "/onboarding" : joiningOrganization ? "/my-programs" : destination(), { replace: true });
                   } catch (error: any) {
                     setServerError(error.message || "Google sign-in failed.");
                   } finally {

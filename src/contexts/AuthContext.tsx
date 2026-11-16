@@ -203,13 +203,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [refreshSession]);
 
   const login = async (email: string, password: string, rememberMe = false) => {
+    const organizationInviteToken = Cookies.get("organizationInvite")?.trim();
     const res = await fetch("/api/auth/login", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email, password, rememberMe }),
+      body: JSON.stringify({
+        email,
+        password,
+        rememberMe,
+        ...(organizationInviteToken ? { organizationInviteToken } : {}),
+      }),
     });
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || data.message || "Login failed");
+    if (organizationInviteToken) Cookies.remove("organizationInvite");
 
     storeAuthSession(data.user, data.token, rememberMe);
     setUser(data.user);

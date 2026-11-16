@@ -45,6 +45,7 @@ const BillingSettings = lazyPage(() => import("./pages/settings/BillingSection")
 const LivePitchRoom = lazyPage(() => import("./pages/LivePitchRoom"));
 const PostPitchReport = lazyPage(() => import("./pages/PostPitchReport"));
 const PrePitchSetup = lazyPage(() => import("./pages/PrePitchSetup"));
+const MyPrograms = lazyPage(() => import("./pages/MyPrograms"));
 // const PitchDecksManagement = lazyPage(() => import("./pages/PitchDecksManagement")); // MVP: coming soon
 // const DeckCheck = lazyPage(() => import("./pages/DeckCheck")); // MVP: coming soon
 const PitchReplayScreen = lazyPage(() => import("./pages/PitchReplayScreen"));
@@ -207,6 +208,14 @@ export default function App() {
                 element={
                   <ErrorBoundary>
                     <Dashboard />
+                  </ErrorBoundary>
+                }
+              />
+              <Route
+                path="/my-programs"
+                element={
+                  <ErrorBoundary>
+                    <MyPrograms />
                   </ErrorBoundary>
                 }
               />

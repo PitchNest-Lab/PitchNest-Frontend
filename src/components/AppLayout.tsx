@@ -94,6 +94,7 @@ const PAGE_INFO: Array<{ test: (pathname: string) => boolean; title: string; are
   { test: (p) => p.startsWith('/dashboard'), title: 'Practice dashboard', area: 'Private AI practice' },
   { test: (p) => p.startsWith('/setup'), title: 'Pre-Pitch Room', area: 'Private AI practice' },
   { test: (p) => p.startsWith('/archive'), title: 'My Pitches', area: 'Private AI practice' },
+  { test: (p) => p.startsWith('/my-programs'), title: 'My programs', area: 'Organization programs' },
   { test: (p) => p.startsWith('/replay'), title: 'Pitch Replay', area: 'Private AI practice' },
   { test: (p) => p.startsWith('/report'), title: 'Pitch report', area: 'Private AI practice' },
   { test: (p) => p.startsWith('/settings'), title: 'Settings', area: 'Your account' },
@@ -244,6 +245,7 @@ export default function AppLayout() {
     { icon: History, label: 'Pitch Replays', path: '/replay' },
     { icon: Megaphone, label: 'My Pitches', path: '/archive' },
     { icon: Briefcase, label: 'My Workspace', path: '/workspace/businesses' },
+    { icon: Landmark, label: 'My programs', path: '/my-programs' },
     // MVP: coming soon — remove the tag to re-enable
     { icon: FileSearch, label: 'Deck Check', path: '/deck-check', tag: 'Soon' },
     { icon: Layers, label: 'Pitch Decks', path: '/decks', tag: 'Soon' },
@@ -256,7 +258,6 @@ export default function AppLayout() {
     { icon: CalendarDays, label: 'Opportunities', path: '/opportunities' },
   ];
   const ecosystemItems: NavItem[] = [
-    { icon: Landmark, label: 'Organizations', path: '/organizations', tag: 'Later' },
     { icon: Handshake, label: 'Investor discovery', path: '/investors', tag: 'Later' },
   ];
 

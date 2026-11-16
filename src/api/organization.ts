@@ -59,6 +59,30 @@ export interface OrganizationTeamMember {
   invite_expires_at: string | null;
 }
 
+export interface OrganizationProgramForm {
+  id: string;
+  title: string;
+  description: string;
+  fields: import("./founderPrograms").ProgramFormField[];
+  status: "draft" | "published" | "archived";
+  due_at: string | null;
+  updated_at: string;
+  total: number;
+  pending: number;
+}
+
+export interface OrganizationProgramSubmission {
+  id: string;
+  founder: { id: number; name: string; email: string; avatar_url?: string | null };
+  title: string;
+  fields: import("./founderPrograms").ProgramFormField[];
+  answers: Record<string, unknown>;
+  status: "submitted" | "reviewed";
+  submittedAt: string;
+  reviewedAt: string | null;
+  reviewerFeedback: string | null;
+}
+
 async function post<T>(
   authFetch: AuthFetch,
   path: string,
@@ -142,3 +166,38 @@ export const inviteOrganizationTeamMember = (
 ) => post<{ member: OrganizationTeamMember; inviteUrl: string; emailSent: boolean }>(authFetch, "/team/invites", payload);
 export const revokeOrganizationTeamMember = (authFetch: AuthFetch, id: number) =>
   remove(authFetch, `/team/${id}`);
+
+async function patch<T>(authFetch: AuthFetch, path: string, body: Record<string, unknown>): Promise<T> {
+  const res = await authFetch(`${BASE_URL}${path}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  const json = await res.json().catch(() => null);
+  if (!res.ok) throw new Error(json?.error || `Request to ${path} failed (${res.status})`);
+  return json.data as T;
+}
+
+export const fetchOrganizationProgramForms = (authFetch: AuthFetch) =>
+  get<{ forms: OrganizationProgramForm[] }>(authFetch, "/program-forms").then((data) => data.forms);
+
+export const saveOrganizationProgramForm = (
+  authFetch: AuthFetch,
+  payload: { id?: string; title: string; description: string; fields: import("./founderPrograms").ProgramFormField[]; status: "draft" | "published" | "archived"; dueAt?: string | null },
+) => payload.id
+  ? patch<{ form: OrganizationProgramForm }>(authFetch, `/program-forms/${encodeURIComponent(payload.id)}`, payload).then((data) => data.form)
+  : post<{ form: OrganizationProgramForm }>(authFetch, "/program-forms", payload).then((data) => data.form);
+
+export const archiveOrganizationProgramForm = (authFetch: AuthFetch, id: string) =>
+  remove(authFetch, `/program-forms/${encodeURIComponent(id)}`);
+
+export const fetchOrganizationFormSubmissions = (authFetch: AuthFetch, formId: string) =>
+  get<{ submissions: OrganizationProgramSubmission[] }>(authFetch, `/program-forms/${encodeURIComponent(formId)}/submissions`).then((data) => data.submissions);
+
+export const reviewOrganizationSubmission = (authFetch: AuthFetch, id: string, feedback: string) =>
+  patch<{ submission: Pick<OrganizationProgramSubmission, "id" | "status" | "reviewerFeedback" | "reviewedAt"> }>(authFetch, `/program-submissions/${encodeURIComponent(id)}/review`, { feedback });
+
+export const getOrganizationSubmissionFileUrl = async (authFetch: AuthFetch, submissionId: string, fileId: string) => {
+  const data = await get<{ url: string }>(authFetch, `/program-submissions/${encodeURIComponent(submissionId)}/files/${encodeURIComponent(fileId)}`);
+  return data.url;
+};

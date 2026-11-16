@@ -7,6 +7,7 @@ import {
   Activity,
   UserSearch,
   FileBarChart2,
+  ClipboardList,
   History,
   Search,
   Bell,
@@ -44,6 +45,7 @@ import { LogoMark } from "../../../components/Logo";
 import { ThemeToggle } from "../../../components/ThemeToggle";
 import { UserAvatar } from "../../../components/ui/UserAvatar";
 import { useAuth } from "../../../contexts/AuthContext";
+import ProgramFormsPanel from "./ProgramFormsPanel";
 
 /* ------------------------------------------------------------------ */
 /*  API DATA CONTRACT                                                  */
@@ -614,6 +616,7 @@ type NavKey =
   | "activity"
   | "founders"
   | "reports"
+  | "forms"
   | "replays";
 
 const NAV_ITEMS: { key: NavKey; label: string; icon: React.ReactNode }[] = [
@@ -646,6 +649,11 @@ const NAV_ITEMS: { key: NavKey; label: string; icon: React.ReactNode }[] = [
     key: "reports",
     label: "Reports",
     icon: <FileBarChart2 className="w-[18px] h-[18px]" />,
+  },
+  {
+    key: "forms",
+    label: "Program forms",
+    icon: <ClipboardList className="w-[18px] h-[18px]" />,
   },
   {
     key: "replays",
@@ -944,6 +952,7 @@ const OrganizationDashboard: React.FC = () => {
                   onReportsChange={(reports) => setData((prev) => prev ? { ...prev, reports } : prev)}
                 />
               )}
+              {active === "forms" && <ProgramFormsPanel />}
               {active === "replays" && <ReplaysTab replays={data.replays} />}
             </div>
           </main>
