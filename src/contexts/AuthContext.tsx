@@ -73,6 +73,7 @@ interface AuthContextType {
     password: string,
     rememberMe?: boolean,
   ) => Promise<void>;
+  orgLoginWithGoogle: (credential: string, rememberMe?: boolean) => Promise<void>;
   loginWithGoogle: (credential: string, rememberMe?: boolean) => Promise<any>;
   signup: (
     name: string,
@@ -226,6 +227,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     });
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || data.message || "Login failed");
+
+    storeAuthSession(data.user, data.token, rememberMe);
+    setUser(data.user);
+    setToken(data.token);
+  };
+
+  const orgLoginWithGoogle = async (credential: string, rememberMe = false) => {
+    const res = await fetch("/api/auth/organization-google", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ credential, rememberMe }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || data.message || "Organization Google sign-in failed");
 
     storeAuthSession(data.user, data.token, rememberMe);
     setUser(data.user);
@@ -406,6 +421,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         authFetch,
         refreshUser,
         orgLogin,
+        orgLoginWithGoogle,
       }}
     >
       {children}

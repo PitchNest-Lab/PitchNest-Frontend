@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { Link, useNavigate, useLocation } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import {
   Loader2,
   Eye,
@@ -16,6 +16,7 @@ import * as z from "zod";
 import { cn } from "../../../lib/utils";
 import { useAuth } from "../../../contexts/AuthContext";
 import { clearAuthSession } from "../../../lib/authStorage";
+import { GoogleSignInButton } from "../../../components/GoogleSignInButton";
 
 const loginSchema = z.object({
   email: z.string().email("Invalid email address"),
@@ -167,9 +168,8 @@ export default function LoginPage() {
   const [showUnverifiedPopup, setShowUnverifiedPopup] = useState(false);
   const [unverifiedEmail, setUnverifiedEmail] = useState("");
 
-  const { orgLogin } = useAuth();
+  const { orgLogin, orgLoginWithGoogle } = useAuth();
   const navigate = useNavigate();
-  const location = useLocation();
 
   const from = "/organization";
 
@@ -217,6 +217,20 @@ export default function LoginPage() {
     }
   };
 
+  const onGoogleCredential = async (credential: string) => {
+    setGoogleLoading(true);
+    setServerError("");
+    try {
+      clearAuthSession();
+      await orgLoginWithGoogle(credential, rememberMe);
+      navigate(from, { replace: true });
+    } catch (error: any) {
+      setServerError(error.message || "Organization Google sign-in failed.");
+    } finally {
+      setGoogleLoading(false);
+    }
+  };
+
   // Resend verification email then redirect to /verify
   const handleResendAndRedirect = async () => {
     try {
@@ -259,6 +273,27 @@ export default function LoginPage() {
             <h2 className="text-3xl font-semibold text-slate-900 dark:text-zinc-100 mb-1 tracking-tight w-full py-3">
               Sign in as Organization
             </h2>
+
+            <p className="mb-5 text-sm leading-relaxed text-slate-500 dark:text-zinc-400">
+              Organization workspaces are provisioned by PitchNest; there is no public organization signup. Owners can use Google with the email registered to their workspace or set a password with Forgot password. Invited staff should use their invitation email. Founders should use the{" "}
+              <Link to="/login" className="font-semibold text-sky-600 hover:underline dark:text-sky-400">founder login</Link>.
+            </p>
+
+            <div className="mb-5">
+              <GoogleSignInButton
+                text="signin_with"
+                onCredential={onGoogleCredential}
+                onError={setServerError}
+              />
+              <p className="mt-2 text-center text-xs text-slate-400 dark:text-zinc-500">
+                Google sign-in works only for an active organization staff email.
+              </p>
+            </div>
+
+            <div className="relative mb-5">
+              <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-slate-200 dark:border-zinc-800" /></div>
+              <div className="relative flex justify-center text-xs text-slate-500 dark:text-zinc-500"><span className="bg-[#FAFBFC] px-3 dark:bg-[#09090B]">or use your organization password</span></div>
+            </div>
 
             <form className="space-y-4" onSubmit={handleSubmit(onSubmit)}>
               {serverError && (
@@ -346,7 +381,7 @@ export default function LoginPage() {
 
               <button
                 type="submit"
-                disabled={isSubmitting}
+                disabled={isSubmitting || googleLoading}
                 aria-label={isSubmitting ? "Signing in" : "Sign in as organization"}
                 className="w-full py-3.5 rounded-full bg-sky-600 hover:bg-sky-700 text-white text-base font-semibold flex items-center justify-center transition-colors disabled:opacity-50"
               >
