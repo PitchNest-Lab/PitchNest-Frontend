@@ -41,11 +41,14 @@ async function request<T>(authFetch: AuthFetch, path: string, options?: RequestI
   const response = await authFetch(`${BASE}${path}`, options);
   const json = await response.json().catch(() => null);
   if (!response.ok) throw new Error(json?.error || "Could not load program information.");
+  if (!json || typeof json !== "object" || !json.data || typeof json.data !== "object") {
+    throw new Error("The program service returned an unexpected response. Please try again.");
+  }
   return json.data as T;
 }
 
 export const fetchFounderPrograms = (authFetch: AuthFetch) =>
-  request<{ programs: FounderProgram[] }>(authFetch, "/").then((result) => result.programs);
+  request<{ programs: FounderProgram[] }>(authFetch, "").then((result) => result.programs);
 
 export const fetchProgramForms = (authFetch: AuthFetch, organizationId: number) =>
   request<{ forms: FounderProgramForm[] }>(authFetch, `/${organizationId}/forms`).then((result) => result.forms);
