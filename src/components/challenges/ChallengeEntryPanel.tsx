@@ -219,7 +219,7 @@ export function ChallengeEntryPanel({
       {entry.businesses.length === 0 ? (
         <div className="mt-3 rounded-2xl border border-dashed border-slate-300 p-4 text-sm dark:border-zinc-700">
           <p className="text-slate-600 dark:text-zinc-300">You don't have a business on PitchNest yet.</p>
-          <Link to="/workspace/businesses?new=1" className="btn-secondary mt-3 px-4 py-2 text-xs">Create your business profile</Link>
+          <Link to="/workspace/businesses?new=1" state={{ surfaceAccess: "opportunity-challenge" }} className="btn-secondary mt-3 px-4 py-2 text-xs">Create your business profile</Link>
         </div>
       ) : (
         <ul className="mt-3 space-y-2">
@@ -263,7 +263,7 @@ export function ChallengeEntryPanel({
                   )}
                   {isSelected && <span className="inline-flex items-center gap-1 text-xs font-bold text-indigo-700 dark:text-indigo-300"><CheckCircle2 size={14} /> Entered</span>}
                   {!business.isExample && (
-                    <Link to={`/workspace/businesses?business=${encodeURIComponent(business.id)}`} className="btn-secondary px-3 py-1.5 text-xs">
+                    <Link to={`/workspace/businesses?business=${encodeURIComponent(business.id)}`} state={{ surfaceAccess: "opportunity-challenge" }} className="btn-secondary px-3 py-1.5 text-xs">
                       {business.published && business.missingRequired.length === 0 ? "Edit profile" : "Complete business profile"}
                     </Link>
                   )}

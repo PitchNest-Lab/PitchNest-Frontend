@@ -2,7 +2,7 @@ import React, { useEffect, useState, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import {
   ArrowRight, Users, ShieldCheck, FileText, Target, TrendingUp, ChevronDown, Zap,
-  Phone, Mail, Menu, X, CheckCircle2, Compass, Mic, Keyboard, Lightbulb, Lock, MessageCircle, Trophy,
+  Phone, Mail, Menu, X, CheckCircle2, Mic, Keyboard, Lightbulb, Lock, MessageCircle, Trophy,
 } from 'lucide-react';
 import { motion } from 'motion/react';
 import { cn } from '../lib/utils';
@@ -29,15 +29,6 @@ const roomFeatures = [
   { icon: Target, title: 'Ten investor personas', desc: 'Angel to family office.' },
   { icon: Lightbulb, title: 'Coaching as you go', desc: 'What each question probes.' },
   { icon: Keyboard, title: 'Speak or type', desc: 'Out loud or by keyboard.' },
-];
-
-/**
- * Secondary links, kept low on the page while Discover and Opportunities are
- * still building up activity. The panel is the product this page sells.
- */
-const extras = [
-  { icon: Compass, title: 'Discover', desc: "Give your business a public profile when you're ready to be found. Nothing goes public until you confirm.", to: '/discover' },
-  { icon: Trophy, title: 'Opportunities', desc: 'Accelerators, grants, competitions and fellowships, with official links to apply.', to: '/opportunities' },
 ];
 
 const steps = [
@@ -71,14 +62,12 @@ const whyItems = [
 ];
 
 const faqs = [
-  { q: "What is PitchNest?", a: "A live AI investor panel you pitch to out loud. It reads your deck, questions you the way real partners do and scores your readiness, so you can fix the gaps before the real meeting." },
-  { q: "How realistic is the panel?", a: "It asks the kind of pointed, adaptive questions real partners do, and debates your answers out loud. It's practice, not a prediction of any investor's decision." },
-  { q: "How is this different from asking a chatbot to play an investor?", a: "Three investors with different angles question you together, building on or pushing back on each other's points when it matters. Their questions come from your own deck. Every session is scored on the same scorecard, so you can see whether you're improving, and the panel remembers what was weak last time." },
-  { q: "Can I upload my pitch deck?", a: "Yes. The panel reads it and asks questions grounded in your slides and numbers." },
-  { q: "What do I get after a session?", a: "A readiness report on screen, on every plan: the verdict, the scorecard across delivery, clarity, scalability and readiness, every question the panel asked, and how your confidence moved. The downloadable report adds the prioritised action plan, the questions to prepare for, the competitive landscape and SWOT, and practice drills." },
-  { q: "Is it free?", a: "There's a free plan: 2 pitch sessions a week, 10 minutes each, with your full report on screen. Paid plans add unlimited sessions, longer pitch durations and the downloadable PDF report, and Pro adds live market research in the panel. Discover, business profiles and the opportunities board are free." },
-  { q: "What is Discover?", a: "A public directory of founder-run businesses: software, services, physical products and traditional businesses. Create a business in your workspace, preview exactly what will be shown, and publish when you're ready. You can unpublish at any time." },
-  { q: "If I publish my business, is my practice still private?", a: "Yes. Decks, recordings, transcripts and reports never appear on your public profile. Someone else can see a report only if you turn on its share link, and you can turn that off again whenever you like." },
+  { q: "What is PitchNest?", a: "Practise your investor pitch with an AI panel, get feedback, and pitch again." },
+  { q: "How does the panel help?", a: "It asks follow-up questions based on your pitch and scores your answers so you know what to improve." },
+  { q: "Can I upload my pitch deck?", a: "Yes. The panel uses your slides to shape its questions." },
+  { q: "What do I get after a session?", a: "An on-screen scorecard shows your strengths, risks, questions and progress. Paid plans include a downloadable action plan." },
+  { q: "Is there a free plan?", a: "Yes. Practise twice a week for up to 10 minutes per session and get the full on-screen scorecard." },
+  { q: "Are my practice sessions private?", a: "Decks, recordings, transcripts and reports stay private unless you choose to share a report." },
 ];
 
 type LandingNavLink =
@@ -87,7 +76,7 @@ type LandingNavLink =
 
 const navLinks: LandingNavLink[] = [
   { href: "#room", label: "The panel" },
-  { to: "/discover", label: "Discover" },
+  { to: "/opportunities", label: "Opportunity Hub" },
   { href: "#how-it-works", label: "How it works" },
   { href: "#your-report", label: "Your report" },
   { href: "#pricing", label: "Pricing" },
@@ -244,17 +233,15 @@ export default function LandingPage() {
                 <HeroWords />
 
                 <motion.p variants={heroBlock} className="mt-6 mb-8 text-base sm:text-lg leading-relaxed text-slate-600 dark:text-zinc-400 max-w-xl">
-                  Pitch out loud to three AI investors. They read your deck, interrupt with
-                  follow-ups and debate your answers, then score your readiness so you know
-                  exactly what to fix before the real meeting.
+                  Pitch your deck to three AI investors. Get a clear scorecard and next steps, then re-pitch to measure your progress.
                 </motion.p>
 
                 <motion.div variants={heroBlock} className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
                   <Link to={startHref} className="btn-primary justify-center px-7 py-3.5 text-base">
                     Start a free session <ArrowRight size={18} />
                   </Link>
-                  <Link to="/discover" className="btn-secondary justify-center px-7 py-3.5 text-base">
-                    <Compass size={18} /> Explore Discover
+                  <Link to="/opportunities" className="btn-secondary justify-center px-7 py-3.5 text-base">
+                    <Trophy size={18} /> Opportunity Hub
                   </Link>
                 </motion.div>
 
@@ -416,8 +403,7 @@ export default function LandingPage() {
               <p className="eyebrow justify-center">Pricing</p>
               <h2 className="section-heading mt-3">Start free. Upgrade when you're raising.</h2>
               <p className="section-subheading mx-auto mt-3">
-                Every account gets 2 full pitch sessions a week with the complete scorecard on screen.
-                Discover, business profiles and opportunities are free.
+                Get 2 pitch sessions a week with the full on-screen scorecard.
               </p>
             </SectionReveal>
 
@@ -485,32 +471,6 @@ export default function LandingPage() {
         </section>
 
         {/* ── Also included: deliberately secondary until these have real activity ── */}
-        <section aria-labelledby="also-included" className="pt-[clamp(32px,4vw,48px)]">
-          <div className="max-w-295 mx-auto px-5 sm:px-7">
-            <SectionReveal>
-              <h2 id="also-included" className="text-xs font-bold uppercase tracking-widest text-slate-400 dark:text-zinc-500 mb-4">
-                Also free with your account
-              </h2>
-              <div className="grid sm:grid-cols-2 gap-4">
-                {extras.map((item) => (
-                  <Link key={item.to} to={item.to} className="card-hover group flex items-start gap-4 p-5">
-                    <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-slate-100 text-slate-600 dark:bg-zinc-800 dark:text-zinc-300">
-                      <item.icon size={18} />
-                    </span>
-                    <div className="min-w-0">
-                      <p className="font-display text-base font-semibold flex items-center gap-1.5">
-                        {item.title}
-                        <ArrowRight size={15} className="text-slate-400 transition-transform group-hover:translate-x-0.5" />
-                      </p>
-                      <p className="mt-1 text-sm leading-relaxed text-slate-500 dark:text-zinc-400">{item.desc}</p>
-                    </div>
-                  </Link>
-                ))}
-              </div>
-            </SectionReveal>
-          </div>
-        </section>
-
         {/* ── FAQ ── */}
         <section id="faq" className="py-[clamp(48px,6vw,80px)] scroll-mt-20">
           <div className="max-w-295 mx-auto px-5 sm:px-7 grid lg:grid-cols-12 gap-10 items-start">
@@ -568,7 +528,7 @@ export default function LandingPage() {
                 <span className="text-base font-bold">PitchNest</span>
               </div>
               <p className="text-sm text-slate-500 dark:text-zinc-400 leading-relaxed mb-5 max-w-xs">
-                Rehearse your pitch, showcase your business, and find your next opportunity.
+                Practise your pitch. Get clear feedback. Improve before the meeting.
               </p>
               <div className="flex items-center gap-3">
                 <a href="https://facebook.com/pitchnestapp" target="_blank" rel="noreferrer" className="w-8 h-8 rounded-lg bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 flex items-center justify-center text-slate-500 dark:text-zinc-400 hover:text-blue-600 hover:border-blue-300 dark:hover:border-blue-500 transition-colors" aria-label="Facebook">
@@ -590,8 +550,7 @@ export default function LandingPage() {
               <h4 className="font-bold mb-4 text-sm">Platform</h4>
               <ul className="space-y-2.5 text-sm text-slate-500 dark:text-zinc-400">
                 <li><a href="#room" className="hover:text-sky-600 dark:hover:text-sky-400">Pitch rehearsal</a></li>
-                <li><Link to="/discover" className="hover:text-sky-600 dark:hover:text-sky-400">Discover</Link></li>
-                <li><Link to="/opportunities" className="hover:text-sky-600 dark:hover:text-sky-400">Opportunities</Link></li>
+                <li><Link to="/opportunities" className="hover:text-sky-600 dark:hover:text-sky-400">Opportunity Hub</Link></li>
                 <li><Link to="/pricing" className="hover:text-sky-600 dark:hover:text-sky-400">Pricing</Link></li>
                 <li><a href="#faq" className="hover:text-sky-600 dark:hover:text-sky-400">FAQ</a></li>
               </ul>

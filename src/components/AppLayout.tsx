@@ -3,8 +3,6 @@ import {
   LayoutDashboard,
   PlusCircle,
   Megaphone,
-  Activity,
-  Layers,
   History,
   Settings,
   Bell,
@@ -14,7 +12,6 @@ import {
   Download,
   Sparkles,
   MessageSquare,
-  FileSearch,
   ShieldCheck,
   Compass,
   MessagesSquare,
@@ -23,7 +20,6 @@ import {
   Presentation,
   Home,
   Landmark,
-  Handshake,
   Rocket,
   Briefcase,
   Mic,
@@ -44,11 +40,11 @@ import { useNotifications } from '../hooks/useNotifications';
 import { useEcosystemFeatures } from '../hooks/useEcosystemFeatures';
 import type { AppNotification } from '../api/notifications';
 import { getStoredUser } from '../lib/authStorage';
+import { SURFACE_VISIBILITY } from '../config/surfaceVisibility';
 
 /**
  * The one frame every app page sits in, signed in or not: grouped sidebar,
- * sticky top bar with search and the "Showcase business" call to action, and
- * a bottom tab bar on phones. Public ecosystem pages render here for visitors
+ * account actions and a phone tab bar. Public pages render here for visitors
  * too; private pages are wrapped in ProtectedRoute inside this layout.
  */
 
@@ -89,7 +85,7 @@ const PAGE_INFO: Array<{ test: (pathname: string) => boolean; title: string; are
   { test: (p) => p.startsWith('/pitches'), title: 'Pitch Arena', area: 'Founder ecosystem' },
   { test: (p) => p.startsWith('/community'), title: 'Community', area: 'Founder ecosystem' },
   { test: (p) => p.startsWith('/opportunities/challenges/'), title: 'Challenge', area: 'Opportunities' },
-  { test: (p) => p.startsWith('/opportunities'), title: 'Opportunities', area: 'Founder ecosystem' },
+  { test: (p) => p.startsWith('/opportunities'), title: 'Opportunity Hub', area: 'Opportunities' },
   { test: (p) => p.startsWith('/workspace'), title: 'My workspace', area: 'Your businesses' },
   { test: (p) => p.startsWith('/dashboard'), title: 'Practice dashboard', area: 'Private AI practice' },
   { test: (p) => p.startsWith('/setup'), title: 'Pre-Pitch Room', area: 'Private AI practice' },
@@ -137,6 +133,7 @@ const SidebarItem = ({ item, active, onClick }: { item: NavItem; active: boolean
 };
 
 function NavGroup({ label, items, pathname, onNavigate }: { label: string; items: NavItem[]; pathname: string; onNavigate: () => void }) {
+  if (items.length === 0) return null;
   return (
     <div>
       <p className="mb-1.5 mt-5 px-3 text-[10px] font-bold uppercase tracking-[0.16em] text-slate-400 dark:text-zinc-500">{label}</p>
@@ -236,43 +233,31 @@ export default function AppLayout() {
     setIsMobileMenuOpen(false);
   }, [location.pathname]);
 
-  // Pitch practice is the core product, so the founder's tools lead the menu
-  // and the wider ecosystem follows.
+  // Keep the founder menu focused on practice, feedback and opportunities.
   const toolItems: NavItem[] = [
     { icon: Home, label: 'Home', path: '/home' },
     { icon: LayoutDashboard, label: 'Practice dashboard', path: '/dashboard' },
     { icon: PlusCircle, label: 'Pre-Pitch Room', path: '/setup' },
     { icon: History, label: 'Pitch Replays', path: '/replay' },
     { icon: Megaphone, label: 'My Pitches', path: '/archive' },
-    { icon: Briefcase, label: 'My Workspace', path: '/workspace/businesses' },
+    ...(SURFACE_VISIBILITY.businessWorkspace ? [{ icon: Briefcase, label: 'My Workspace', path: '/workspace/businesses' }] : []),
     { icon: Landmark, label: 'My programs', path: '/my-programs' },
-    // MVP: coming soon — remove the tag to re-enable
-    { icon: FileSearch, label: 'Deck Check', path: '/deck-check', tag: 'Soon' },
-    { icon: Layers, label: 'Pitch Decks', path: '/decks', tag: 'Soon' },
-    { icon: Activity, label: 'Analytics', path: '/analytics', tag: 'Soon' },
   ];
   const exploreItems: NavItem[] = [
-    { icon: Compass, label: 'Discover', path: '/discover' },
+    ...(SURFACE_VISIBILITY.discovery ? [{ icon: Compass, label: 'Discover', path: '/discover' }] : []),
     ...(ecosystemFeatures.pitchArena ? [{ icon: Presentation, label: 'Pitch Arena', path: '/pitches' }] : []),
     ...(ecosystemFeatures.community ? [{ icon: MessagesSquare, label: 'Community', path: '/community' }] : []),
-    { icon: CalendarDays, label: 'Opportunities', path: '/opportunities' },
+    { icon: CalendarDays, label: 'Opportunity Hub', path: '/opportunities' },
   ];
-  const ecosystemItems: NavItem[] = [
-    { icon: Handshake, label: 'Investor discovery', path: '/investors', tag: 'Later' },
-  ];
+  const ecosystemItems: NavItem[] = [];
 
-  // Five tabs at most: practice keeps a tab of its own, and the rest of the
-  // ecosystem stays one tap away in the menu.
+  // Put the core practice loop and opportunities in the phone tab bar.
   const mobileTabs: NavItem[] = [
     { icon: Home, label: 'Home', path: '/home' },
     { icon: Mic, label: 'Practice', path: '/dashboard' },
-    { icon: Compass, label: 'Discover', path: '/discover' },
-    ...(ecosystemFeatures.community
-      ? [{ icon: MessagesSquare, label: 'Community', path: '/community' }]
-      : ecosystemFeatures.pitchArena
-        ? [{ icon: Presentation, label: 'Pitches', path: '/pitches' }]
-        : []),
-    { icon: Briefcase, label: 'Workspace', path: '/workspace/businesses' },
+    { icon: PlusCircle, label: 'New pitch', path: '/setup' },
+    { icon: Megaphone, label: 'My pitches', path: '/archive' },
+    { icon: CalendarDays, label: 'Opportunities', path: '/opportunities' },
   ];
 
   const { title: pageTitle, area: pageArea } = pageInfo(location.pathname);
@@ -289,9 +274,8 @@ export default function AppLayout() {
     event.preventDefault();
     const q = searchQuery.trim();
     if (!q) return;
-    // On practice pages the search covers your own pitches (the archive owns
-    // that filtering); everywhere else it searches public businesses.
-    navigate(searchesPitches ? `/archive?q=${encodeURIComponent(q)}` : `/discover?q=${encodeURIComponent(q)}`);
+    // Search is only shown on practice pages; the archive owns that filtering.
+    navigate(`/archive?q=${encodeURIComponent(q)}`);
     setSearchQuery('');
   };
 
@@ -493,17 +477,17 @@ export default function AppLayout() {
             </div>
 
             <div className="ml-auto flex min-w-0 shrink-0 items-center gap-2">
-              <form onSubmit={submitSearch} className="relative hidden w-56 md:block xl:w-72" role="search">
+              {searchesPitches && <form onSubmit={submitSearch} className="relative hidden w-56 md:block xl:w-72" role="search">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 dark:text-zinc-500" size={15} />
                 <input
                   type="search"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  placeholder={searchesPitches ? 'Search your pitches...' : 'Search businesses...'}
-                  aria-label={searchesPitches ? 'Search your pitches' : 'Search businesses'}
+                  placeholder="Search your pitches..."
+                  aria-label="Search your pitches"
                   className="input-field py-2 pl-9 text-sm"
                 />
-              </form>
+              </form>}
 
               <div className="hidden md:block"><ThemeToggle /></div>
               {notificationBell}
@@ -527,11 +511,11 @@ export default function AppLayout() {
                 <Link to="/login" state={{ from: location }} className="btn-ghost hidden px-3 py-2 text-xs sm:inline-flex">Log in</Link>
               )}
 
-              <Link to={showcasePath} className="btn-accent px-3 py-2 text-xs sm:px-4">
+              {SURFACE_VISIBILITY.businessWorkspace && <Link to={showcasePath} className="btn-accent px-3 py-2 text-xs sm:px-4">
                 <Rocket size={14} className="hidden sm:block" />
                 <span className="hidden sm:inline">Showcase business</span>
                 <span className="sm:hidden">Showcase</span>
-              </Link>
+              </Link>}
             </div>
           </div>
         </header>

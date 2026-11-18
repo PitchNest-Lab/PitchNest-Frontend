@@ -1,11 +1,11 @@
 import React, { useEffect, useState } from "react";
 import { ArrowRight, CalendarDays, Compass, Sparkles } from "lucide-react";
 import { Link } from "react-router-dom";
-import { useAuth } from "../../contexts/AuthContext";
 import { useEcosystemFeatures } from "../../hooks/useEcosystemFeatures";
 import { fetchPublicBusinesses, type PublicBusinessSummary } from "../../api/publicBusinesses";
 import { fetchOpportunities, type Opportunity } from "../../api/opportunities";
 import { fetchPitches, type PitchSummary } from "../../api/pitches";
+import { SURFACE_VISIBILITY } from "../../config/surfaceVisibility";
 import { BusinessLogo } from "../discover/BusinessRow";
 import { ExampleBadge } from "../discover/ExampleBadge";
 
@@ -80,15 +80,14 @@ function closingLabel(opportunity: Opportunity) {
 }
 
 export function EcosystemRail({ hide = [] }: { hide?: RailCard[] }) {
-  const { user } = useAuth();
-  const signedIn = Boolean(user && user.accountType !== "organization");
   const features = useEcosystemFeatures();
   const showPitches = features.pitchArena && !hide.includes("pitches");
+  const showBusinesses = SURFACE_VISIBILITY.discovery && !hide.includes("businesses");
 
   const pitches = useRailData<{ data: PitchSummary[] }>("pitches", showPitches, () => fetchPitches());
   const businesses = useRailData<{ data: PublicBusinessSummary[] }>(
     "businesses",
-    !hide.includes("businesses"),
+    showBusinesses,
     () => fetchPublicBusinesses({ limit: 3 }),
   );
   const opportunities = useRailData<Opportunity[]>(
@@ -120,7 +119,7 @@ export function EcosystemRail({ hide = [] }: { hide?: RailCard[] }) {
           </section>
         )}
 
-        {!hide.includes("businesses") && businesses && businesses.data.length > 0 && (
+        {showBusinesses && businesses && businesses.data.length > 0 && (
           <RailCardShell icon={Compass} title="Businesses to discover">
             <ul className="space-y-3">
               {businesses.data.map((business) => (
@@ -148,28 +147,32 @@ export function EcosystemRail({ hide = [] }: { hide?: RailCard[] }) {
           </RailCardShell>
         )}
 
-        {!hide.includes("opportunities") && openOpportunities.length > 0 && (
-          <RailCardShell icon={CalendarDays} title="Open opportunities">
-            <ul className="space-y-3">
-              {openOpportunities.map((item) => (
-                <li key={item.id} className="min-w-0">
-                  <p className="truncate text-xs font-bold text-slate-900 dark:text-zinc-100">{item.title}</p>
-                  <p className="mt-0.5 flex items-center justify-between gap-2 text-[10px] text-slate-400">
-                    <span className="truncate">{item.organizer}</span>
-                    <span className={item.state === "closing_soon" ? "shrink-0 font-bold text-accent-text dark:text-accent" : "shrink-0"}>
-                      {closingLabel(item)}
-                    </span>
-                  </p>
-                </li>
-              ))}
-            </ul>
+        {!hide.includes("opportunities") && (
+          <RailCardShell icon={CalendarDays} title="Opportunity Hub">
+            {openOpportunities.length > 0 ? (
+              <ul className="space-y-3">
+                {openOpportunities.map((item) => (
+                  <li key={item.id} className="min-w-0">
+                    <p className="truncate text-xs font-bold text-slate-900 dark:text-zinc-100">{item.title}</p>
+                    <p className="mt-0.5 flex items-center justify-between gap-2 text-[10px] text-slate-400">
+                      <span className="truncate">{item.organizer}</span>
+                      <span className={item.state === "closing_soon" ? "shrink-0 font-bold text-accent-text dark:text-accent" : "shrink-0"}>
+                        {closingLabel(item)}
+                      </span>
+                    </p>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="text-[11px] leading-relaxed text-slate-500 dark:text-zinc-400">Browse grants, accelerators and programmes for founders.</p>
+            )}
             <Link to="/opportunities" className="mt-3 inline-flex items-center gap-1 text-[11px] font-bold text-indigo-600 dark:text-indigo-400">
               Browse opportunities <ArrowRight size={12} />
             </Link>
           </RailCardShell>
         )}
 
-        {!hide.includes("connection") && (
+        {SURFACE_VISIBILITY.businessWorkspace && !hide.includes("connection") && (
           <RailCardShell icon={Sparkles} title="The PitchNest connection">
             <ol className="space-y-2 text-[11px] leading-relaxed text-slate-500 dark:text-zinc-400">
               {[
@@ -186,11 +189,8 @@ export function EcosystemRail({ hide = [] }: { hide?: RailCard[] }) {
                 </li>
               ))}
             </ol>
-            <Link
-              to={signedIn ? "/workspace/businesses" : "/signup"}
-              className="btn-secondary mt-4 w-full px-3 py-2 text-xs"
-            >
-              {signedIn ? "Open your workspace" : "Create a free account"} <ArrowRight size={13} />
+            <Link to="/workspace/businesses" className="btn-secondary mt-4 w-full px-3 py-2 text-xs">
+              Open your workspace <ArrowRight size={13} />
             </Link>
           </RailCardShell>
         )}

@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { fetchDiscoverFeatures, type EcosystemFeatures } from "../api/discover";
+import { SURFACE_VISIBILITY } from "../config/surfaceVisibility";
 
 /** Server feature flags for ecosystem surfaces; everything off until loaded. */
 export function useEcosystemFeatures(): EcosystemFeatures {
@@ -9,6 +10,7 @@ export function useEcosystemFeatures(): EcosystemFeatures {
     pitchArena: false,
   });
   useEffect(() => {
+    if (!SURFACE_VISIBILITY.community && !SURFACE_VISIBILITY.pitchArena) return;
     let active = true;
     void fetchDiscoverFeatures().then((result) => {
       if (active) setFeatures(result);
@@ -17,5 +19,9 @@ export function useEcosystemFeatures(): EcosystemFeatures {
       active = false;
     };
   }, []);
-  return features;
+  return {
+    ...features,
+    community: SURFACE_VISIBILITY.community && features.community,
+    pitchArena: SURFACE_VISIBILITY.pitchArena && features.pitchArena,
+  };
 }

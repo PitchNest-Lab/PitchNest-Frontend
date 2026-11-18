@@ -277,7 +277,7 @@ export default function ChallengePage() {
       icon: Layers,
       title: "Showcase your business",
       body: "Publish your business profile on PitchNest Discover with as much as you can: the problem, solution, target customers, market, business model, traction and anything else that helps.",
-      action: founder ? <Link to="/workspace/businesses" className="btn-secondary px-4 py-2 text-xs">Open your workspace</Link> : null,
+      action: founder ? <Link to="/workspace/businesses" state={{ surfaceAccess: "opportunity-challenge" }} className="btn-secondary px-4 py-2 text-xs">Open your workspace</Link> : null,
     },
     {
       icon: ImageIcon,

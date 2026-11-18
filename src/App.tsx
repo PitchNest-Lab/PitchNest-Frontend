@@ -5,6 +5,7 @@ import {
   Route,
   Navigate,
   Outlet,
+  useLocation,
 } from "react-router-dom";
 import { Analytics as VercelAnalytics } from "@vercel/analytics/react";
 // The landing page is the most common first screen, so it ships in the main
@@ -25,6 +26,7 @@ import { ErrorBoundary } from "./components/ErrorBoundary";
 import { CookieConsent } from "./components/CookieConsent";
 import { GoogleOneTap } from "./components/GoogleOneTap";
 import { ChallengePromo } from "./components/challenges/ChallengePromo";
+import { SURFACE_VISIBILITY } from "./config/surfaceVisibility";
 
 const AppLayout = lazyPage(() => import("./components/AppLayout"));
 const LoginPage = lazyPage(() => import("./pages/LoginPage"));
@@ -80,6 +82,16 @@ const StaffAnalytics = lazyPage(() => import("./pages/staff/AnalyticsPage"));
 const PitchArena = lazyPage(() => import("./pages/PitchArena"));
 const Home = lazyPage(() => import("./pages/Home"));
 const NotFound = lazyPage(() => import("./pages/NotFound"));
+
+function SurfaceGate({ enabled, children, allowChallengeFlow = false }: {
+  enabled: boolean;
+  children: React.ReactNode;
+  allowChallengeFlow?: boolean;
+}) {
+  const location = useLocation();
+  const challengeFlow = allowChallengeFlow && location.state?.surfaceAccess === "opportunity-challenge";
+  return enabled || challengeFlow ? <>{children}</> : <Navigate to="/home" replace />;
+}
 
 export default function App() {
   return (
@@ -142,25 +154,23 @@ export default function App() {
               <Route
                 path="/discover"
                 element={
-                  <ErrorBoundary>
-                    <Discover />
-                  </ErrorBoundary>
+                  <SurfaceGate enabled={SURFACE_VISIBILITY.discovery}>
+                    <ErrorBoundary><Discover /></ErrorBoundary>
+                  </SurfaceGate>
                 }
               />
               <Route
                 path="/businesses/:slug"
                 element={
-                  <ErrorBoundary>
-                    <PublicBusinessProfile />
-                  </ErrorBoundary>
+                  <ErrorBoundary><PublicBusinessProfile /></ErrorBoundary>
                 }
               />
               <Route
                 path="/founders/:handle"
                 element={
-                  <ErrorBoundary>
-                    <FounderProfile />
-                  </ErrorBoundary>
+                  <SurfaceGate enabled={SURFACE_VISIBILITY.discovery}>
+                    <ErrorBoundary><FounderProfile /></ErrorBoundary>
+                  </SurfaceGate>
                 }
               />
               <Route
@@ -174,25 +184,25 @@ export default function App() {
               <Route
                 path="/community"
                 element={
-                  <ErrorBoundary>
-                    <Community />
-                  </ErrorBoundary>
+                  <SurfaceGate enabled={SURFACE_VISIBILITY.community}>
+                    <ErrorBoundary><Community /></ErrorBoundary>
+                  </SurfaceGate>
                 }
               />
               <Route
                 path="/community/:threadId"
                 element={
-                  <ErrorBoundary>
-                    <CommunityThread />
-                  </ErrorBoundary>
+                  <SurfaceGate enabled={SURFACE_VISIBILITY.community}>
+                    <ErrorBoundary><CommunityThread /></ErrorBoundary>
+                  </SurfaceGate>
                 }
               />
               <Route
                 path="/pitches"
                 element={
-                  <ErrorBoundary>
-                    <PitchArena />
-                  </ErrorBoundary>
+                  <SurfaceGate enabled={SURFACE_VISIBILITY.pitchArena}>
+                    <ErrorBoundary><PitchArena /></ErrorBoundary>
+                  </SurfaceGate>
                 }
               />
 
@@ -236,9 +246,9 @@ export default function App() {
               <Route
                 path="/workspace/businesses"
                 element={
-                  <ErrorBoundary>
-                    <BusinessWorkspace />
-                  </ErrorBoundary>
+                  <SurfaceGate enabled={SURFACE_VISIBILITY.businessWorkspace} allowChallengeFlow>
+                    <ErrorBoundary><BusinessWorkspace /></ErrorBoundary>
+                  </SurfaceGate>
                 }
               />
               {/* Staff-only; the API returns 404 to non-staff and the page says so. */}
