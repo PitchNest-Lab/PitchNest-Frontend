@@ -40,6 +40,10 @@ import {
   LogOut,
   Menu,
   X,
+  Settings,
+  CreditCard,
+  Save,
+  Trash2,
 } from "lucide-react";
 import { LogoMark } from "../../../components/Logo";
 import { ThemeToggle } from "../../../components/ThemeToggle";
@@ -251,11 +255,16 @@ import {
   fetchReplays,
   downloadReport,
   fetchFounderInvites,
-  createFounderInvite,
+  bulkCreateFounderInvites,
   revokeFounderInvite,
+  updateFounderCohort,
+  removeOrganizationFounder,
+  updateOrganizationSettings,
+  deleteOrganizationAccount,
   fetchOrganizationTeam,
   inviteOrganizationTeamMember,
   revokeOrganizationTeamMember,
+  type BulkFounderInviteResult,
   type FounderOrganizationInvite,
   type OrganizationTeamMember,
 } from "../../../api/organization";
@@ -610,6 +619,8 @@ const FilterBar: React.FC<{
 
 type NavKey =
   | "organization"
+  | "plan"
+  | "settings"
   | "overview"
   | "members"
   | "seats"
@@ -660,6 +671,11 @@ const NAV_ITEMS: { key: NavKey; label: string; icon: React.ReactNode }[] = [
     label: "Replays",
     icon: <History className="w-[18px] h-[18px]" />,
   },
+  {
+    key: "settings",
+    label: "Organization settings",
+    icon: <Settings className="w-[18px] h-[18px]" />,
+  },
 ];
 
 /* ------------------------------------------------------------------ */
@@ -667,7 +683,7 @@ const NAV_ITEMS: { key: NavKey; label: string; icon: React.ReactNode }[] = [
 /* ------------------------------------------------------------------ */
 
 const OrganizationDashboard: React.FC = () => {
-  const { logout, authFetch } = useAuth();
+  const { logout, authFetch, user } = useAuth();
   const navigate = useNavigate();
   const [data, setData] = useState<OrgDashboardData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -678,6 +694,10 @@ const OrganizationDashboard: React.FC = () => {
   const [memberFilters, setMemberFilters] = useState<DashboardFilters>(DEFAULT_FILTERS);
   const [founderFilters, setFounderFilters] = useState<DashboardFilters>(DEFAULT_FILTERS);
   const [selectedFounderId, setSelectedFounderId] = useState<string>("");
+
+  const canManageTeam = user?.organizationRole === "owner" || user?.organizationRole === "admin";
+  const canManageMembers = canManageTeam || user?.organizationRole === "facilitator";
+  const isOrganizationOwner = user?.organizationRole === "owner";
 
   useEffect(() => {
     let cancelled = false;
@@ -750,6 +770,47 @@ const OrganizationDashboard: React.FC = () => {
     () => filteredFounders.find((f) => f.memberId === selectedFounderId) ?? filteredFounders[0],
     [filteredFounders, selectedFounderId]
   );
+
+  const saveOrganizationSettings = async (payload: { orgName: string; country: string; websiteUrl: string }) => {
+    const updated = await updateOrganizationSettings(authFetch, payload);
+    setData((previous) => previous ? {
+      ...previous,
+      organization: { ...previous.organization, ...updated },
+      overview: { ...previous.overview, orgName: updated.orgName },
+    } : previous);
+  };
+
+  const removeFounder = async (member: Member) => {
+    if (!window.confirm(`Remove ${member.name} from ${data?.organization.orgName}? Their active membership and replay sharing will be revoked. Their PitchNest account, private pitch history, and previously submitted program forms will remain. The seat will be freed.`)) return;
+    await removeOrganizationFounder(authFetch, member.id);
+    const [members, seatUsage, overview, founders, replays] = await Promise.all([
+      fetchMembers(authFetch), fetchSeatUsage(authFetch), fetchOverview(authFetch), fetchFounders(authFetch), fetchReplays(authFetch),
+    ]);
+    const derived = deriveAnalytics(founders);
+    setData((previous) => previous ? { ...previous, members, seatUsage, overview, founders, replays, ...derived } : previous);
+    setSelectedFounderId((current) => founders.some((founder) => founder.memberId === current)
+      ? current
+      : founders[0]?.memberId ?? "");
+  };
+
+  const changeFounderCohort = async (member: Member, value: string) => {
+    const cohort = value.trim() || null;
+    await updateFounderCohort(authFetch, member.id, cohort);
+    setData((previous) => {
+      if (!previous) return previous;
+      const cohortLabel = cohort || "Unassigned";
+      const members = previous.members.map((item) => item.id === member.id ? { ...item, cohort: cohortLabel } : item);
+      const founders = previous.founders.map((item) => item.memberId === member.id ? { ...item, cohort: cohortLabel } : item);
+      const derived = deriveAnalytics(founders);
+      return { ...previous, members, founders, ...derived };
+    });
+  };
+
+  const deleteOrganization = async () => {
+    await deleteOrganizationAccount(authFetch);
+    logout();
+    navigate("/organization-login", { replace: true });
+  };
 
   if (loading) return <div className="h-screen grid place-items-center text-slate-400">Loading dashboard…</div>;
   if (error || !data) return <div className="h-screen grid place-items-center text-red-500">Couldn't load dashboard: {error}</div>;
@@ -891,11 +952,13 @@ const OrganizationDashboard: React.FC = () => {
                 <span className="absolute top-1.5 right-1.5 w-1.5 h-1.5 rounded-full bg-indigo-500" />
               </button>
               <button
-                onClick={() => setActive("organization")}
-                className="hidden sm:inline-flex items-center gap-2 px-4 py-2 rounded-xl gradient-brand text-white text-sm font-semibold shadow-xs hover:opacity-95 transition-opacity"
+                onClick={() => setActive("plan")}
+                aria-label="View organization plan"
+                className="inline-flex items-center gap-2 px-3 sm:px-4 py-2 rounded-xl gradient-brand text-white text-xs sm:text-sm font-semibold shadow-xs hover:opacity-95 transition-opacity"
               >
                 <ShieldCheck className="w-4 h-4" />
-                View Plan
+                <span className="sm:hidden">Plan</span>
+                <span className="hidden sm:inline">View Plan</span>
               </button>
             </div>
           </header>
@@ -922,6 +985,9 @@ const OrganizationDashboard: React.FC = () => {
                   filters={memberFilters}
                   onFiltersChange={setMemberFilters}
                   cohorts={data.filters.cohorts}
+                  canManage={canManageMembers}
+                  onCohortChange={changeFounderCohort}
+                  onRemove={removeFounder}
                 />
               )}
               {active === "seats" && (
@@ -954,6 +1020,16 @@ const OrganizationDashboard: React.FC = () => {
               )}
               {active === "forms" && <ProgramFormsPanel />}
               {active === "replays" && <ReplaysTab replays={data.replays} />}
+              {active === "plan" && <OrganizationPlanTab org={data.organization} onBack={() => setActive("overview")} />}
+              {active === "settings" && (
+                <OrganizationSettingsTab
+                  org={data.organization}
+                  isOwner={isOrganizationOwner}
+                  canManageTeam={canManageTeam}
+                  onSave={saveOrganizationSettings}
+                  onDelete={deleteOrganization}
+                />
+              )}
             </div>
           </main>
         </div>
@@ -1111,9 +1187,106 @@ const OrganizationTab: React.FC<{
           </div>
         </GlassCard>
       </div>
-      <OrganizationTeamManagement />
     </div>
   );
+};
+
+const OrganizationPlanTab: React.FC<{ org: OrganizationDetails; onBack: () => void }> = ({ org, onBack }) => (
+  <div>
+    <SectionHeading title="Organization plan" action={<button type="button" onClick={onBack} className="inline-flex items-center gap-2 rounded-lg border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-600 dark:border-white/10 dark:text-slate-200"><ArrowLeft size={14} /> Dashboard</button>} />
+    <div className="grid gap-5 lg:grid-cols-3">
+      <GlassCard className="p-6 lg:col-span-2">
+        <div className="flex items-center gap-3"><div className="grid h-11 w-11 place-items-center rounded-xl bg-indigo-50 text-indigo-600 dark:bg-indigo-950/40 dark:text-indigo-300"><CreditCard size={20} /></div><div><p className="text-xs font-semibold uppercase tracking-wider text-slate-500">Current plan</p><h2 className="text-xl font-bold capitalize text-slate-900 dark:text-white">{org.plan || "Organization"}</h2></div></div>
+        <div className="mt-6 grid gap-3 sm:grid-cols-2">
+          <DetailRow label="Seats in use" value={`${org.enrolled} of ${org.capacity}`} />
+          <DetailRow label="Valid through" value={formatDate(org.validity)} />
+          <DetailRow label="Trial status" value={org.trialStatus} />
+          <DetailRow label="Organization code" value={`#${org.orgCode}`} />
+        </div>
+      </GlassCard>
+      <GlassCard className="p-6">
+        <h2 className="font-semibold text-slate-900 dark:text-white">Need more seats or a plan change?</h2>
+        <p className="mt-2 text-sm leading-relaxed text-slate-500 dark:text-slate-400">Contact PitchNest with your organization name and the change you need. We’ll follow up about plan options and seat capacity.</p>
+        <a href={`mailto:pitchnestapp@gmail.com?subject=${encodeURIComponent(`Plan change for ${org.orgName}`)}&body=${encodeURIComponent(`Organization: ${org.orgName}\nOrganization code: ${org.orgCode}\n\nRequested change: `)}`} className="mt-5 inline-flex items-center gap-2 rounded-xl bg-indigo-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-indigo-700"><Mail size={15} /> Contact PitchNest</a>
+      </GlassCard>
+    </div>
+  </div>
+);
+
+const OrganizationSettingsTab: React.FC<{
+  org: OrganizationDetails;
+  isOwner: boolean;
+  canManageTeam: boolean;
+  onSave: (payload: { orgName: string; country: string; websiteUrl: string }) => Promise<void>;
+  onDelete: () => Promise<void>;
+}> = ({ org, isOwner, canManageTeam, onSave, onDelete }) => {
+  const [orgName, setOrgName] = useState(org.orgName);
+  const [country, setCountry] = useState(org.country || "");
+  const [websiteUrl, setWebsiteUrl] = useState(org.websiteUrl || "");
+  const [saveBusy, setSaveBusy] = useState(false);
+  const [deleteBusy, setDeleteBusy] = useState(false);
+  const [message, setMessage] = useState("");
+  const [error, setError] = useState("");
+  const [deleteName, setDeleteName] = useState("");
+
+  useEffect(() => {
+    setOrgName(org.orgName);
+    setCountry(org.country || "");
+    setWebsiteUrl(org.websiteUrl || "");
+  }, [org.orgName, org.country, org.websiteUrl]);
+
+  const submit = async (event: React.FormEvent) => {
+    event.preventDefault();
+    setSaveBusy(true);
+    setError("");
+    setMessage("");
+    try {
+      await onSave({ orgName, country, websiteUrl });
+      setMessage("Organization settings saved.");
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "Could not save organization settings.");
+    } finally {
+      setSaveBusy(false);
+    }
+  };
+
+  const remove = async () => {
+    setDeleteBusy(true);
+    setError("");
+    try {
+      await onDelete();
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "Could not delete this organization.");
+      setDeleteBusy(false);
+    }
+  };
+
+  return <div>
+    <SectionHeading title="Organization settings" />
+    <div className="space-y-5">
+      <GlassCard className="p-6">
+        <h2 className="font-semibold text-slate-900 dark:text-white">Organization profile</h2>
+        <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">Keep your organization name and public contact details up to date.</p>
+        <form onSubmit={submit} className="mt-5 grid gap-4 sm:grid-cols-2">
+          <label className="text-xs font-semibold text-slate-600 dark:text-slate-300">Organization name<input value={orgName} onChange={(event) => setOrgName(event.target.value)} minLength={2} maxLength={120} required disabled={!isOwner} className="mt-1.5 w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm font-normal text-slate-900 disabled:bg-slate-50 dark:border-white/10 dark:bg-zinc-900 dark:text-white dark:disabled:bg-white/5" /></label>
+          <label className="text-xs font-semibold text-slate-600 dark:text-slate-300">Country<input value={country} onChange={(event) => setCountry(event.target.value)} maxLength={100} disabled={!isOwner} placeholder="Country or region" className="mt-1.5 w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm font-normal text-slate-900 disabled:bg-slate-50 dark:border-white/10 dark:bg-zinc-900 dark:text-white dark:disabled:bg-white/5" /></label>
+          <label className="text-xs font-semibold text-slate-600 dark:text-slate-300 sm:col-span-2">Website<input type="url" value={websiteUrl} onChange={(event) => setWebsiteUrl(event.target.value)} maxLength={2048} disabled={!isOwner} placeholder="https://example.org" className="mt-1.5 w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm font-normal text-slate-900 disabled:bg-slate-50 dark:border-white/10 dark:bg-zinc-900 dark:text-white dark:disabled:bg-white/5" /></label>
+          <div className="sm:col-span-2 grid gap-3 sm:grid-cols-2"><DetailRow label="Organization code" value={`#${org.orgCode}`} /><DetailRow label="Owner account email" value={org.email} /></div>
+          {!isOwner && <p className="text-xs text-slate-500 sm:col-span-2">Only the organization owner can change profile details.</p>}
+          {message && <p role="status" className="text-sm text-emerald-700 dark:text-emerald-300 sm:col-span-2">{message}</p>}
+          {error && <p role="alert" className="text-sm text-rose-600 sm:col-span-2">{error}</p>}
+          {isOwner && <div className="sm:col-span-2"><button type="submit" disabled={saveBusy} className="inline-flex items-center gap-2 rounded-xl bg-indigo-600 px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-60"><Save size={15} />{saveBusy ? "Saving…" : "Save settings"}</button></div>}
+        </form>
+      </GlassCard>
+      {canManageTeam && <OrganizationTeamManagement />}
+      {isOwner && <GlassCard className="border border-rose-200 p-6 dark:border-rose-900/60">
+        <h2 className="font-semibold text-rose-700 dark:text-rose-300">Delete organization</h2>
+        <p className="mt-1 max-w-3xl text-sm leading-relaxed text-slate-600 dark:text-slate-300">This permanently removes the organization, its staff access, invitations, forms, submissions, and reports. Founder accounts and their private pitch history remain; shared program sessions become private. This cannot be undone.</p>
+        <label className="mt-4 block max-w-md text-xs font-semibold text-slate-600 dark:text-slate-300">Type <span className="text-rose-700 dark:text-rose-300">{org.orgName}</span> to confirm<input value={deleteName} onChange={(event) => setDeleteName(event.target.value)} className="mt-1.5 w-full rounded-xl border border-rose-200 bg-white px-3 py-2.5 text-sm font-normal text-slate-900 dark:border-rose-900/60 dark:bg-zinc-900 dark:text-white" /></label>
+        <button type="button" disabled={deleteBusy || deleteName !== org.orgName} onClick={() => void remove()} className="mt-3 inline-flex items-center gap-2 rounded-xl bg-rose-600 px-4 py-2.5 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50"><Trash2 size={15} />{deleteBusy ? "Deleting…" : "Delete organization"}</button>
+      </GlassCard>}
+    </div>
+  </div>;
 };
 
 const OrganizationTeamManagement: React.FC = () => {
@@ -1738,9 +1911,10 @@ const StatCard: React.FC<{
 
 const FounderInvites: React.FC = () => {
   const { authFetch } = useAuth();
-  const [email, setEmail] = useState("");
+  const [emailsText, setEmailsText] = useState("");
+  const [cohort, setCohort] = useState("");
   const [invites, setInvites] = useState<FounderOrganizationInvite[]>([]);
-  const [inviteUrl, setInviteUrl] = useState("");
+  const [inviteResults, setInviteResults] = useState<BulkFounderInviteResult[]>([]);
   const [notice, setNotice] = useState("");
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
@@ -1760,11 +1934,18 @@ const FounderInvites: React.FC = () => {
     setError("");
     setNotice("");
     try {
-      const result = await createFounderInvite(authFetch, email);
-      setInvites((current) => [result.invite, ...current.filter((item) => item.id !== result.invite.id)]);
-      setInviteUrl(result.inviteUrl);
-      setNotice(result.emailSent ? `Invitation sent to ${result.invite.email}.` : "Email delivery is not configured. Copy and send the private invitation link yourself.");
-      setEmail("");
+      const emailList = emailsText.split(/[\s,;]+/).map((item) => item.trim()).filter(Boolean);
+      if (!emailList.length) throw new Error("Paste at least one founder email address.");
+      if (emailList.length > 100) throw new Error("Invite up to 100 founders per batch.");
+      const result = await bulkCreateFounderInvites(authFetch, emailList, cohort.trim() || undefined);
+      setInviteResults(result.results);
+      await refresh();
+      const created = result.results.filter((item) => item.status === "invited");
+      const notSent = created.filter((item) => !item.emailSent).length;
+      setNotice(created.length
+        ? `${created.length} invitation${created.length === 1 ? "" : "s"} created.${notSent ? ` ${notSent} email${notSent === 1 ? " was" : "s were"} not sent; copy the link${notSent === 1 ? "" : "s"} below.` : " Invitation emails were sent."}`
+        : "No invitations were created. Check the results below.");
+      setEmailsText("");
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Could not create invitation.");
     } finally {
@@ -1778,7 +1959,6 @@ const FounderInvites: React.FC = () => {
     try {
       await revokeFounderInvite(authFetch, invite.id);
       await refresh();
-      if (inviteUrl) setInviteUrl("");
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Could not revoke invitation.");
     } finally {
@@ -1786,10 +1966,15 @@ const FounderInvites: React.FC = () => {
     }
   };
 
+  const inviteLinks = inviteResults
+    .filter((item) => item.status === "invited" && item.inviteUrl)
+    .map((item) => `${item.email}\t${item.inviteUrl}`)
+    .join("\n");
+
   const copy = async () => {
     try {
-      await navigator.clipboard.writeText(inviteUrl);
-      setNotice("Invitation link copied.");
+      await navigator.clipboard.writeText(inviteLinks);
+      setNotice("Invitation links copied.");
     } catch {
       setError("Clipboard access failed. Select and copy the link manually.");
     }
@@ -1800,21 +1985,28 @@ const FounderInvites: React.FC = () => {
       <div className="mb-4 flex items-start gap-3">
         <div className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-indigo-50 text-indigo-600 dark:bg-indigo-500/10 dark:text-indigo-300"><UserPlus size={18} /></div>
         <div>
-          <h3 className="font-semibold text-slate-900 dark:text-white">Invite a founder</h3>
-          <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">Invitations are email-bound, expire after seven days, and can only be used once.</p>
+          <h3 className="font-semibold text-slate-900 dark:text-white">Invite founders</h3>
+          <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">Paste up to 100 email addresses, one per line or separated by commas. Each private invitation expires after seven days and can only be used once.</p>
         </div>
       </div>
-      <form onSubmit={create} className="flex flex-col gap-2 sm:flex-row">
-        <input type="email" required value={email} onChange={(event) => setEmail(event.target.value)} placeholder="founder@example.com" autoComplete="email" className="min-w-0 flex-1 rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm dark:border-white/10 dark:bg-zinc-900 dark:text-white" />
-        <button disabled={busy} className="inline-flex items-center justify-center gap-2 rounded-xl bg-indigo-600 px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-60"><Mail size={15} /> Send invite</button>
+      <form onSubmit={create} className="space-y-2">
+        <textarea required rows={4} value={emailsText} onChange={(event) => setEmailsText(event.target.value)} placeholder="founder1@example.com&#10;founder2@example.com" aria-label="Founder email addresses" className="w-full resize-y rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm dark:border-white/10 dark:bg-zinc-900 dark:text-white" />
+        <div className="flex flex-col gap-2 sm:flex-row">
+          <input value={cohort} onChange={(event) => setCohort(event.target.value)} maxLength={80} placeholder="Cohort for these founders (optional)" aria-label="Assign cohort to invited founders" className="min-w-0 flex-1 rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm dark:border-white/10 dark:bg-zinc-900 dark:text-white" />
+          <button disabled={busy} className="inline-flex items-center justify-center gap-2 rounded-xl bg-indigo-600 px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-60"><Mail size={15} /> Invite founders</button>
+        </div>
       </form>
       {notice && <p role="status" className="mt-3 text-sm text-emerald-700 dark:text-emerald-300">{notice}</p>}
       {error && <p role="alert" className="mt-3 text-sm text-rose-600">{error}</p>}
-      {inviteUrl && <div className="mt-3 flex flex-col gap-2 sm:flex-row"><input readOnly value={inviteUrl} aria-label="Private invitation link" className="min-w-0 flex-1 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs dark:border-white/10 dark:bg-zinc-950 dark:text-slate-200" /><button type="button" onClick={copy} className="rounded-lg border border-slate-200 px-3 py-2 text-xs font-semibold dark:border-white/10 dark:text-white">Copy link</button></div>}
+      {inviteResults.some((item) => item.status !== "invited") && <div className="mt-3 space-y-1 rounded-xl bg-amber-50 p-3 text-xs text-amber-900 dark:bg-amber-950/30 dark:text-amber-200">
+        {inviteResults.filter((item) => item.status !== "invited").map((item, index) => <p key={`${item.email}-${index}`}><strong>{item.email || "Invalid address"}</strong>: {item.message}</p>)}
+      </div>}
+      {inviteLinks && <div className="mt-3 space-y-2"><label htmlFor="bulk-invite-links" className="text-xs font-semibold text-slate-600 dark:text-slate-300">Invite links (email and private link)</label><textarea id="bulk-invite-links" readOnly rows={Math.min(6, inviteResults.filter((item) => item.status === "invited").length)} value={inviteLinks} className="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs dark:border-white/10 dark:bg-zinc-950 dark:text-slate-200" /><button type="button" onClick={copy} className="rounded-lg border border-slate-200 px-3 py-2 text-xs font-semibold dark:border-white/10 dark:text-white">Copy all links</button></div>}
       {invites.length > 0 && <div className="mt-4 space-y-2 border-t border-slate-200 pt-4 dark:border-white/10">
         <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Recent invitations</p>
         {invites.slice(0, 5).map((invite) => <div key={invite.id} className="flex flex-wrap items-center gap-2 text-xs">
           <span className="min-w-0 flex-1 truncate text-slate-700 dark:text-slate-200">{invite.email}</span>
+          {invite.cohort && <span className="text-slate-500">{invite.cohort}</span>}
           <span className="capitalize text-slate-500">{invite.status}</span>
           <span className="text-slate-400">expires {formatDate(invite.expiresAt)}</span>
           {invite.status === "pending" && <button type="button" disabled={busy} onClick={() => void revoke(invite)} className="font-semibold text-rose-600 disabled:opacity-50">Revoke</button>}
@@ -1831,6 +2023,9 @@ const MembersTab: React.FC<{
   filters: DashboardFilters;
   onFiltersChange: (f: DashboardFilters) => void;
   cohorts: string[];
+  canManage: boolean;
+  onCohortChange: (member: Member, cohort: string) => Promise<void>;
+  onRemove: (member: Member) => Promise<void>;
 }> = ({
   members,
   query,
@@ -1838,7 +2033,25 @@ const MembersTab: React.FC<{
   filters,
   onFiltersChange,
   cohorts,
-}) => (
+  canManage,
+  onCohortChange,
+  onRemove,
+}) => {
+  const [removingId, setRemovingId] = useState<string | null>(null);
+  const [removeError, setRemoveError] = useState("");
+  const remove = async (member: Member) => {
+    setRemovingId(member.id);
+    setRemoveError("");
+    try {
+      await onRemove(member);
+    } catch (cause) {
+      setRemoveError(cause instanceof Error ? cause.message : "Could not remove this founder.");
+    } finally {
+      setRemovingId(null);
+    }
+  };
+
+  return (
   <div>
     <SectionHeading
       title="Member list"
@@ -1856,6 +2069,8 @@ const MembersTab: React.FC<{
     />
 
     <FounderInvites />
+
+    {removeError && <p role="alert" className="mb-4 rounded-xl bg-rose-50 p-3 text-sm text-rose-700 dark:bg-rose-950/30 dark:text-rose-300">{removeError}</p>}
 
     <FilterBar
       filters={filters}
@@ -1877,6 +2092,7 @@ const MembersTab: React.FC<{
               <th className="px-5 py-3 font-semibold">Pitches</th>
               <th className="px-5 py-3 font-semibold">Avg score</th>
               <th className="px-5 py-3 font-semibold">Last active</th>
+              {canManage && <th className="px-5 py-3 font-semibold">Actions</th>}
             </tr>
           </thead>
           <tbody>
@@ -1902,7 +2118,7 @@ const MembersTab: React.FC<{
                   {m.role}
                 </td>
                 <td className="px-5 py-3.5 text-slate-600 dark:text-slate-300">
-                  {m.cohort}
+                  {canManage ? <CohortEditor member={m} onSave={onCohortChange} /> : m.cohort}
                 </td>
                 <td className="px-5 py-3.5">
                   <MemberStatusPill status={m.status} />
@@ -1925,12 +2141,17 @@ const MembersTab: React.FC<{
                 <td className="px-5 py-3.5 text-slate-500 dark:text-slate-400">
                   {formatDate(m.lastActiveAt)}
                 </td>
+                {canManage && <td className="px-5 py-3.5">
+                  <button type="button" disabled={removingId === m.id || m.status !== "active"} onClick={() => void remove(m)} className="inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-semibold text-rose-600 hover:bg-rose-50 disabled:cursor-not-allowed disabled:opacity-50 dark:text-rose-300 dark:hover:bg-rose-950/30">
+                    <Trash2 size={13} /> {removingId === m.id ? "Removing…" : "Remove"}
+                  </button>
+                </td>}
               </tr>
             ))}
             {members.length === 0 && (
               <tr>
                 <td
-                  colSpan={8}
+                  colSpan={canManage ? 9 : 8}
                   className="px-5 py-10 text-center text-slate-400 text-sm"
                 >
                   No members match your search or filters.
@@ -1942,7 +2163,38 @@ const MembersTab: React.FC<{
       </div>
     </GlassCard>
   </div>
-);
+  );
+};
+
+const CohortEditor: React.FC<{
+  member: Member;
+  onSave: (member: Member, cohort: string) => Promise<void>;
+}> = ({ member, onSave }) => {
+  const [value, setValue] = useState(member.cohort === "Unassigned" ? "" : member.cohort);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
+
+  useEffect(() => setValue(member.cohort === "Unassigned" ? "" : member.cohort), [member.cohort]);
+
+  const submit = async (event: React.FormEvent) => {
+    event.preventDefault();
+    setSaving(true);
+    setError("");
+    try {
+      await onSave(member, value);
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "Could not save cohort.");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return <form onSubmit={submit} className="flex min-w-[180px] items-center gap-1.5">
+    <input value={value} onChange={(event) => setValue(event.target.value)} maxLength={80} aria-label={`Cohort for ${member.name}`} placeholder="Unassigned" className="w-28 rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-xs text-slate-700 dark:border-white/10 dark:bg-zinc-900 dark:text-white" />
+    <button type="submit" disabled={saving || value.trim() === (member.cohort === "Unassigned" ? "" : member.cohort)} title="Save cohort" className="rounded-lg border border-slate-200 p-1.5 text-slate-500 hover:text-indigo-600 disabled:opacity-40 dark:border-white/10 dark:text-slate-300"><Save size={13} /></button>
+    {error && <span role="alert" title={error} className="text-xs text-rose-600">!</span>}
+  </form>;
+};
 
 /* ------------------------------------------------------------------ */
 /*  TAB: SEAT USAGE                                                     */
@@ -2445,6 +2697,7 @@ const ReplaysTab: React.FC<{ replays: Replay[] }> = ({ replays: initialReplays }
   return (
     <div>
       <SectionHeading title="Shared pitch recordings" />
+      <p className="-mt-2 mb-4 max-w-3xl text-sm leading-relaxed text-slate-500 dark:text-slate-400">Founders assign a session to your program in Pre-Pitch Configuration. Its score is shared with the program; the recording appears here only if the founder also opts in to share it.</p>
       {error && <p role="alert" className="mb-4 text-sm text-rose-600">{error}</p>}
       {replays.length === 0 ? (
         <GlassCard className="p-10 text-center text-sm text-slate-500 dark:text-slate-400">

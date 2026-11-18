@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
-import { Building2, ClipboardList, FileUp, Loader2, Send, ShieldCheck } from "lucide-react";
+import { ArrowRight, Building2, ClipboardList, FileUp, Loader2, Send, ShieldCheck } from "lucide-react";
+import { Link } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
 import {
   createProgramSubmissionDraft,
@@ -101,7 +102,8 @@ export default function MyPrograms() {
     <div className="mx-auto max-w-5xl space-y-6 px-4 py-8 lg:px-0">
       <header className="rounded-3xl border border-slate-200 bg-white p-6 dark:border-zinc-800 dark:bg-zinc-900 sm:p-8">
         <div className="flex items-start gap-4"><div className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl bg-indigo-50 text-indigo-600 dark:bg-indigo-950/40 dark:text-indigo-300"><Building2 size={22} /></div><div><p className="text-xs font-bold uppercase tracking-widest text-indigo-600">Founder programs</p><h1 className="mt-1 text-2xl font-extrabold text-slate-900 dark:text-white">My programs</h1><p className="mt-2 max-w-3xl text-sm leading-relaxed text-slate-500">Join a program through its organization invitation, then submit that program’s forms here. Each organization receives only the submissions and pitch sessions you associate with that program.</p></div></div>
-        <div className="mt-5 flex items-start gap-2 rounded-2xl bg-slate-50 p-4 text-xs leading-relaxed text-slate-600 dark:bg-zinc-800 dark:text-zinc-300"><ShieldCheck size={15} className="mt-0.5 shrink-0 text-emerald-600" />Organizations can see their own program submissions and scores from pitch sessions you assign to that program. Transcripts are not shared; recordings stay private unless you opt in for a specific session. One organization cannot see another organization’s program data.</div>
+        <div className="mt-5 flex items-start gap-2 rounded-2xl bg-slate-50 p-4 text-xs leading-relaxed text-slate-600 dark:bg-zinc-800 dark:text-zinc-300"><ShieldCheck size={15} className="mt-0.5 shrink-0 text-emerald-600" />Use this page to submit forms and documents your organization requests. Organizations can also see scores from sessions you assign to that program; transcripts stay private. A recording is shared only when you opt in for that session in Pre-Pitch Configuration.</div>
+        <Link to={program ? `/setup?program=${program.organizationId}` : "/setup"} className="mt-4 inline-flex items-center gap-2 rounded-xl bg-indigo-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-indigo-700">Set up a program pitch <ArrowRight size={15} /></Link>
       </header>
 
       {error && <p role="alert" className="rounded-xl bg-rose-50 p-3 text-sm text-rose-700 dark:bg-rose-950/30 dark:text-rose-300">{error}</p>}

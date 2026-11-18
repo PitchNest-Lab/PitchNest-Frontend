@@ -40,11 +40,21 @@ export interface OrganizationReplay {
 export interface FounderOrganizationInvite {
   id: string;
   email: string;
+  cohort: string | null;
   expiresAt: string;
   acceptedAt: string | null;
   revokedAt: string | null;
   createdAt: string;
   status: "pending" | "accepted" | "revoked" | "expired";
+}
+
+export interface BulkFounderInviteResult {
+  email: string;
+  status: "invited" | "rejected" | "duplicate";
+  message?: string;
+  invite?: FounderOrganizationInvite;
+  inviteUrl?: string;
+  emailSent?: boolean;
 }
 
 export interface OrganizationTeamMember {
@@ -154,10 +164,16 @@ export const fetchReplays = (authFetch: AuthFetch) =>
   get<{ replays: OrganizationReplay[] }>(authFetch, "/replays").then((data) => data.replays);
 export const fetchFounderInvites = (authFetch: AuthFetch) =>
   get<{ invites: FounderOrganizationInvite[] }>(authFetch, "/invites").then((data) => data.invites);
-export const createFounderInvite = (authFetch: AuthFetch, email: string) =>
-  post<{ invite: FounderOrganizationInvite; inviteUrl: string; emailSent: boolean }>(authFetch, "/invites", { email });
+export const createFounderInvite = (authFetch: AuthFetch, email: string, cohort?: string) =>
+  post<{ invite: FounderOrganizationInvite; inviteUrl: string; emailSent: boolean }>(authFetch, "/invites", { email, cohort });
+export const bulkCreateFounderInvites = (authFetch: AuthFetch, emails: string[], cohort?: string) =>
+  post<{ results: BulkFounderInviteResult[]; created: number }>(authFetch, "/invites/bulk", { emails, cohort });
 export const revokeFounderInvite = (authFetch: AuthFetch, id: string) =>
   remove(authFetch, `/invites/${encodeURIComponent(id)}`);
+export const updateFounderCohort = (authFetch: AuthFetch, userId: string, cohort: string | null) =>
+  patch<{ cohort: string | null }>(authFetch, `/members/${encodeURIComponent(userId)}/cohort`, { cohort });
+export const removeOrganizationFounder = (authFetch: AuthFetch, userId: string) =>
+  remove(authFetch, `/members/${encodeURIComponent(userId)}`);
 export const fetchOrganizationTeam = (authFetch: AuthFetch) =>
   get<{ members: OrganizationTeamMember[] }>(authFetch, "/team").then((data) => data.members);
 export const inviteOrganizationTeamMember = (
@@ -177,6 +193,14 @@ async function patch<T>(authFetch: AuthFetch, path: string, body: Record<string,
   if (!res.ok) throw new Error(json?.error || `Request to ${path} failed (${res.status})`);
   return json.data as T;
 }
+
+export const updateOrganizationSettings = (
+  authFetch: AuthFetch,
+  payload: { orgName: string; country: string; websiteUrl: string },
+) => patch<Pick<OrganizationDetails, "id" | "orgCode" | "orgName" | "country" | "websiteUrl">>(authFetch, "/settings", payload);
+
+export const deleteOrganizationAccount = (authFetch: AuthFetch) =>
+  remove(authFetch, "/settings");
 
 export const fetchOrganizationProgramForms = (authFetch: AuthFetch) =>
   get<{ forms: OrganizationProgramForm[] }>(authFetch, "/program-forms").then((data) => data.forms);
